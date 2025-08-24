@@ -1,26 +1,30 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState, useEffect, useRef } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Camera, X, Scan, Zap } from "lucide-react"
+import type React from "react";
+import { useState, useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Camera, X, Scan, Zap } from "lucide-react";
 
 interface BarcodeScannerProps {
-  onScan: (barcode: string) => void
-  isActive: boolean
-  onClose: () => void
+  onScan: (barcode: string) => void;
+  isActive: boolean;
+  onClose: () => void;
 }
 
-export function BarcodeScanner({ onScan, isActive, onClose }: BarcodeScannerProps) {
-  const [manualInput, setManualInput] = useState("")
-  const [isCameraActive, setIsCameraActive] = useState(false)
-  const [isScanning, setIsScanning] = useState(false)
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+export function BarcodeScanner({
+  onScan,
+  isActive,
+  onClose,
+}: BarcodeScannerProps) {
+  const [manualInput, setManualInput] = useState("");
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const startCamera = async () => {
     try {
@@ -30,68 +34,70 @@ export function BarcodeScanner({ onScan, isActive, onClose }: BarcodeScannerProp
           width: { ideal: 1280 },
           height: { ideal: 720 },
         },
-      })
+      });
 
       if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        streamRef.current = stream
-        setIsCameraActive(true)
+        videoRef.current.srcObject = stream;
+        streamRef.current = stream;
+        setIsCameraActive(true);
       }
     } catch (error) {
-      console.error("Erro ao acessar câmera:", error)
-      alert("Não foi possível acessar a câmera. Verifique as permissões ou use a entrada manual.")
+      console.error("Erro ao acessar câmera:", error);
+      alert(
+        "Não foi possível acessar a câmera. Verifique as permissões ou use a entrada manual."
+      );
     }
-  }
+  };
 
   const stopCamera = () => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop())
-      streamRef.current = null
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     }
-    setIsCameraActive(false)
-  }
+    setIsCameraActive(false);
+  };
 
   const handleManualSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (manualInput.trim()) {
-      setIsScanning(true)
+      setIsScanning(true);
       setTimeout(() => {
-        onScan(manualInput.trim())
-        setManualInput("")
-        setIsScanning(false)
-      }, 300)
+        onScan(manualInput.trim());
+        setManualInput("");
+        setIsScanning(false);
+      }, 300);
     }
-  }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    setManualInput(value)
+    const value = e.target.value;
+    setManualInput(value);
 
     // Auto-submit quando o código tiver 13 dígitos (EAN-13)
     if (value.length === 13 && /^\d+$/.test(value)) {
-      setIsScanning(true)
+      setIsScanning(true);
       setTimeout(() => {
-        onScan(value)
-        setManualInput("")
-        setIsScanning(false)
-      }, 300)
+        onScan(value);
+        setManualInput("");
+        setIsScanning(false);
+      }, 300);
     }
-  }
+  };
 
   useEffect(() => {
     if (isActive && inputRef.current) {
       // Focar no input quando o scanner abrir
       setTimeout(() => {
-        inputRef.current?.focus()
-      }, 100)
+        inputRef.current?.focus();
+      }, 100);
     }
 
     return () => {
-      stopCamera()
-    }
-  }, [isActive])
+      stopCamera();
+    };
+  }, [isActive]);
 
-  if (!isActive) return null
+  if (!isActive) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -102,7 +108,9 @@ export function BarcodeScanner({ onScan, isActive, onClose }: BarcodeScannerProp
               <Scan className="h-5 w-5 mr-2" />
               Scanner de Código
             </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">Digite ou escaneie o código de barras</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Digite ou escaneie o código de barras
+            </p>
           </div>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-4 w-4" />
@@ -129,7 +137,11 @@ export function BarcodeScanner({ onScan, isActive, onClose }: BarcodeScannerProp
                 </div>
               )}
             </div>
-            <Button type="submit" className="w-full mobile-button" disabled={!manualInput.trim() || isScanning}>
+            <Button
+              type="submit"
+              className="w-full mobile-button"
+              disabled={!manualInput.trim() || isScanning}
+            >
               {isScanning ? (
                 <>
                   <Zap className="h-4 w-4 mr-2 animate-pulse" />
@@ -149,13 +161,19 @@ export function BarcodeScanner({ onScan, isActive, onClose }: BarcodeScannerProp
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">ou</span>
+              <span className="bg-background px-2 text-muted-foreground">
+                ou
+              </span>
             </div>
           </div>
 
           {/* Scanner de Câmera */}
           {!isCameraActive ? (
-            <Button onClick={startCamera} variant="outline" className="w-full mobile-button bg-transparent">
+            <Button
+              onClick={startCamera}
+              variant="outline"
+              className="w-full mobile-button bg-transparent"
+            >
               <Camera className="h-4 w-4 mr-2" />
               Usar Câmera
             </Button>
@@ -175,7 +193,11 @@ export function BarcodeScanner({ onScan, isActive, onClose }: BarcodeScannerProp
                   </div>
                 </div>
               </div>
-              <Button onClick={stopCamera} variant="outline" className="w-full mobile-button bg-transparent">
+              <Button
+                onClick={stopCamera}
+                variant="outline"
+                className="w-full mobile-button bg-transparent"
+              >
                 Parar Câmera
               </Button>
               <div className="text-center">
@@ -189,7 +211,8 @@ export function BarcodeScanner({ onScan, isActive, onClose }: BarcodeScannerProp
           {/* Dicas de uso */}
           <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
             <p>
-              💡 <strong>Dicas:</strong>
+              <i className="fab lightbulb"></i>
+              <strong>Dicas:</strong>
             </p>
             <p>• Códigos EAN-13 são processados automaticamente</p>
             <p>• Use Enter para confirmar códigos manuais</p>
@@ -198,5 +221,5 @@ export function BarcodeScanner({ onScan, isActive, onClose }: BarcodeScannerProp
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

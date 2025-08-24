@@ -1,42 +1,61 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { Badge } from "@/components/ui/badge"
-import { ThemeToggleButton } from "@/components/theme-toggle-button"
-import { Package, Menu, Home, Settings, Info, Mail, LogIn, Crown, Trash2 } from "lucide-react"
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
+import { ThemeToggleButton } from "@/components/theme-toggle-button";
+import {
+  Package,
+  Menu,
+  Home,
+  Settings,
+  Info,
+  Mail,
+  LogIn,
+  Crown,
+  Trash2,
+} from "lucide-react";
 
 interface NavigationProps {
-  showClearButton?: boolean
-  onClearData?: () => void
+  showClearButton?: boolean;
+  onClearData?: () => void;
 }
 
-export function Navigation({ showClearButton = false, onClearData }: NavigationProps) {
-  const [isScrolled, setIsScrolled] = useState(false)
-  const [isOpen, setIsOpen] = useState(false)
-  const pathname = usePathname()
+export function Navigation({
+  showClearButton = false,
+  onClearData,
+}: NavigationProps) {
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10)
-    }
+      setIsScrolled(window.scrollY > 10);
+    };
 
-    window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [])
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const navItems = [
     {
-      href: "/landing",
+      href: "/",
       label: "Início",
       icon: Home,
       description: "Página inicial do Stock",
     },
     {
-      href: "/",
+      href: "/system",
       label: "Sistema",
       icon: Settings,
       description: "Ferramenta de inventário",
@@ -60,19 +79,19 @@ export function Navigation({ showClearButton = false, onClearData }: NavigationP
       icon: LogIn,
       description: "Acesse sua conta",
     },
-  ]
+  ];
 
   const isActive = (href: string) => {
-    if (href === "/landing" && pathname === "/") return false
-    if (href === "/" && pathname === "/") return true
-    return pathname === href
-  }
+    if (href === "/system" && pathname === "/") return false;
+    if (href === "/" && pathname === "/") return true;
+    return pathname === href;
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="flex justify-between items-center h-16">
         {/* Logo */}
-        <Link href="/landing" className="flex items-center space-x-2 group">
+        <Link href="/system" className="flex items-center space-x-2 group">
           <div className="relative">
             <Package className="h-8 w-8 text-blue-600 dark:text-blue-400 transition-transform group-hover:scale-110" />
             <div className="absolute inset-0 bg-blue-600/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -85,8 +104,8 @@ export function Navigation({ showClearButton = false, onClearData }: NavigationP
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-1">
           {navItems.map((item) => {
-            const Icon = item.icon
-            const active = isActive(item.href)
+            const Icon = item.icon;
+            const active = isActive(item.href);
 
             return (
               <Link
@@ -117,7 +136,7 @@ export function Navigation({ showClearButton = false, onClearData }: NavigationP
                   <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-blue-600 dark:bg-blue-400 rounded-full" />
                 )}
               </Link>
-            )
+            );
           })}
         </nav>
 
@@ -167,8 +186,8 @@ export function Navigation({ showClearButton = false, onClearData }: NavigationP
 
               <nav className="mt-8 space-y-2">
                 {navItems.map((item) => {
-                  const Icon = item.icon
-                  const active = isActive(item.href)
+                  const Icon = item.icon;
+                  const active = isActive(item.href);
 
                   return (
                     <Link
@@ -210,10 +229,12 @@ export function Navigation({ showClearButton = false, onClearData }: NavigationP
                             </Badge>
                           )}
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{item.description}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          {item.description}
+                        </p>
                       </div>
                     </Link>
-                  )
+                  );
                 })}
               </nav>
 
@@ -221,10 +242,13 @@ export function Navigation({ showClearButton = false, onClearData }: NavigationP
                 <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                   <div className="flex items-center space-x-2 mb-2">
                     <Crown className="h-4 w-4 text-amber-500" />
-                    <span className="font-semibold text-sm text-gray-900 dark:text-white">Stock Premium</span>
+                    <span className="font-semibold text-sm text-gray-900 dark:text-white">
+                      Stock Premium
+                    </span>
                   </div>
                   <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
-                    Desbloqueie recursos avançados e tenha acesso completo ao sistema.
+                    Desbloqueie recursos avançados e tenha acesso completo ao
+                    sistema.
                   </p>
                   <Button
                     size="sm"
@@ -244,5 +268,5 @@ export function Navigation({ showClearButton = false, onClearData }: NavigationP
         <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 opacity-20" />
       )}
     </div>
-  )
+  );
 }

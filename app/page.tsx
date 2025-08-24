@@ -1,1283 +1,772 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import {
-  Upload,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Navigation } from "@/components/navigation";
+import { Label } from "@/components/ui/label";
+import { Send } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import {
+  Package,
   Scan,
+  Upload,
   Download,
   History,
-  Plus,
-  Trash2,
+  BarChart3,
+  Shield,
+  CheckCircle,
+  Star,
+  ArrowRight,
+  Smartphone,
+  Cloud,
   FileSpreadsheet,
-  Store,
-  AlertCircle,
-  Package,
+  Database,
+  Settings,
   Crown,
-  Camera,
-} from "lucide-react"
-import { toast } from "@/hooks/use-toast"
-import Papa, { type ParseResult } from "papaparse"
-import { Navigation } from "@/components/navigation"
+  Sparkles,
+} from "lucide-react";
 
-// Lazy load heavy components
-const QuickRegisterModal = lazy(() =>
-  import("@/components/quick-register-modal").then((module) => ({ default: module.QuickRegisterModal })),
-)
-const ClearDataModal = lazy(() =>
-  import("@/components/clear-data-modal").then((module) => ({ default: module.ClearDataModal })),
-)
-const BarcodeScanner = lazy(() =>
-  import("@/components/barcode-scanner").then((module) => ({ default: module.BarcodeScanner })),
-)
-const PremiumUpgradeModal = lazy(() =>
-  import("@/components/premium-upgrade-modal").then((module) => ({ default: module.PremiumUpgradeModal })),
-)
+export default function systemPage() {
+  const [isVisible, setIsVisible] = useState(false);
 
-interface Product {
-  id: number
-  codigo_produto: string
-  descricao: string
-  saldo_estoque: number
-}
-
-interface BarCode {
-  codigo_de_barras: string
-  produto_id: number
-  produto?: Product
-}
-
-interface ProductCount {
-  id: string
-  codigo_de_barras: string
-  codigo_produto: string
-  descricao: string
-  saldo_estoque: number
-  quant_loja: number
-  quant_estoque: number
-  total: number
-  local_estoque: string
-  data_hora: string
-}
-
-interface InventoryHistory {
-  id: number
-  data_contagem: string
-  usuario_email: string
-  total_itens: number
-  local_estoque: string
-  status: string
-}
-
-interface CsvRow {
-  codigo_de_barras: string
-  codigo_produto: string
-  descricao: string
-  saldo_estoque: string
-}
-
-// Temporary product interface for quick register
-interface TempProduct {
-  id: string
-  codigo_de_barras: string
-  codigo_produto: string
-  descricao: string
-  saldo_estoque: number
-  isTemporary: true
-}
-
-// Memoized components
-const ProductCountItem = ({ item, onRemove }: { item: ProductCount; onRemove: (id: string) => void }) => (
-  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-    <div className="flex-1">
-      <p className="font-medium text-sm">{item.descricao}</p>
-      <p className="text-xs text-gray-600 dark:text-gray-400">
-        Código: {item.codigo_produto} | Sistema: {item.saldo_estoque}
-      </p>
-      <div className="flex items-center space-x-2 mt-1">
-        <Badge variant="outline" className="text-xs">
-          Loja: {item.quant_loja}
-        </Badge>
-        <Badge variant="outline" className="text-xs">
-          Estoque: {item.quant_estoque}
-        </Badge>
-        <Badge
-          variant={item.total === 0 ? "secondary" : item.total > 0 ? "default" : "destructive"}
-          className="text-xs"
-        >
-          Total: {item.total > 0 ? "+" : ""}
-          {item.total}
-        </Badge>
-      </div>
-    </div>
-    <Button variant="outline" size="sm" onClick={() => onRemove(item.id)}>
-      <Trash2 className="h-4 w-4" />
-    </Button>
-  </div>
-)
-
-ProductCountItem.displayName = "ProductCountItem"
-
-const ProductTableRow = ({ product, barCode }: { product: Product; barCode?: BarCode }) => (
-  <TableRow>
-    <TableCell className="font-medium">{product.codigo_produto}</TableCell>
-    <TableCell>{product.descricao}</TableCell>
-    <TableCell>
-      <Badge variant="outline">{product.saldo_estoque}</Badge>
-    </TableCell>
-    <TableCell className="font-mono text-sm">{barCode?.codigo_de_barras || "-"}</TableCell>
-  </TableRow>
-)
-
-ProductTableRow.displayName = "ProductTableRow"
-
-export default function InventorySystem() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [barCodes, setBarCodes] = useState<BarCode[]>([])
-  const [tempProducts, setTempProducts] = useState<TempProduct[]>([]) // Temporary products from quick register
-  const [scanInput, setScanInput] = useState("")
-  const [quantityInput, setQuantityInput] = useState("")
-  const [currentProduct, setCurrentProduct] = useState<Product | TempProduct | null>(null)
-  const [csvFile, setCsvFile] = useState<File | null>(null)
-  const [csvErrors, setCsvErrors] = useState<string[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [selectedLocation, setSelectedLocation] = useState("loja-1")
-  const [inventoryHistory, setInventoryHistory] = useState<InventoryHistory[]>([])
-  const [countingMode, setCountingMode] = useState<"loja" | "estoque">("loja")
-  const [productCounts, setProductCounts] = useState<ProductCount[]>([])
-  const [showQuickRegister, setShowQuickRegister] = useState(false)
-  const [showClearDataModal, setShowClearDataModal] = useState(false)
-  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
-  const [showPremiumModal, setShowPremiumModal] = useState(false)
-  const [premiumModalFeature, setPremiumModalFeature] = useState<string>("")
-  const [quickRegisterData, setQuickRegisterData] = useState({
-    codigo_de_barras: "",
-    descricao: "",
-    quantidade: "",
-  })
-
-  // Memoized locations
-  const locations = useMemo(
-    () => [
-      { value: "loja-1", label: "Loja 1" },
-      { value: "loja-2", label: "Loja 2" },
-      { value: "deposito", label: "Depósito" },
-      { value: "estoque-central", label: "Estoque Central" },
-    ],
-    [],
-  )
-
-  // Memoized calculations
-  const productCountsStats = useMemo(() => {
-    const totalLoja = productCounts.reduce((sum, item) => sum + item.quant_loja, 0)
-    const totalEstoque = productCounts.reduce((sum, item) => sum + item.quant_estoque, 0)
-    const totalSistema = productCounts.reduce((sum, item) => sum + item.saldo_estoque, 0)
-    const consolidado = totalLoja + totalEstoque - totalSistema
-
-    return { totalLoja, totalEstoque, totalSistema, consolidado }
-  }, [productCounts])
-
-  // Optimized data loading - only load persistent products
   useEffect(() => {
-    const loadData = async () => {
-      const savedData = localStorage.getItem("inventory-system-data")
-      if (savedData) {
-        try {
-          const data = JSON.parse(savedData)
-          setProducts(data.products || [])
-          setBarCodes(data.barCodes || [])
-          // Don't load productCounts from localStorage - they should be session-only
-        } catch (error) {
-          console.error("Erro ao carregar dados do localStorage:", error)
-        }
-      }
-    }
+    setIsVisible(true);
+  }, []);
 
-    loadData()
-  }, [])
-
-  // Debounced save to localStorage - only save persistent data
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      const dataToSave = {
-        products,
-        barCodes,
-        timestamp: new Date().toISOString(),
-      }
-      localStorage.setItem("inventory-system-data", JSON.stringify(dataToSave))
-    }, 500)
-
-    return () => clearTimeout(timeoutId)
-  }, [products, barCodes]) // Removed productCounts and tempProducts from dependencies
-
-  // Memoized callbacks
-  const handleClearAllData = useCallback(() => {
-    localStorage.removeItem("inventory-system-data")
-    setProducts([])
-    setBarCodes([])
-    setTempProducts([])
-    setProductCounts([])
-    setScanInput("")
-    setQuantityInput("")
-    setCurrentProduct(null)
-    setCsvFile(null)
-    setCsvErrors([])
-    setShowClearDataModal(false)
-    toast({
-      title: "Dados apagados",
-      description: "Todos os dados foram removidos com sucesso",
-      variant: "destructive",
-    })
-  }, [])
-
-  const handleCsvUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setCsvFile(file)
-      processCsvFile(file)
-    }
-  }, [])
-
-  const processCsvFile = useCallback(
-    (file: File) => {
-      setIsLoading(true)
-      Papa.parse<CsvRow>(file, {
-        header: true,
-        delimiter: ";",
-        skipEmptyLines: true,
-        worker: true, // Use web worker for better performance
-        complete: (results: ParseResult<CsvRow>) => {
-          const errors: string[] = []
-          const newProducts: Product[] = []
-          const newBarCodes: BarCode[] = []
-          const existingBarCodes = new Set(barCodes.map((bc) => bc.codigo_de_barras))
-
-          results.data.forEach((row: CsvRow, index: number) => {
-            const { codigo_de_barras, codigo_produto, descricao, saldo_estoque } = row
-
-            if (!codigo_de_barras || !codigo_produto || !descricao || saldo_estoque === undefined) {
-              errors.push(`Linha ${index + 2}: Dados incompletos`)
-              return
-            }
-
-            if (existingBarCodes.has(codigo_de_barras)) {
-              errors.push(`Linha ${index + 2}: Código de barras ${codigo_de_barras} duplicado`)
-              return
-            }
-
-            const saldoNumerico = Number.parseInt(saldo_estoque)
-            if (isNaN(saldoNumerico)) {
-              errors.push(`Linha ${index + 2}: Saldo de estoque deve ser um número`)
-              return
-            }
-
-            const product = {
-              id: Date.now() + index,
-              codigo_produto,
-              descricao,
-              saldo_estoque: saldoNumerico,
-            }
-
-            newProducts.push(product)
-            newBarCodes.push({
-              codigo_de_barras,
-              produto_id: product.id,
-              produto: product,
-            })
-            existingBarCodes.add(codigo_de_barras)
-          })
-
-          setCsvErrors(errors)
-          if (errors.length === 0 && newProducts.length > 0) {
-            setProducts((prev) => [...prev, ...newProducts])
-            setBarCodes((prev) => [...prev, ...newBarCodes])
-            toast({ title: `${newProducts.length} produtos importados com sucesso!` })
-          }
-          setIsLoading(false)
+  const features = [
+    {
+      category: "Conferência de Estoque",
+      items: [
+        {
+          icon: Scan,
+          title: "Scanner de Código de Barras",
+          description: "Escaneie códigos de barras com a câmera do dispositivo",
         },
-        error: (error) => {
-          toast({
-            title: "Erro",
-            description: "Falha ao processar arquivo CSV",
-            variant: "destructive",
-          })
-          setIsLoading(false)
+        {
+          icon: Smartphone,
+          title: "Interface Mobile Otimizada",
+          description: "Design responsivo perfeito para tablets e smartphones",
         },
-      })
+        {
+          icon: Package,
+          title: "Cadastro Rápido",
+          description: "Registre produtos não encontrados instantaneamente",
+        },
+        {
+          icon: Settings,
+          title: "Múltiplos Locais",
+          description: "Gerencie diferentes lojas e depósitos",
+        },
+      ],
     },
-    [barCodes],
-  )
-
-  const handleScan = useCallback(() => {
-    // First check in permanent products
-    const barCode = barCodes.find((bc) => bc.codigo_de_barras === scanInput)
-    if (barCode && barCode.produto) {
-      setCurrentProduct(barCode.produto)
-      toast({
-        title: "Produto encontrado!",
-        description: `${barCode.produto.descricao} - Estoque: ${barCode.produto.saldo_estoque}`,
-      })
-      return
-    }
-
-    // Then check in temporary products
-    const tempProduct = tempProducts.find((tp) => tp.codigo_de_barras === scanInput)
-    if (tempProduct) {
-      setCurrentProduct(tempProduct)
-      toast({
-        title: "Produto temporário encontrado!",
-        description: `${tempProduct.descricao} - Cadastro rápido`,
-      })
-      return
-    }
-
-    // If not found, open quick register
-    setQuickRegisterData({
-      codigo_de_barras: scanInput,
-      descricao: "",
-      quantidade: "",
-    })
-    setShowQuickRegister(true)
-  }, [scanInput, barCodes, tempProducts])
-
-  const handleBarcodeScanned = useCallback(
-    (barcode: string) => {
-      setScanInput(barcode)
-      setShowBarcodeScanner(false)
-
-      // Auto-scan after setting the input
-      setTimeout(() => {
-        // First check in permanent products
-        const barCode = barCodes.find((bc) => bc.codigo_de_barras === barcode)
-        if (barCode && barCode.produto) {
-          setCurrentProduct(barCode.produto)
-          toast({
-            title: "Produto encontrado!",
-            description: `${barCode.produto.descricao} - Estoque: ${barCode.produto.saldo_estoque}`,
-          })
-          return
-        }
-
-        // Then check in temporary products
-        const tempProduct = tempProducts.find((tp) => tp.codigo_de_barras === barcode)
-        if (tempProduct) {
-          setCurrentProduct(tempProduct)
-          toast({
-            title: "Produto temporário encontrado!",
-            description: `${tempProduct.descricao} - Cadastro rápido`,
-          })
-          return
-        }
-
-        // If not found, open quick register
-        setQuickRegisterData({
-          codigo_de_barras: barcode,
-          descricao: "",
-          quantidade: "",
-        })
-        setShowQuickRegister(true)
-      }, 100)
+    {
+      category: "Gestão de Dados",
+      items: [
+        {
+          icon: Upload,
+          title: "Importação CSV",
+          description: "Importe produtos em massa via arquivo CSV",
+        },
+        {
+          icon: Database,
+          title: "Armazenamento Local",
+          description: "Dados salvos localmente para acesso offline",
+        },
+        {
+          icon: Cloud,
+          title: "Sincronização",
+          description: "Sincronize dados entre dispositivos",
+          premium: true,
+        },
+        {
+          icon: Shield,
+          title: "Backup Automático",
+          description: "Backup automático dos dados na nuvem",
+          premium: true,
+        },
+      ],
     },
-    [barCodes, tempProducts],
-  )
-
-  const handleQuickRegister = useCallback(
-    (data: { codigo_de_barras: string; descricao: string; quantidade: string }) => {
-      // Create temporary product (not saved to localStorage)
-      const newTempProduct: TempProduct = {
-        id: `temp-${Date.now()}`,
-        codigo_de_barras: data.codigo_de_barras,
-        codigo_produto: `TEMP-${Date.now()}`,
-        descricao: data.descricao,
-        saldo_estoque: 0,
-        isTemporary: true,
-      }
-
-      setTempProducts((prev) => [...prev, newTempProduct])
-      setCurrentProduct(newTempProduct)
-      setQuantityInput(data.quantidade)
-      setShowQuickRegister(false)
-
-      toast({
-        title: "Produto temporário cadastrado!",
-        description: "Este produto não será salvo permanentemente",
-      })
+    {
+      category: "Relatórios e Análises",
+      items: [
+        {
+          icon: Download,
+          title: "Exportação de Contagens",
+          description: "Exporte relatórios em CSV e PDF",
+          premium: true,
+        },
+        {
+          icon: BarChart3,
+          title: "Dashboard Analítico",
+          description: "Visualize estatísticas e tendências",
+          premium: true,
+        },
+        {
+          icon: History,
+          title: "Histórico Completo",
+          description: "Acesse histórico de todas as contagens",
+          premium: true,
+        },
+        {
+          icon: FileSpreadsheet,
+          title: "Relatórios Personalizados",
+          description: "Crie relatórios customizados por período",
+          premium: true,
+        },
+      ],
     },
-    [],
-  )
+  ];
 
-  const calculateTotal = useCallback((quantLoja: number, quantEstoque: number, saldoEstoque: number) => {
-    return quantLoja + quantEstoque - saldoEstoque
-  }, [])
-
-  // Função para calcular expressões matemáticas
-  const calculateExpression = useCallback(
-    (expression: string): { result: number; isValid: boolean; error?: string } => {
-      try {
-        // Remove espaços em branco
-        const cleanExpression = expression.replace(/\s/g, "")
-
-        // Validação básica - apenas números, operadores e pontos decimais
-        const validPattern = /^[0-9+\-*/().]+$/
-        if (!validPattern.test(cleanExpression)) {
-          return { result: 0, isValid: false, error: "Caracteres inválidos na expressão" }
-        }
-
-        // Verifica se há operadores consecutivos (ex: ++, --, etc)
-        const consecutiveOperators = /[+\-*/]{2,}/
-        if (consecutiveOperators.test(cleanExpression)) {
-          return { result: 0, isValid: false, error: "Operadores consecutivos não permitidos" }
-        }
-
-        // Verifica se começa ou termina com operador (exceto - no início)
-        const startsWithOperator = /^[+*/]/
-        const endsWithOperator = /[+\-*/]$/
-        if (startsWithOperator.test(cleanExpression) || endsWithOperator.test(cleanExpression)) {
-          return { result: 0, isValid: false, error: "Expressão não pode começar ou terminar com operador" }
-        }
-
-        // Avalia a expressão usando Function constructor (mais seguro que eval)
-        const result = new Function("return " + cleanExpression)()
-
-        // Verifica se o resultado é um número válido
-        if (typeof result !== "number" || isNaN(result) || !isFinite(result)) {
-          return { result: 0, isValid: false, error: "Resultado inválido" }
-        }
-
-        // Arredonda para 2 casas decimais
-        const roundedResult = Math.round(result * 100) / 100
-
-        return { result: roundedResult, isValid: true }
-      } catch (error) {
-        return { result: 0, isValid: false, error: "Erro ao calcular expressão" }
-      }
+  const plans = [
+    {
+      name: "Gratuito",
+      price: "R$ 0",
+      period: "/mês",
+      description: "Perfeito para pequenos negócios",
+      features: [
+        "Scanner de código de barras",
+        "Cadastro rápido de produtos",
+        "Importação CSV básica",
+        "Armazenamento local",
+        "Interface mobile otimizada",
+        "Suporte por email",
+      ],
+      cta: "Começar Gratuitamente",
+      href: "/",
+      popular: false,
     },
-    [],
-  )
-
-  // Função para lidar com o Enter no campo de quantidade
-  const handleAddCount = useCallback(() => {
-    if (!currentProduct || !quantityInput) {
-      toast({
-        title: "Erro",
-        description: "Selecione um produto e informe a quantidade",
-        variant: "destructive",
-      })
-      return
-    }
-
-    // Primeiro, verifica se é uma expressão matemática e calcula se necessário
-    let finalQuantity: number
-    const hasOperators = /[+\-*/]/.test(quantityInput)
-
-    if (hasOperators) {
-      const calculation = calculateExpression(quantityInput)
-      if (!calculation.isValid) {
-        toast({
-          title: "Erro no cálculo",
-          description: calculation.error || "Expressão matemática inválida",
-          variant: "destructive",
-        })
-        return
-      }
-      finalQuantity = calculation.result
-    } else {
-      const parsed = Number.parseFloat(quantityInput)
-      if (isNaN(parsed) || parsed < 0) {
-        toast({
-          title: "Erro",
-          description: "Quantidade deve ser um número válido",
-          variant: "destructive",
-        })
-        return
-      }
-      finalQuantity = parsed
-    }
-
-    // Arredonda para número inteiro (já que estamos contando produtos)
-    const quantidade = Math.round(finalQuantity)
-
-    const existingIndex = productCounts.findIndex((item) => item.codigo_de_barras === scanInput)
-
-    if (existingIndex >= 0) {
-      const updatedCounts = [...productCounts]
-      const existing = updatedCounts[existingIndex]
-
-      if (countingMode === "loja") {
-        existing.quant_loja += quantidade // Soma ao invés de substituir
-      } else {
-        existing.quant_estoque += quantidade // Soma ao invés de substituir
-      }
-
-      existing.total = calculateTotal(existing.quant_loja, existing.quant_estoque, existing.saldo_estoque)
-      existing.data_hora = new Date().toLocaleString("pt-BR")
-
-      setProductCounts(updatedCounts)
-
-      const expressionText = hasOperators ? ` (${quantityInput} = ${quantidade})` : ""
-      toast({
-        title: `Quantidade somada!`,
-        description: `${quantidade} adicionado ao ${countingMode}${expressionText}. Total ${countingMode}: ${countingMode === "loja" ? existing.quant_loja : existing.quant_estoque}`,
-      })
-    } else {
-      const newCount: ProductCount = {
-        id: Date.now().toString(),
-        codigo_de_barras: scanInput,
-        codigo_produto: currentProduct.codigo_produto,
-        descricao: currentProduct.descricao,
-        saldo_estoque: currentProduct.saldo_estoque,
-        quant_loja: countingMode === "loja" ? quantidade : 0,
-        quant_estoque: countingMode === "estoque" ? quantidade : 0,
-        total: calculateTotal(
-          countingMode === "loja" ? quantidade : 0,
-          countingMode === "estoque" ? quantidade : 0,
-          currentProduct.saldo_estoque,
-        ),
-        local_estoque: selectedLocation,
-        data_hora: new Date().toLocaleString("pt-BR"),
-      }
-
-      setProductCounts((prev) => [...prev, newCount])
-
-      const expressionText = hasOperators ? ` (${quantityInput} = ${quantidade})` : ""
-      toast({ title: `Quantidade de ${countingMode} adicionada!${expressionText}` })
-    }
-
-    setScanInput("")
-    setQuantityInput("")
-    setCurrentProduct(null)
-  }, [
-    currentProduct,
-    quantityInput,
-    productCounts,
-    scanInput,
-    countingMode,
-    selectedLocation,
-    calculateTotal,
-    calculateExpression,
-  ])
-
-  const handleQuantityKeyPress = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Enter") {
-        e.preventDefault()
-
-        const expression = quantityInput.trim()
-        if (!expression) return
-
-        // Se contém operadores matemáticos, calcula a expressão
-        const hasOperators = /[+\-*/]/.test(expression)
-
-        if (hasOperators) {
-          const calculation = calculateExpression(expression)
-
-          if (calculation.isValid) {
-            // Atualiza o campo com o resultado
-            setQuantityInput(calculation.result.toString())
-
-            toast({
-              title: "Cálculo realizado!",
-              description: `${expression} = ${calculation.result}`,
-            })
-          } else {
-            toast({
-              title: "Erro no cálculo",
-              description: calculation.error || "Expressão matemática inválida",
-              variant: "destructive",
-            })
-          }
-        } else {
-          // Se não tem operadores, apenas adiciona a contagem
-          if (currentProduct) {
-            handleAddCount()
-          }
-        }
-      }
+    {
+      name: "Premium",
+      price: "R$ 29",
+      period: "/mês",
+      description: "Para empresas que precisam de mais recursos",
+      features: [
+        "Todos os recursos gratuitos",
+        "Exportação de contagens (CSV/PDF)",
+        "Histórico completo de contagens",
+        "Backup automático na nuvem",
+        "Sincronização entre dispositivos",
+        "Dashboard analítico avançado",
+        "Relatórios personalizados",
+        "Suporte prioritário",
+        "Múltiplos usuários",
+      ],
+      cta: "Assinar Premium",
+      href: "/register",
+      popular: true,
     },
-    [quantityInput, calculateExpression, currentProduct, handleAddCount],
-  )
+  ];
 
-  const handleRemoveCount = useCallback((id: string) => {
-    setProductCounts((prev) => prev.filter((item) => item.id !== id))
-    toast({ title: "Item removido da contagem" })
-  }, [])
-
-  const exportToCsv = useCallback(() => {
-    if (productCounts.length === 0) {
-      toast({ title: "Nenhum item para exportar", variant: "destructive" })
-      return
-    }
-
-    const dataToExport = productCounts.map((item) => ({
-      codigo_de_barras: item.codigo_de_barras,
-      codigo_produto: item.codigo_produto,
-      descricao: item.descricao,
-      saldo_estoque: item.saldo_estoque,
-      quant_loja: item.quant_loja,
-      quant_estoque: item.quant_estoque,
-      total: item.total,
-    }))
-
-    const csv = Papa.unparse(dataToExport, {
-      header: true,
-      delimiter: ";",
-      quotes: true,
-    })
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-    const link = document.createElement("a")
-    link.href = URL.createObjectURL(blob)
-    link.download = `contagem_${selectedLocation}_${new Date().toISOString().split("T")[0]}.csv`
-    link.click()
-    URL.revokeObjectURL(link.href) // Clean up
-    toast({ title: "CSV exportado com sucesso!" })
-  }, [productCounts, selectedLocation])
-
-  const downloadTemplateCSV = useCallback(() => {
-    const templateData = [
-      {
-        codigo_de_barras: "7891234567890",
-        codigo_produto: "PROD001",
-        descricao: "Produto Exemplo 1",
-        saldo_estoque: "100",
-      },
-      {
-        codigo_de_barras: "7891234567891",
-        codigo_produto: "PROD002",
-        descricao: "Produto Exemplo 2",
-        saldo_estoque: "50",
-      },
-      {
-        codigo_de_barras: "7891234567892",
-        codigo_produto: "PROD003",
-        descricao: "Produto Exemplo 3",
-        saldo_estoque: "75",
-      },
-    ]
-
-    const csv = Papa.unparse(templateData, {
-      header: true,
-      delimiter: ";",
-      quotes: true,
-    })
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-    const link = document.createElement("a")
-    link.href = URL.createObjectURL(blob)
-    link.download = "template_produtos.csv"
-    link.click()
-    URL.revokeObjectURL(link.href)
-    toast({ title: "Template CSV baixado com sucesso!" })
-  }, [])
-
-  const handlePremiumUpgrade = useCallback((feature: string) => {
-    setPremiumModalFeature(feature)
-    setShowPremiumModal(true)
-  }, [])
+  const testimonials = [
+    {
+      name: "Maria Silva",
+      role: "Gerente de Loja",
+      company: "Supermercado Central",
+      content:
+        "O Stock revolucionou nossa gestão de inventário. Reduzimos o tempo de contagem em 70%.",
+      rating: 5,
+    },
+    {
+      name: "João Santos",
+      role: "Proprietário",
+      company: "Farmácia Saúde",
+      content:
+        "Interface intuitiva e funciona perfeitamente no tablet. Recomendo para qualquer negócio.",
+      rating: 5,
+    },
+    {
+      name: "Ana Costa",
+      role: "Coordenadora de Estoque",
+      company: "Loja de Roupas Fashion",
+      content:
+        "Os relatórios detalhados nos ajudam a tomar decisões mais assertivas sobre o estoque.",
+      rating: 5,
+    },
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700">
-        <Navigation showClearButton={true} onClearData={() => setShowClearDataModal(true)} />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
+      {/* Animated background */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-400/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-400/10 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-blue-400/5 to-purple-400/5 rounded-full blur-3xl animate-pulse delay-500" />
+      </div>
+
+      <header className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-md shadow-sm border-b dark:border-gray-700">
+        <Navigation />
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs defaultValue="scan" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="scan">Conferência</TabsTrigger>
-            <TabsTrigger value="import">Importar</TabsTrigger>
-            <TabsTrigger value="export">Exportar</TabsTrigger>
-            <TabsTrigger value="history">Histórico</TabsTrigger>
-          </TabsList>
+      <main className="relative">
+        {/* Hero Section */}
+        <section className="py-20 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto text-center">
+            <div
+              className={`transition-all duration-1000 ${
+                isVisible
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 translate-y-10"
+              }`}
+            >
+              <div className="flex justify-center mb-6">
+                <Badge className="bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0 px-4 py-2">
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Sistema de Inventário Inteligente
+                </Badge>
+              </div>
 
-          <TabsContent value="scan" className="space-y-6">
-            <div className="grid gap-6 lg:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Scan className="h-5 w-5 mr-2" />
-                    Scanner de Código de Barras
-                  </CardTitle>
-                  <CardDescription>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Store className="h-4 w-4" />
-                        <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-                          <SelectTrigger className="w-48">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {locations.map((location) => (
-                              <SelectItem key={location.value} value={location.value}>
-                                {location.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant={countingMode === "loja" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setCountingMode("loja")}
-                        >
-                          <Store className="h-3 w-3 mr-1" />
-                          Loja
-                        </Button>
-                        <Button
-                          variant={countingMode === "estoque" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setCountingMode("estoque")}
-                        >
-                          <Package className="h-3 w-3 mr-1" />
-                          Estoque
-                        </Button>
-                      </div>
-                    </div>
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="barcode">Código de Barras</Label>
-                    <div className="flex space-x-2">
-                      <Input
-                        id="barcode"
-                        value={scanInput}
-                        onChange={(e) => setScanInput(e.target.value)}
-                        placeholder="Digite ou escaneie o código"
-                        className="flex-1 mobile-optimized"
-                        onKeyPress={(e) => e.key === "Enter" && handleScan()}
-                      />
-                      <Button onClick={handleScan}>
-                        <Scan className="h-4 w-4" />
-                      </Button>
-                      <Button onClick={() => setShowBarcodeScanner(true)} variant="outline">
-                        <Camera className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+              <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent mb-6">
+                Revolucione seu
+                <br />
+                Controle de Estoque
+              </h1>
 
-                  {currentProduct && (
-                    <div
-                      className={`p-4 border rounded-lg ${
-                        "isTemporary" in currentProduct && currentProduct.isTemporary
-                          ? "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800"
-                          : "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3
-                            className={`font-semibold ${
-                              "isTemporary" in currentProduct && currentProduct.isTemporary
-                                ? "text-amber-800 dark:text-amber-200"
-                                : "text-green-800 dark:text-green-200"
-                            }`}
-                          >
-                            {"isTemporary" in currentProduct && currentProduct.isTemporary
-                              ? "Produto Temporário"
-                              : "Produto Encontrado"}
-                          </h3>
-                          <p
-                            className={`text-sm ${
-                              "isTemporary" in currentProduct && currentProduct.isTemporary
-                                ? "text-amber-700 dark:text-amber-300"
-                                : "text-green-700 dark:text-green-300"
-                            }`}
-                          >
-                            {currentProduct.descricao}
-                          </p>
-                          <p
-                            className={`text-xs ${
-                              "isTemporary" in currentProduct && currentProduct.isTemporary
-                                ? "text-amber-600 dark:text-amber-400"
-                                : "text-green-600 dark:text-green-400"
-                            }`}
-                          >
-                            Código: {currentProduct.codigo_produto}
-                          </p>
-                        </div>
-                        <Badge variant="secondary" className="ml-2">
-                          Estoque: {currentProduct.saldo_estoque}
-                        </Badge>
-                      </div>
-                    </div>
-                  )}
+              <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed">
+                Sistema completo de inventário com scanner de código de barras,
+                relatórios inteligentes e sincronização em tempo real.
+                Simplifique sua gestão de estoque hoje mesmo.
+              </p>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="quantity">
-                      Quantidade {countingMode === "loja" ? "em Loja" : "em Estoque"}
-                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">(Ex: 24+24 ou 10*3)</span>
-                    </Label>
-                    <Input
-                      id="quantity"
-                      type="text"
-                      value={quantityInput}
-                      onChange={(e) => setQuantityInput(e.target.value)}
-                      onKeyPress={handleQuantityKeyPress}
-                      placeholder="Digite quantidade ou expressão (24+24)"
-                      min="0"
-                      className="mobile-optimized font-mono"
-                    />
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      💡 Pressione Enter para calcular expressões matemáticas
-                    </p>
-                  </div>
-
-                  <Button onClick={handleAddCount} className="w-full" disabled={!currentProduct || !quantityInput}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Adicionar Contagem de {countingMode === "loja" ? "Loja" : "Estoque"}
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Produtos Contados ({productCounts.length})</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {productCounts.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                        <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p className="font-medium">Nenhum produto contado ainda</p>
-                        <p className="text-sm">Escaneie um código de barras para começar</p>
-                      </div>
-                    ) : (
-                      productCounts.map((item) => (
-                        <ProductCountItem key={item.id} item={item} onRemove={handleRemoveCount} />
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <Button
+                  asChild
+                  size="lg"
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 text-lg"
+                >
+                  <Link href="/">
+                    <Package className="h-5 w-5 mr-2" />
+                    Começar Gratuitamente
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="lg"
+                  className="px-8 py-3 text-lg border-2 bg-transparent"
+                >
+                  <Link href="/about">
+                    Saiba Mais
+                    <ArrowRight className="h-5 w-5 ml-2" />
+                  </Link>
+                </Button>
+              </div>
             </div>
-          </TabsContent>
+          </div>
+        </section>
 
-          <TabsContent value="import" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Upload className="h-5 w-5 mr-2" />
-                  Importar Produtos
-                </CardTitle>
-                <CardDescription>
-                  Faça upload de um arquivo CSV com formato: codigo_de_barras;codigo_produto;descricao;saldo_estoque
-                </CardDescription>
-                <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2 flex items-center">
-                    <AlertCircle className="h-4 w-4 mr-2" />
-                    Instruções para o arquivo CSV
-                  </h4>
-                  <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
-                    <li>
-                      • <strong>Separador:</strong> Use ponto e vírgula (;) entre as colunas
-                    </li>
-                    <li>
-                      • <strong>Código de barras:</strong> Formate a coluna como NÚMERO (não texto)
-                    </li>
-                    <li>
-                      • <strong>Saldo estoque:</strong> Use apenas números inteiros
-                    </li>
-                    <li>
-                      • <strong>Codificação:</strong> Salve o arquivo em UTF-8
-                    </li>
-                    <li>
-                      • <strong>Cabeçalho:</strong> Primeira linha deve conter os nomes das colunas
-                    </li>
-                  </ul>
-                  <div className="mt-3 flex items-center justify-between">
-                    <div className="text-xs text-blue-600 dark:text-blue-400">
-                      <strong>Exemplo:</strong> codigo_de_barras;codigo_produto;descricao;saldo_estoque
-                      <br />
-                      7891234567890;PROD001;Produto Exemplo;100
+        {/* Features Section */}
+        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white/50 dark:bg-gray-800/50">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                Recursos Completos para sua Empresa
+              </h2>
+              <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+                Descubra todas as funcionalidades que tornam o Stock a melhor
+                escolha para gestão de inventário
+              </p>
+            </div>
+
+            {features.map((category, categoryIndex) => (
+              <div key={category.category} className="mb-16">
+                <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-8 text-center">
+                  {category.category}
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {category.items.map((feature, index) => {
+                    const Icon = feature.icon;
+                    return (
+                      <Card
+                        key={index}
+                        className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${
+                          feature.premium
+                            ? "border-amber-200 dark:border-amber-800"
+                            : ""
+                        }`}
+                      >
+                        {feature.premium && (
+                          <div className="absolute top-3 right-3">
+                            <Badge className="bg-gradient-to-r from-amber-400 to-orange-500 text-white border-0">
+                              <Crown className="h-3 w-3 mr-1" />
+                              Premium
+                            </Badge>
+                          </div>
+                        )}
+                        <CardHeader className="pb-4">
+                          <div
+                            className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${
+                              feature.premium
+                                ? "bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900/20 dark:to-orange-900/20"
+                                : "bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20"
+                            }`}
+                          >
+                            <Icon
+                              className={`h-6 w-6 ${
+                                feature.premium
+                                  ? "text-amber-600 dark:text-amber-400"
+                                  : "text-blue-600 dark:text-blue-400"
+                              }`}
+                            />
+                          </div>
+                          <CardTitle className="text-lg">
+                            {feature.title}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <CardDescription className="text-gray-600 dark:text-gray-300">
+                            {feature.description}
+                          </CardDescription>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Pricing Section */}
+        <section className="py-20 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                Planos que Crescem com seu Negócio
+              </h2>
+              <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+                Escolha o plano ideal para suas necessidades. Comece
+                gratuitamente e faça upgrade quando precisar.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl mx-auto">
+              {plans.map((plan, index) => (
+                <Card
+                  key={index}
+                  className={`relative overflow-hidden transition-all duration-300 hover:shadow-xl ${
+                    plan.popular
+                      ? "border-2 border-blue-500 dark:border-blue-400 shadow-lg scale-105"
+                      : "hover:-translate-y-1"
+                  }`}
+                >
+                  {plan.popular && (
+                    <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-center py-2 text-sm font-medium">
+                      Mais Popular
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={downloadTemplateCSV}
-                      className="ml-4 border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900/30 bg-transparent"
-                    >
-                      <Download className="h-3 w-3 mr-1" />
-                      Baixar Template
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="csv-file">Arquivo CSV</Label>
-                  <Input id="csv-file" type="file" accept=".csv" onChange={handleCsvUpload} disabled={isLoading} />
-                  {isLoading && <Skeleton className="h-4 w-full" />}
-                </div>
-
-                {csvErrors.length > 0 && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      <div className="space-y-1">
-                        <p className="font-semibold">Erros encontrados:</p>
-                        {csvErrors.map((error, index) => (
-                          <p key={index} className="text-sm">
-                            {error}
-                          </p>
-                        ))}
+                  )}
+                  <CardHeader className={plan.popular ? "pt-12" : ""}>
+                    <div className="text-center">
+                      <CardTitle className="text-2xl font-bold">
+                        {plan.name}
+                      </CardTitle>
+                      <div className="mt-4">
+                        <span className="text-4xl font-bold text-gray-900 dark:text-white">
+                          {plan.price}
+                        </span>
+                        <span className="text-gray-600 dark:text-gray-300">
+                          {plan.period}
+                        </span>
                       </div>
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                <div className="grid grid-cols-1 gap-4 text-sm">
-                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <p className="font-semibold text-blue-800 dark:text-blue-200">Produtos cadastrados</p>
-                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{products.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {products.length > 0 ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Produtos Cadastrados</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="max-h-96 overflow-y-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Código</TableHead>
-                          <TableHead>Descrição</TableHead>
-                          <TableHead>Estoque</TableHead>
-                          <TableHead>Código de Barras</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {products.map((product) => {
-                          const barCode = barCodes.find((bc) => bc.produto_id === product.id)
-                          return <ProductTableRow key={product.id} product={product} barCode={barCode} />
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardContent className="py-12">
-                  <div className="text-center text-gray-500 dark:text-gray-400">
-                    <Upload className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p className="font-medium">Nenhum produto cadastrado</p>
-                    <p className="text-sm">Importe um arquivo CSV para começar</p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="export" className="space-y-6">
-            <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20">
-              <Crown className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              <AlertDescription className="text-amber-800 dark:text-amber-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <strong>Recurso Premium</strong>
-                    <p className="text-sm mt-1">
-                      A exportação de contagens está disponível apenas para assinantes premium. Faça upgrade para
-                      exportar seus dados em CSV e PDF.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="ml-4 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-600 dark:text-amber-300 dark:hover:bg-amber-900/30 bg-transparent"
-                    onClick={() => handlePremiumUpgrade("export")}
-                  >
-                    <Crown className="h-3 w-3 mr-1" />
-                    Upgrade
-                  </Button>
-                </div>
-              </AlertDescription>
-            </Alert>
-
-            {/* Preview de Itens Faltantes */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Package className="h-5 w-5 mr-2" />
-                  Resumo da Contagem
-                </CardTitle>
-                <CardDescription>Visão geral do progresso da contagem atual</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-center">
-                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      {products.length + tempProducts.length}
-                    </p>
-                    <p className="text-sm text-blue-800 dark:text-blue-200">Produtos Importados</p>
-                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                      {products.length} permanentes + {tempProducts.length} temporários
-                    </p>
-                  </div>
-
-                  <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-center">
-                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">{productCounts.length}</p>
-                    <p className="text-sm text-green-800 dark:text-green-200">Produtos Contados</p>
-                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                      {productCountsStats.totalLoja + productCountsStats.totalEstoque} unidades totais
-                    </p>
-                  </div>
-
-                  <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-center">
-                    <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                      {Math.max(0, products.length + tempProducts.length - productCounts.length)}
-                    </p>
-                    <p className="text-sm text-amber-800 dark:text-amber-200">Itens Faltantes</p>
-                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                      {productCounts.length === 0
-                        ? "Nenhuma contagem iniciada"
-                        : `${Math.round((productCounts.length / (products.length + tempProducts.length)) * 100)}% concluído`}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Barra de Progresso */}
-                {products.length + tempProducts.length > 0 && (
-                  <div className="mt-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Progresso da Contagem
-                      </span>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        {productCounts.length} de {products.length + tempProducts.length}
-                      </span>
+                      <CardDescription className="mt-2 text-lg">
+                        {plan.description}
+                      </CardDescription>
                     </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 dark:bg-blue-400 h-2 rounded-full transition-all duration-300"
-                        style={{
-                          width: `${Math.min(100, (productCounts.length / (products.length + tempProducts.length)) * 100)}%`,
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-                )}
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <ul className="space-y-3">
+                      {plan.features.map((feature, featureIndex) => (
+                        <li key={featureIndex} className="flex items-center">
+                          <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
+                          <span className="text-gray-700 dark:text-gray-300">
+                            {feature}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <Button
+                      asChild
+                      className={`w-full py-3 text-lg ${
+                        plan.popular
+                          ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                          : ""
+                      }`}
+                      variant={plan.popular ? "default" : "outline"}
+                    >
+                      <Link href={plan.href}>{plan.cta}</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
 
-                {/* Alertas baseados no progresso */}
-                {products.length + tempProducts.length > 0 && productCounts.length === 0 && (
-                  <Alert className="mt-4 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20">
-                    <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                    <AlertDescription className="text-blue-800 dark:text-blue-200">
-                      <strong>Contagem não iniciada</strong>
-                      <p className="text-sm mt-1">
-                        Você tem {products.length + tempProducts.length} produtos importados. Vá para a aba
-                        "Conferência" para começar a contagem.
+        {/* Custom Development Section */}
+        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white/50 dark:bg-gray-800/50">
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              {/* Left Content */}
+              <div>
+                <div className="flex items-center mb-6">
+                  <Badge className="bg-gradient-to-r from-purple-600 to-pink-600 text-white border-0 px-4 py-2">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Desenvolvimento Sob Medida
+                  </Badge>
+                </div>
+                <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-6">
+                  Precisa de Algo Específico?
+                </h2>
+                <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
+                  O Stock atende a maioria das necessidades de inventário, mas
+                  sabemos que cada empresa é única. Se você precisa de
+                  funcionalidades específicas ou integrações personalizadas,
+                  nossa equipe pode desenvolver a solução perfeita para seu
+                  negócio.
+                </p>
+
+                <div className="space-y-4 mb-8">
+                  <div className="flex items-start space-x-3">
+                    <CheckCircle className="h-6 w-6 text-green-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h3 className="font-semibold text-gray-900 dark:text-white">
+                        Integrações Personalizadas
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-300">
+                        Conecte com seus sistemas ERP, WMS ou outras ferramentas
                       </p>
-                    </AlertDescription>
-                  </Alert>
-                )}
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <CheckCircle className="h-6 w-6 text-green-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h3 className="font-semibold text-gray-900 dark:text-white">
+                        Relatórios Específicos
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-300">
+                        Relatórios customizados para suas necessidades únicas
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <CheckCircle className="h-6 w-6 text-green-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h3 className="font-semibold text-gray-900 dark:text-white">
+                        Funcionalidades Exclusivas
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-300">
+                        Desenvolva recursos únicos para seu processo de trabalho
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <CheckCircle className="h-6 w-6 text-green-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h3 className="font-semibold text-gray-900 dark:text-white">
+                        Suporte Dedicado
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-300">
+                        Equipe técnica dedicada ao seu projeto
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-                {products.length + tempProducts.length > 0 &&
-                  productCounts.length > 0 &&
-                  productCounts.length < products.length + tempProducts.length && (
-                    <Alert className="mt-4 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20">
-                      <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                      <AlertDescription className="text-amber-800 dark:text-amber-200">
-                        <strong>Contagem em andamento</strong>
-                        <p className="text-sm mt-1">
-                          Ainda restam {products.length + tempProducts.length - productCounts.length} produtos para
-                          contar. Continue na aba "Conferência" para completar a contagem.
-                        </p>
-                      </AlertDescription>
-                    </Alert>
-                  )}
+              {/* Right Form */}
+              <div>
+                <Card className="shadow-xl border-2 border-purple-100 dark:border-purple-800">
+                  <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20">
+                    <CardTitle className="text-2xl text-center">
+                      Solicite seu Orçamento
+                    </CardTitle>
+                    <CardDescription className="text-center">
+                      Descreva sua necessidade e nossa equipe entrará em contato
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <form
+                      className="space-y-4"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        toast({
+                          title: "Solicitação enviada!",
+                          description:
+                            "Nossa equipe entrará em contato em até 24 horas para discutir seu projeto.",
+                        });
+                      }}
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="custom-name">Nome *</Label>
+                          <input
+                            id="custom-name"
+                            placeholder="Seu nome"
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-800 dark:border-gray-600"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="custom-email">Email *</Label>
+                          <input
+                            id="custom-email"
+                            type="email"
+                            placeholder="seu@email.com"
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-800 dark:border-gray-600"
+                          />
+                        </div>
+                      </div>
 
-                {products.length + tempProducts.length > 0 &&
-                  productCounts.length >= products.length + tempProducts.length && (
-                    <Alert className="mt-4 border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
-                      <AlertCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                      <AlertDescription className="text-green-800 dark:text-green-200">
-                        <strong>Contagem completa!</strong>
-                        <p className="text-sm mt-1">
-                          Todos os produtos foram contados. Você pode exportar os dados ou continuar adicionando mais
-                          contagens.
-                        </p>
-                      </AlertDescription>
-                    </Alert>
-                  )}
-              </CardContent>
-            </Card>
+                      <div className="space-y-2">
+                        <Label htmlFor="custom-company">Empresa</Label>
+                        <input
+                          id="custom-company"
+                          placeholder="Nome da sua empresa"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-800 dark:border-gray-600"
+                        />
+                      </div>
 
-            <Card className="opacity-60">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Download className="h-5 w-5 mr-2" />
-                  Exportar Contagem
-                </CardTitle>
-                <CardDescription>Exporte os dados da contagem atual em CSV</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Button onClick={exportToCsv} disabled={true} className="h-12">
-                    <FileSpreadsheet className="h-4 w-4 mr-2" />
-                    Exportar CSV
-                  </Button>
-                  <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <p className="text-sm font-medium">
-                      Local: {locations.find((l) => l.value === selectedLocation)?.label}
+                      <div className="space-y-2">
+                        <Label htmlFor="custom-phone">Telefone</Label>
+                        <input
+                          id="custom-phone"
+                          placeholder="(11) 99999-9999"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-800 dark:border-gray-600"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="custom-requirement">
+                          Descreva sua Necessidade *
+                        </Label>
+                        <textarea
+                          id="custom-requirement"
+                          placeholder="Descreva detalhadamente a funcionalidade ou integração que você precisa..."
+                          rows={4}
+                          required
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-800 dark:border-gray-600"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="custom-timeline">Prazo Desejado</Label>
+                        <select
+                          id="custom-timeline"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-800 dark:border-gray-600"
+                        >
+                          <option value="">Selecione um prazo</option>
+                          <option value="urgente">
+                            Urgente (até 2 semanas)
+                          </option>
+                          <option value="rapido">Rápido (até 1 mês)</option>
+                          <option value="normal">Normal (até 2 meses)</option>
+                          <option value="flexivel">
+                            Flexível (acima de 2 meses)
+                          </option>
+                        </select>
+                      </div>
+
+                      <Button
+                        type="submit"
+                        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white py-3"
+                      >
+                        <Send className="h-4 w-4 mr-2" />
+                        Solicitar Orçamento Personalizado
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Testimonials Section */}
+        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white/50 dark:bg-gray-800/50">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                O que nossos clientes dizem
+              </h2>
+              <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+                Empresas de todos os tamanhos confiam no Stock para gerenciar
+                seus inventários
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {testimonials.map((testimonial, index) => (
+                <Card
+                  key={index}
+                  className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-center mb-4">
+                      {[...Array(testimonial.rating)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className="h-5 w-5 text-yellow-400 fill-current"
+                        />
+                      ))}
+                    </div>
+                    <p className="text-gray-700 dark:text-gray-300 mb-4 italic">
+                      "{testimonial.content}"
                     </p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">{new Date().toLocaleDateString("pt-BR")}</p>
-                  </div>
-                </div>
+                    <div>
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        {testimonial.name}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {testimonial.role} • {testimonial.company}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
 
-                <div className="grid grid-cols-1 gap-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{productCounts.length}</p>
-                    <p className="text-sm text-blue-800 dark:text-blue-200">Produtos Contados</p>
-                  </div>
-                </div>
-
-                {productCounts.length > 0 ? (
-                  <div className="max-h-96 overflow-y-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Descrição</TableHead>
-                          <TableHead>Sistema</TableHead>
-                          <TableHead>Loja</TableHead>
-                          <TableHead>Estoque</TableHead>
-                          <TableHead>Total</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {productCounts.map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell className="font-medium">{item.descricao}</TableCell>
-                            <TableCell>{item.saldo_estoque}</TableCell>
-                            <TableCell>{item.quant_loja}</TableCell>
-                            <TableCell>{item.quant_estoque}</TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={item.total === 0 ? "secondary" : item.total > 0 ? "default" : "destructive"}
-                              >
-                                {item.total > 0 ? "+" : ""}
-                                {item.total}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                    <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p className="font-medium">Nenhuma contagem para exportar</p>
-                    <p className="text-sm">Realize contagens na aba "Conferência" primeiro</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="history" className="space-y-6">
-            <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20">
-              <Crown className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              <AlertDescription className="text-amber-800 dark:text-amber-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <strong>Recurso Premium</strong>
-                    <p className="text-sm mt-1">
-                      Este recurso está disponível apenas para assinantes premium. Faça upgrade para acessar o histórico
-                      completo de contagens.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="ml-4 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-600 dark:text-amber-300 dark:hover:bg-amber-900/30 bg-transparent"
-                    onClick={() => handlePremiumUpgrade("history")}
-                  >
-                    <Crown className="h-3 w-3 mr-1" />
-                    Upgrade
-                  </Button>
-                </div>
-              </AlertDescription>
-            </Alert>
-
-            <Card className="opacity-60">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <History className="h-5 w-5 mr-2" />
-                  Histórico de Contagens
-                </CardTitle>
-                <CardDescription>Visualize o histórico de contagens anteriores</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                  <History className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="font-medium">Histórico não disponível</p>
-                  <p className="text-sm">Faça upgrade para premium para acessar este recurso</p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        {/* CTA Section */}
+        <section className="py-20 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-12 text-white">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                Pronto para Revolucionar seu Inventário?
+              </h2>
+              <p className="text-xl mb-8 opacity-90">
+                Junte-se a milhares de empresas que já otimizaram sua gestão de
+                estoque com o Stock. Comece gratuitamente hoje mesmo!
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button
+                  asChild
+                  size="lg"
+                  variant="secondary"
+                  className="px-8 py-3 text-lg"
+                >
+                  <Link href="/">
+                    <Package className="h-5 w-5 mr-2" />
+                    Começar Gratuitamente
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="px-8 py-3 text-lg border-white text-white hover:bg-white hover:text-blue-600 bg-transparent"
+                >
+                  <Link href="/contact">Falar com Vendas</Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
 
-      {/* Lazy loaded modals */}
-      <Suspense fallback={<div />}>
-        {showQuickRegister && (
-          <QuickRegisterModal
-            isOpen={showQuickRegister}
-            onClose={() => setShowQuickRegister(false)}
-            onSave={handleQuickRegister}
-            initialData={quickRegisterData}
-          />
-        )}
-      </Suspense>
-
-      <Suspense fallback={<div />}>
-        {showClearDataModal && (
-          <ClearDataModal
-            isOpen={showClearDataModal}
-            onClose={() => setShowClearDataModal(false)}
-            onConfirm={handleClearAllData}
-          />
-        )}
-      </Suspense>
-
-      <Suspense fallback={<div />}>
-        {showBarcodeScanner && (
-          <BarcodeScanner
-            isActive={showBarcodeScanner}
-            onClose={() => setShowBarcodeScanner(false)}
-            onScan={handleBarcodeScanned}
-          />
-        )}
-      </Suspense>
-
-      <Suspense fallback={<div />}>
-        {showPremiumModal && (
-          <PremiumUpgradeModal
-            isOpen={showPremiumModal}
-            onClose={() => setShowPremiumModal(false)}
-            feature={premiumModalFeature}
-          />
-        )}
-      </Suspense>
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div>
+              <div className="flex items-center space-x-2 mb-4">
+                <Package className="h-8 w-8 text-blue-400" />
+                <span className="text-xl font-bold">Stock</span>
+              </div>
+              <p className="text-gray-400">
+                Sistema inteligente de inventário para empresas modernas.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-semibold mb-4">Produto</h3>
+              <ul className="space-y-2 text-gray-400">
+                <li>
+                  <Link href="/" className="hover:text-white transition-colors">
+                    Sistema
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/about"
+                    className="hover:text-white transition-colors"
+                  >
+                    Recursos
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/register"
+                    className="hover:text-white transition-colors"
+                  >
+                    Preços
+                  </Link>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-semibold mb-4">Empresa</h3>
+              <ul className="space-y-2 text-gray-400">
+                <li>
+                  <Link
+                    href="/about"
+                    className="hover:text-white transition-colors"
+                  >
+                    Sobre
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/contact"
+                    className="hover:text-white transition-colors"
+                  >
+                    Contato
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/contact"
+                    className="hover:text-white transition-colors"
+                  >
+                    Suporte
+                  </Link>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-semibold mb-4">Legal</h3>
+              <ul className="space-y-2 text-gray-400">
+                <li>
+                  <Link href="#" className="hover:text-white transition-colors">
+                    Privacidade
+                  </Link>
+                </li>
+                <li>
+                  <Link href="#" className="hover:text-white transition-colors">
+                    Termos
+                  </Link>
+                </li>
+                <li>
+                  <Link href="#" className="hover:text-white transition-colors">
+                    Cookies
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+            <p>&copy; 2024 Stock. Todos os direitos reservados.</p>
+          </div>
+        </div>
+      </footer>
     </div>
-  )
+  );
 }
