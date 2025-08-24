@@ -1361,7 +1361,8 @@ export default function InventorySystem() {
               </CardContent>
             </Card>
 
-            <Card className="opacity-60">
+            <Card>
+              {/* className="opacity-60" */}
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Download className="h-5 w-5 mr-2" />
@@ -1375,7 +1376,7 @@ export default function InventorySystem() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <Button
                     onClick={exportToCsv}
-                    disabled={true}
+                    disabled={productCounts.length === 0}
                     className="h-12"
                   >
                     <FileSpreadsheet className="h-4 w-4 mr-2" />
