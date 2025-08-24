@@ -35,6 +35,8 @@ import {
   Sparkles,
 } from "lucide-react";
 
+// O PAI TA ON
+
 export default function systemPage() {
   const [isVisible, setIsVisible] = useState(false);
 
