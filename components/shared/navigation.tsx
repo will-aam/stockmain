@@ -12,7 +12,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
-import { ThemeToggleButton } from "@/components/theme-toggle-button";
+import { ThemeToggleButton } from "@/components/theme/theme-toggle-button";
 import {
   Package,
   Menu,

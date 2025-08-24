@@ -1,56 +1,58 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
-import { Navigation } from "@/components/navigation"
-import { toast } from "@/hooks/use-toast"
-import { Package, Mail, Lock, Eye, EyeOff, Crown } from "lucide-react"
+import { useState } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Navigation } from "@/components/shared/navigation";
+import { toast } from "@/hooks/use-toast";
+import { Package, Mail, Lock, Eye, EyeOff, Crown } from "lucide-react";
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-  })
-  const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+    e.preventDefault();
+    setIsLoading(true);
 
     // Simulate login
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     toast({
       title: "Login realizado com sucesso!",
       description: "Redirecionando para o sistema...",
-    })
+    });
 
     // Redirect to system
     setTimeout(() => {
-      window.location.href = "/"
-    }, 1000)
+      window.location.href = "/";
+    }, 1000);
 
-    setIsLoading(false)
-  }
+    setIsLoading(false);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
-      <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md shadow-sm border-b dark:border-gray-700">
-        <Navigation />
-      </header>
-
+    <div>
       <main className="flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-md">
           <Card className="shadow-xl">
@@ -60,8 +62,12 @@ export default function LoginPage() {
                   <Package className="h-8 w-8 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
-              <CardTitle className="text-2xl font-bold">Entrar no Stock</CardTitle>
-              <CardDescription>Acesse sua conta para gerenciar seu inventário</CardDescription>
+              <CardTitle className="text-2xl font-bold">
+                Entrar no Stock
+              </CardTitle>
+              <CardDescription>
+                Acesse sua conta para gerenciar seu inventário
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -73,7 +79,9 @@ export default function LoginPage() {
                       id="email"
                       type="email"
                       value={formData.email}
-                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("email", e.target.value)
+                      }
                       placeholder="seu@email.com"
                       className="pl-10"
                       required
@@ -89,7 +97,9 @@ export default function LoginPage() {
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
-                      onChange={(e) => handleInputChange("password", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("password", e.target.value)
+                      }
                       placeholder="Sua senha"
                       className="pl-10 pr-10"
                       required
@@ -151,10 +161,13 @@ export default function LoginPage() {
                 <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                   <div className="flex items-center justify-center space-x-2 mb-2">
                     <Crown className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                    <span className="font-semibold text-amber-800 dark:text-amber-200">Upgrade para Premium</span>
+                    <span className="font-semibold text-amber-800 dark:text-amber-200">
+                      Upgrade para Premium
+                    </span>
                   </div>
                   <p className="text-xs text-amber-700 dark:text-amber-300 text-center mb-3">
-                    Desbloqueie recursos avançados como exportação, histórico completo e sincronização.
+                    Desbloqueie recursos avançados como exportação, histórico
+                    completo e sincronização.
                   </p>
                   <Button
                     asChild
@@ -173,5 +186,5 @@ export default function LoginPage() {
         </div>
       </main>
     </div>
-  )
+  );
 }

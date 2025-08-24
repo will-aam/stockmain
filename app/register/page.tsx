@@ -1,18 +1,33 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
-import { Badge } from "@/components/ui/badge"
-import { Navigation } from "@/components/navigation"
-import { toast } from "@/hooks/use-toast"
-import { Package, Mail, Lock, User, Eye, EyeOff, Crown, CheckCircle } from "lucide-react"
+import { useState } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Navigation } from "@/components/shared/navigation";
+import { toast } from "@/hooks/use-toast";
+import {
+  Package,
+  Mail,
+  Lock,
+  User,
+  Eye,
+  EyeOff,
+  Crown,
+  CheckCircle,
+} from "lucide-react";
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -20,44 +35,44 @@ export default function RegisterPage() {
     email: "",
     password: "",
     confirmPassword: "",
-  })
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (formData.password !== formData.confirmPassword) {
       toast({
         title: "Erro",
         description: "As senhas não coincidem",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    setIsLoading(true)
+    setIsLoading(true);
 
     // Simulate registration
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     toast({
       title: "Conta criada com sucesso!",
       description: "Redirecionando para o sistema...",
-    })
+    });
 
     // Redirect to system
     setTimeout(() => {
-      window.location.href = "/"
-    }, 1000)
+      window.location.href = "/";
+    }, 1000);
 
-    setIsLoading(false)
-  }
+    setIsLoading(false);
+  };
 
   const premiumFeatures = [
     "Exportação de contagens (CSV/PDF)",
@@ -68,14 +83,10 @@ export default function RegisterPage() {
     "Suporte prioritário",
     "Múltiplos usuários",
     "Relatórios personalizados",
-  ]
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
-      <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md shadow-sm border-b dark:border-gray-700">
-        <Navigation />
-      </header>
-
+    <div>
       <main className="flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Registration Form */}
@@ -86,8 +97,12 @@ export default function RegisterPage() {
                   <Package className="h-8 w-8 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
-              <CardTitle className="text-2xl font-bold">Criar Conta no Stock</CardTitle>
-              <CardDescription>Comece gratuitamente e gerencie seu inventário hoje mesmo</CardDescription>
+              <CardTitle className="text-2xl font-bold">
+                Criar Conta no Stock
+              </CardTitle>
+              <CardDescription>
+                Comece gratuitamente e gerencie seu inventário hoje mesmo
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -99,7 +114,9 @@ export default function RegisterPage() {
                       id="name"
                       type="text"
                       value={formData.name}
-                      onChange={(e) => handleInputChange("name", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("name", e.target.value)
+                      }
                       placeholder="Seu nome completo"
                       className="pl-10"
                       required
@@ -115,7 +132,9 @@ export default function RegisterPage() {
                       id="email"
                       type="email"
                       value={formData.email}
-                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("email", e.target.value)
+                      }
                       placeholder="seu@email.com"
                       className="pl-10"
                       required
@@ -131,7 +150,9 @@ export default function RegisterPage() {
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
-                      onChange={(e) => handleInputChange("password", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("password", e.target.value)
+                      }
                       placeholder="Mínimo 8 caracteres"
                       className="pl-10 pr-10"
                       minLength={8}
@@ -161,7 +182,9 @@ export default function RegisterPage() {
                       id="confirmPassword"
                       type={showConfirmPassword ? "text" : "password"}
                       value={formData.confirmPassword}
-                      onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("confirmPassword", e.target.value)
+                      }
                       placeholder="Confirme sua senha"
                       className="pl-10 pr-10"
                       required
@@ -171,7 +194,9 @@ export default function RegisterPage() {
                       variant="ghost"
                       size="sm"
                       className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      onClick={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
                     >
                       {showConfirmPassword ? (
                         <EyeOff className="h-4 w-4 text-gray-400" />
@@ -230,7 +255,9 @@ export default function RegisterPage() {
                 Recursos avançados para empresas que precisam de mais
               </CardDescription>
               <div className="text-center mt-4">
-                <span className="text-3xl font-bold text-amber-800 dark:text-amber-200">R$ 29</span>
+                <span className="text-3xl font-bold text-amber-800 dark:text-amber-200">
+                  R$ 29
+                </span>
                 <span className="text-amber-600 dark:text-amber-400">/mês</span>
               </div>
             </CardHeader>
@@ -239,7 +266,9 @@ export default function RegisterPage() {
                 {premiumFeatures.map((feature, index) => (
                   <div key={index} className="flex items-center space-x-3">
                     <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span className="text-gray-700 dark:text-gray-300">{feature}</span>
+                    <span className="text-gray-700 dark:text-gray-300">
+                      {feature}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -266,5 +295,5 @@ export default function RegisterPage() {
         </div>
       </main>
     </div>
-  )
+  );
 }

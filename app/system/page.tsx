@@ -56,28 +56,33 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import Papa, { type ParseResult } from "papaparse";
-import { Navigation } from "@/components/navigation";
 
 // Lazy load heavy components
 const QuickRegisterModal = lazy(() =>
-  import("@/components/quick-register-modal").then((module) => ({
-    default: module.QuickRegisterModal,
-  }))
+  import("@/components/modules/inventory-count/quick-register-modal").then(
+    (module) => ({
+      default: module.QuickRegisterModal,
+    })
+  )
 );
 const ClearDataModal = lazy(() =>
-  import("@/components/clear-data-modal").then((module) => ({
+  import("@/components/shared/clear-data-modal").then((module) => ({
     default: module.ClearDataModal,
   }))
 );
 const BarcodeScanner = lazy(() =>
-  import("@/components/barcode-scanner").then((module) => ({
-    default: module.BarcodeScanner,
-  }))
+  import("@/components/modules/inventory-count/barcode-scanner").then(
+    (module) => ({
+      default: module.BarcodeScanner,
+    })
+  )
 );
 const PremiumUpgradeModal = lazy(() =>
-  import("@/components/premium-upgrade-modal").then((module) => ({
-    default: module.PremiumUpgradeModal,
-  }))
+  import("@/components/modules/premium/premium-upgrade-modal").then(
+    (module) => ({
+      default: module.PremiumUpgradeModal,
+    })
+  )
 );
 
 interface Product {
@@ -826,14 +831,7 @@ export default function InventorySystem() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700">
-        <Navigation
-          showClearButton={true}
-          onClearData={() => setShowClearDataModal(true)}
-        />
-      </header>
-
+    <div>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="scan" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">

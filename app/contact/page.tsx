@@ -1,18 +1,40 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import { Navigation } from "@/components/navigation"
-import { toast } from "@/hooks/use-toast"
-import { Package, Mail, Phone, MapPin, Clock, Send, MessageCircle, HelpCircle, Users, Zap } from "lucide-react"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Navigation } from "@/components/shared/navigation";
+import { toast } from "@/hooks/use-toast";
+import {
+  Package,
+  Mail,
+  Phone,
+  MapPin,
+  Clock,
+  Send,
+  MessageCircle,
+  HelpCircle,
+  Users,
+  Zap,
+} from "lucide-react";
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -21,24 +43,24 @@ export default function ContactPage() {
     company: "",
     subject: "",
     message: "",
-  })
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
+    e.preventDefault();
+    setIsSubmitting(true);
 
     // Simulate form submission
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     toast({
       title: "Mensagem enviada com sucesso!",
       description: "Entraremos em contato em até 24 horas.",
-    })
+    });
 
     setFormData({
       name: "",
@@ -46,9 +68,9 @@ export default function ContactPage() {
       company: "",
       subject: "",
       message: "",
-    })
-    setIsSubmitting(false)
-  }
+    });
+    setIsSubmitting(false);
+  };
 
   const contactInfo = [
     {
@@ -75,7 +97,7 @@ export default function ContactPage() {
       content: "9h às 18h",
       description: "Segunda a Sexta-feira",
     },
-  ]
+  ];
 
   const faqItems = [
     {
@@ -85,11 +107,13 @@ export default function ContactPage() {
     },
     {
       question: "Posso usar o Stock offline?",
-      answer: "Sim! O Stock funciona offline e sincroniza automaticamente quando você se conecta à internet novamente.",
+      answer:
+        "Sim! O Stock funciona offline e sincroniza automaticamente quando você se conecta à internet novamente.",
     },
     {
       question: "Quantos dispositivos posso usar?",
-      answer: "No plano gratuito, você pode usar em 1 dispositivo. No plano Premium, não há limite de dispositivos.",
+      answer:
+        "No plano gratuito, você pode usar em 1 dispositivo. No plano Premium, não há limite de dispositivos.",
     },
     {
       question: "Como importar meus produtos existentes?",
@@ -106,14 +130,10 @@ export default function ContactPage() {
       answer:
         "Oferecemos suporte por email para todos os usuários. Usuários Premium têm suporte prioritário com resposta em até 4 horas.",
     },
-  ]
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
-      <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md shadow-sm border-b dark:border-gray-700">
-        <Navigation />
-      </header>
-
+    <div>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Hero Section */}
         <section className="text-center mb-16">
@@ -127,8 +147,8 @@ export default function ContactPage() {
             Estamos Aqui para Ajudar
           </h1>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto leading-relaxed">
-            Tem dúvidas sobre o Stock? Precisa de suporte? Nossa equipe está pronta para atendê-lo da melhor forma
-            possível.
+            Tem dúvidas sobre o Stock? Precisa de suporte? Nossa equipe está
+            pronta para atendê-lo da melhor forma possível.
           </p>
         </section>
 
@@ -141,7 +161,10 @@ export default function ContactPage() {
                   <Send className="h-6 w-6 mr-3" />
                   Envie sua Mensagem
                 </CardTitle>
-                <CardDescription>Preencha o formulário abaixo e entraremos em contato em até 24 horas</CardDescription>
+                <CardDescription>
+                  Preencha o formulário abaixo e entraremos em contato em até 24
+                  horas
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -151,7 +174,9 @@ export default function ContactPage() {
                       <Input
                         id="name"
                         value={formData.name}
-                        onChange={(e) => handleInputChange("name", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("name", e.target.value)
+                        }
                         placeholder="Seu nome completo"
                         required
                       />
@@ -162,7 +187,9 @@ export default function ContactPage() {
                         id="email"
                         type="email"
                         value={formData.email}
-                        onChange={(e) => handleInputChange("email", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("email", e.target.value)
+                        }
                         placeholder="seu@email.com"
                         required
                       />
@@ -174,7 +201,9 @@ export default function ContactPage() {
                     <Input
                       id="company"
                       value={formData.company}
-                      onChange={(e) => handleInputChange("company", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("company", e.target.value)
+                      }
                       placeholder="Nome da sua empresa (opcional)"
                     />
                   </div>
@@ -184,7 +213,9 @@ export default function ContactPage() {
                     <Input
                       id="subject"
                       value={formData.subject}
-                      onChange={(e) => handleInputChange("subject", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("subject", e.target.value)
+                      }
                       placeholder="Sobre o que você gostaria de falar?"
                       required
                     />
@@ -195,7 +226,9 @@ export default function ContactPage() {
                     <Textarea
                       id="message"
                       value={formData.message}
-                      onChange={(e) => handleInputChange("message", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("message", e.target.value)
+                      }
                       placeholder="Descreva sua dúvida ou solicitação em detalhes..."
                       rows={6}
                       required
@@ -235,19 +268,25 @@ export default function ContactPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {contactInfo.map((info, index) => {
-                  const Icon = info.icon
+                  const Icon = info.icon;
                   return (
                     <div key={index} className="flex items-start space-x-3">
                       <div className="w-10 h-10 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg flex items-center justify-center flex-shrink-0">
                         <Icon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-900 dark:text-white">{info.title}</h3>
-                        <p className="text-gray-700 dark:text-gray-300">{info.content}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{info.description}</p>
+                        <h3 className="font-semibold text-gray-900 dark:text-white">
+                          {info.title}
+                        </h3>
+                        <p className="text-gray-700 dark:text-gray-300">
+                          {info.content}
+                        </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {info.description}
+                        </p>
                       </div>
                     </div>
-                  )
+                  );
                 })}
               </CardContent>
             </Card>
@@ -265,9 +304,12 @@ export default function ContactPage() {
                     <Zap className="h-5 w-5 text-green-600 dark:text-green-400" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">Suporte Premium</h3>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">
+                      Suporte Premium
+                    </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-300">
-                      Usuários Premium têm suporte prioritário com resposta em até 4 horas
+                      Usuários Premium têm suporte prioritário com resposta em
+                      até 4 horas
                     </p>
                   </div>
                 </div>
@@ -276,7 +318,9 @@ export default function ContactPage() {
                     <MessageCircle className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">Chat ao Vivo</h3>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">
+                      Chat ao Vivo
+                    </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-300">
                       Em breve: chat ao vivo para suporte instantâneo
                     </p>
@@ -290,9 +334,12 @@ export default function ContactPage() {
         {/* FAQ Section */}
         <section className="mt-16">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">Perguntas Frequentes</h2>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+              Perguntas Frequentes
+            </h2>
             <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-              Encontre respostas rápidas para as dúvidas mais comuns sobre o Stock
+              Encontre respostas rápidas para as dúvidas mais comuns sobre o
+              Stock
             </p>
           </div>
 
@@ -307,8 +354,12 @@ export default function ContactPage() {
               <Accordion type="single" collapsible className="w-full">
                 {faqItems.map((item, index) => (
                   <AccordionItem key={index} value={`item-${index}`}>
-                    <AccordionTrigger className="text-left">{item.question}</AccordionTrigger>
-                    <AccordionContent className="text-gray-600 dark:text-gray-300">{item.answer}</AccordionContent>
+                    <AccordionTrigger className="text-left">
+                      {item.question}
+                    </AccordionTrigger>
+                    <AccordionContent className="text-gray-600 dark:text-gray-300">
+                      {item.answer}
+                    </AccordionContent>
                   </AccordionItem>
                 ))}
               </Accordion>
@@ -317,5 +368,5 @@ export default function ContactPage() {
         </section>
       </main>
     </div>
-  )
+  );
 }
