@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./inventory.db"
+}
+
+model Usuario {
+  id         Int      @id @default(autoincrement())
+  email      String   @unique
+  senha_hash String
+  created_at DateTime @default(now())
+  
+  contagens  Contagem[]
+  
+  @@map("usuarios")
+}
+
+model Produto {
+  id            Int      @id @default(autoincrement())
+  codigo_produto String   @unique
+  descricao     String
+  saldo_estoque Int      @default(0)
+  created_at    DateTime @default(now())
+  
+  codigos_barras CodigoBarras[]
+  itens_contados ItemContado[]
+  
+  @@map("produtos")
+}
+
+model CodigoBarras {
+  codigo_de_barras String   @id
+  produto_id       Int
+  created_at       DateTime @default(now())
+  
+  produto        Produto       @relation(fields: [produto_id], references: [id], onDelete: Cascade)
+  itens_contados ItemContado[]
+  
+  @@map("codigos_de_barras")
+}
+
+model Contagem {
+  id             Int      @id @default(autoincrement())
+  usuario_id     Int
+  data_contagem  DateTime @default(now())
+  local_estoque  String   @default("loja-1")
+  status         String   @default("em_andamento")
+  observacoes    String?
+  
+  usuario        Usuario       @relation(fields: [usuario_id], references: [id])
+  itens_contados ItemContado[]
+  
+  @@map("contagens")
+}
+
+model ItemContado {
+  id                 Int      @id @default(autoincrement())
+  contagem_id        Int
+  produto_id         Int
+  codigo_de_barras   String
+  quantidade_contada Int
+  saldo_estoque      Int
+  total              Int
+  data_hora          DateTime @default(now())
+  
+  contagem       Contagem     @relation(fields: [contagem_id], references: [id], onDelete: Cascade)
+  produto        Produto      @relation(fields: [produto_id], references: [id])
+  codigo_barras  CodigoBarras @relation(fields: [codigo_de_barras], references: [codigo_de_barras])
+  
+  @@map("itens_contados")
+}
