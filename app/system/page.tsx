@@ -101,7 +101,7 @@ interface TempProduct {
   saldo_estoque: number;
   isTemporary: true;
 }
-
+export const dynamic = "force-dynamic";
 // Componentes Memoizados (inalterados)
 const ProductCountItem = ({
   item,
