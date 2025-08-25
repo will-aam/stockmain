@@ -1,11 +1,8 @@
 "use client";
 
 import type React from "react";
-
-// 1. A importação de 'lazy' e 'Suspense' foi removida
+// 1. As importações de 'lazy' e 'Suspense' foram removidas
 import { useState, useEffect, useMemo, useCallback } from "react";
-
-// Importações de componentes da UI (inalteradas)
 import {
   Card,
   CardContent,
@@ -52,13 +49,13 @@ import {
 import { toast } from "@/hooks/use-toast";
 import Papa, { type ParseResult } from "papaparse";
 
-// 2. Modais importados diretamente (sem lazy loading)
-import QuickRegisterModal from "@/components/modules/inventory-count/quick-register-modal";
-import ClearDataModal from "@/components/shared/clear-data-modal";
-import BarcodeScanner from "@/components/modules/inventory-count/barcode-scanner";
-import PremiumUpgradeModal from "@/components/modules/premium/premium-upgrade-modal";
+// 2. Modais importados diretamente com importações nomeadas (com chaves)
+import { QuickRegisterModal } from "@/components/modules/inventory-count/quick-register-modal";
+import { ClearDataModal } from "@/components/shared/clear-data-modal";
+import { BarcodeScanner } from "@/components/modules/inventory-count/barcode-scanner";
+import { PremiumUpgradeModal } from "@/components/modules/premium/premium-upgrade-modal";
 
-// Interfaces (inalteradas)
+// Interfaces
 interface Product {
   id: number;
   codigo_produto: string;
@@ -105,7 +102,7 @@ interface TempProduct {
   isTemporary: true;
 }
 
-// Componentes Memoizados (inalterados)
+// Componentes Memoizados
 const ProductCountItem = ({
   item,
   onRemove,
@@ -114,18 +111,22 @@ const ProductCountItem = ({
   onRemove: (id: string) => void;
 }) => (
   <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+    {" "}
     <div className="flex-1">
-      <p className="font-medium text-sm">{item.descricao}</p>
+      {" "}
+      <p className="font-medium text-sm">{item.descricao}</p>{" "}
       <p className="text-xs text-gray-600 dark:text-gray-400">
-        Código: {item.codigo_produto} | Sistema: {item.saldo_estoque}
-      </p>
+        {" "}
+        Código: {item.codigo_produto} | Sistema: {item.saldo_estoque}{" "}
+      </p>{" "}
       <div className="flex items-center space-x-2 mt-1">
+        {" "}
         <Badge variant="outline" className="text-xs">
           Loja: {item.quant_loja}
-        </Badge>
+        </Badge>{" "}
         <Badge variant="outline" className="text-xs">
           Estoque: {item.quant_estoque}
-        </Badge>
+        </Badge>{" "}
         <Badge
           variant={
             item.total === 0
@@ -136,18 +137,19 @@ const ProductCountItem = ({
           }
           className="text-xs"
         >
+          {" "}
           Total: {item.total > 0 ? "+" : ""}
-          {item.total}
-        </Badge>
-      </div>
-    </div>
+          {item.total}{" "}
+        </Badge>{" "}
+      </div>{" "}
+    </div>{" "}
     <Button variant="outline" size="sm" onClick={() => onRemove(item.id)}>
-      <Trash2 className="h-4 w-4" />
-    </Button>
+      {" "}
+      <Trash2 className="h-4 w-4" />{" "}
+    </Button>{" "}
   </div>
 );
 ProductCountItem.displayName = "ProductCountItem";
-
 const ProductTableRow = ({
   product,
   barCode,
@@ -156,20 +158,20 @@ const ProductTableRow = ({
   barCode?: BarCode;
 }) => (
   <TableRow>
-    <TableCell className="font-medium">{product.codigo_produto}</TableCell>
-    <TableCell>{product.descricao}</TableCell>
+    {" "}
+    <TableCell className="font-medium">{product.codigo_produto}</TableCell>{" "}
+    <TableCell>{product.descricao}</TableCell>{" "}
     <TableCell>
       <Badge variant="outline">{product.saldo_estoque}</Badge>
-    </TableCell>
+    </TableCell>{" "}
     <TableCell className="font-mono text-sm">
       {barCode?.codigo_de_barras || "-"}
-    </TableCell>
+    </TableCell>{" "}
   </TableRow>
 );
 ProductTableRow.displayName = "ProductTableRow";
 
 export default function InventorySystem() {
-  // Hooks de estado (inalterados)
   const [products, setProducts] = useState<Product[]>([]);
   const [barCodes, setBarCodes] = useState<BarCode[]>([]);
   const [tempProducts, setTempProducts] = useState<TempProduct[]>([]);
@@ -198,7 +200,6 @@ export default function InventorySystem() {
     quantidade: "",
   });
 
-  // Memos e Callbacks (inalterados)
   const locations = useMemo(
     () => [
       { value: "loja-1", label: "Loja 1" },
@@ -208,7 +209,6 @@ export default function InventorySystem() {
     ],
     []
   );
-
   const productCountsStats = useMemo(() => {
     const totalLoja = productCounts.reduce(
       (sum, item) => sum + item.quant_loja,
@@ -225,7 +225,6 @@ export default function InventorySystem() {
     const consolidado = totalLoja + totalEstoque - totalSistema;
     return { totalLoja, totalEstoque, totalSistema, consolidado };
   }, [productCounts]);
-
   useEffect(() => {
     const loadData = async () => {
       const savedData = localStorage.getItem("inventory-system-data");
@@ -241,7 +240,6 @@ export default function InventorySystem() {
     };
     loadData();
   }, []);
-
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       const dataToSave = {
@@ -253,7 +251,6 @@ export default function InventorySystem() {
     }, 500);
     return () => clearTimeout(timeoutId);
   }, [products, barCodes]);
-
   const handleClearAllData = useCallback(() => {
     localStorage.removeItem("inventory-system-data");
     setProducts([]);
@@ -272,7 +269,6 @@ export default function InventorySystem() {
       variant: "destructive",
     });
   }, []);
-
   const handleCsvUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -283,7 +279,6 @@ export default function InventorySystem() {
     },
     []
   );
-
   const processCsvFile = useCallback(
     (file: File) => {
       setIsLoading(true);
@@ -366,7 +361,6 @@ export default function InventorySystem() {
     },
     [barCodes]
   );
-
   const handleScan = useCallback(() => {
     const barCode = barCodes.find((bc) => bc.codigo_de_barras === scanInput);
     if (barCode && barCode.produto) {
@@ -395,7 +389,6 @@ export default function InventorySystem() {
     });
     setShowQuickRegister(true);
   }, [scanInput, barCodes, tempProducts]);
-
   const handleBarcodeScanned = useCallback(
     (barcode: string) => {
       setScanInput(barcode);
@@ -431,7 +424,6 @@ export default function InventorySystem() {
     },
     [barCodes, tempProducts]
   );
-
   const handleQuickRegister = useCallback(
     (data: {
       codigo_de_barras: string;
@@ -457,14 +449,12 @@ export default function InventorySystem() {
     },
     []
   );
-
   const calculateTotal = useCallback(
     (quantLoja: number, quantEstoque: number, saldoEstoque: number) => {
       return quantLoja + quantEstoque - saldoEstoque;
     },
     []
   );
-
   const calculateExpression = useCallback(
     (
       expression: string
@@ -515,7 +505,6 @@ export default function InventorySystem() {
     },
     []
   );
-
   const handleAddCount = useCallback(() => {
     if (!currentProduct || !quantityInput) {
       toast({
@@ -616,7 +605,6 @@ export default function InventorySystem() {
     calculateTotal,
     calculateExpression,
   ]);
-
   const handleQuantityKeyPress = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter") {
@@ -648,12 +636,10 @@ export default function InventorySystem() {
     },
     [quantityInput, calculateExpression, currentProduct, handleAddCount]
   );
-
   const handleRemoveCount = useCallback((id: string) => {
     setProductCounts((prev) => prev.filter((item) => item.id !== id));
     toast({ title: "Item removido da contagem" });
   }, []);
-
   const exportToCsv = useCallback(() => {
     if (productCounts.length === 0) {
       toast({ title: "Nenhum item para exportar", variant: "destructive" });
@@ -683,7 +669,6 @@ export default function InventorySystem() {
     URL.revokeObjectURL(link.href);
     toast({ title: "CSV exportado com sucesso!" });
   }, [productCounts, selectedLocation]);
-
   const downloadTemplateCSV = useCallback(() => {
     const templateData = [
       {
@@ -718,7 +703,6 @@ export default function InventorySystem() {
     URL.revokeObjectURL(link.href);
     toast({ title: "Template CSV baixado com sucesso!" });
   }, []);
-
   const handlePremiumUpgrade = useCallback((feature: string) => {
     setPremiumModalFeature(feature);
     setShowPremiumModal(true);
@@ -740,8 +724,8 @@ export default function InventorySystem() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    <Scan className="h-5 w-5 mr-2" />
-                    Scanner de Código de Barras
+                    <Scan className="h-5 w-5 mr-2" /> Scanner de Código de
+                    Barras
                   </CardTitle>
                   <CardDescription>
                     <div className="flex items-center justify-between">
@@ -774,8 +758,7 @@ export default function InventorySystem() {
                           size="sm"
                           onClick={() => setCountingMode("loja")}
                         >
-                          <Store className="h-3 w-3 mr-1" />
-                          Loja
+                          <Store className="h-3 w-3 mr-1" /> Loja
                         </Button>
                         <Button
                           variant={
@@ -784,8 +767,7 @@ export default function InventorySystem() {
                           size="sm"
                           onClick={() => setCountingMode("estoque")}
                         >
-                          <Package className="h-3 w-3 mr-1" />
-                          Estoque
+                          <Package className="h-3 w-3 mr-1" /> Estoque
                         </Button>
                       </div>
                     </div>
@@ -814,7 +796,6 @@ export default function InventorySystem() {
                       </Button>
                     </div>
                   </div>
-
                   {currentProduct && (
                     <div
                       className={`p-4 border rounded-lg ${
@@ -866,7 +847,6 @@ export default function InventorySystem() {
                       </div>
                     </div>
                   )}
-
                   <div className="space-y-2">
                     <Label htmlFor="quantity">
                       Quantidade{" "}
@@ -889,7 +869,6 @@ export default function InventorySystem() {
                       Pressione Enter para calcular expressões matemáticas
                     </p>
                   </div>
-
                   <Button
                     onClick={handleAddCount}
                     className="w-full"
@@ -901,7 +880,6 @@ export default function InventorySystem() {
                   </Button>
                 </CardContent>
               </Card>
-
               <Card>
                 <CardHeader>
                   <CardTitle>
@@ -1003,7 +981,6 @@ export default function InventorySystem() {
                   />
                   {isLoading && <Skeleton className="h-4 w-full" />}
                 </div>
-
                 {csvErrors.length > 0 && (
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
@@ -1019,7 +996,6 @@ export default function InventorySystem() {
                     </AlertDescription>
                   </Alert>
                 )}
-
                 <div className="grid grid-cols-1 gap-4 text-sm">
                   <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <p className="font-semibold text-blue-800 dark:text-blue-200">
@@ -1032,7 +1008,6 @@ export default function InventorySystem() {
                 </div>
               </CardContent>
             </Card>
-
             {products.length > 0 ? (
               <Card>
                 <CardHeader>
@@ -1107,7 +1082,6 @@ export default function InventorySystem() {
                 </div>
               </AlertDescription>
             </Alert>
-
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -1132,7 +1106,6 @@ export default function InventorySystem() {
                       temporários
                     </p>
                   </div>
-
                   <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-center">
                     <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                       {productCounts.length}
@@ -1146,7 +1119,6 @@ export default function InventorySystem() {
                       unidades totais
                     </p>
                   </div>
-
                   <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-center">
                     <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
                       {Math.max(
@@ -1170,7 +1142,6 @@ export default function InventorySystem() {
                     </p>
                   </div>
                 </div>
-
                 {products.length + tempProducts.length > 0 && (
                   <div className="mt-4">
                     <div className="flex items-center justify-between mb-2">
@@ -1197,59 +1168,8 @@ export default function InventorySystem() {
                     </div>
                   </div>
                 )}
-
-                {products.length + tempProducts.length > 0 &&
-                  productCounts.length === 0 && (
-                    <Alert className="mt-4 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20">
-                      <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                      <AlertDescription className="text-blue-800 dark:text-blue-200">
-                        <strong>Contagem não iniciada</strong>
-                        <p className="text-sm mt-1">
-                          Você tem {products.length + tempProducts.length}{" "}
-                          produtos importados. Vá para a aba "Conferência" para
-                          começar a contagem.
-                        </p>
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                {products.length + tempProducts.length > 0 &&
-                  productCounts.length > 0 &&
-                  productCounts.length <
-                    products.length + tempProducts.length && (
-                    <Alert className="mt-4 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20">
-                      <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                      <AlertDescription className="text-amber-800 dark:text-amber-200">
-                        <strong>Contagem em andamento</strong>
-                        <p className="text-sm mt-1">
-                          Ainda restam{" "}
-                          {products.length +
-                            tempProducts.length -
-                            productCounts.length}{" "}
-                          produtos para contar. Continue na aba "Conferência"
-                          para completar a contagem.
-                        </p>
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                {products.length + tempProducts.length > 0 &&
-                  productCounts.length >=
-                    products.length + tempProducts.length && (
-                    <Alert className="mt-4 border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
-                      <AlertCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                      <AlertDescription className="text-green-800 dark:text-green-200">
-                        <strong>Contagem completa!</strong>
-                        <p className="text-sm mt-1">
-                          Todos os produtos foram contados. Você pode exportar
-                          os dados ou continuar adicionando mais contagens.
-                        </p>
-                      </AlertDescription>
-                    </Alert>
-                  )}
               </CardContent>
             </Card>
-
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -1283,7 +1203,6 @@ export default function InventorySystem() {
                     </p>
                   </div>
                 </div>
-
                 <div className="grid grid-cols-1 gap-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                   <div className="text-center">
                     <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
@@ -1294,7 +1213,6 @@ export default function InventorySystem() {
                     </p>
                   </div>
                 </div>
-
                 {productCounts.length > 0 ? (
                   <div className="max-h-96 overflow-y-auto">
                     <Table>
@@ -1375,7 +1293,6 @@ export default function InventorySystem() {
                 </div>
               </AlertDescription>
             </Alert>
-
             <Card className="opacity-60">
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -1400,7 +1317,7 @@ export default function InventorySystem() {
         </Tabs>
       </main>
 
-      {/* Modais renderizados condicionalmente */}
+      {/* 3. Modais renderizados condicionalmente, sem Suspense */}
       {showQuickRegister && (
         <QuickRegisterModal
           isOpen={showQuickRegister}
