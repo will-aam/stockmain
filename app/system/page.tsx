@@ -57,12 +57,12 @@ import {
 import { toast } from "@/hooks/use-toast";
 import Papa, { type ParseResult } from "papaparse";
 
+// Em: app/system/page.tsx
+
 // Lazy load heavy components
 const QuickRegisterModal = lazy(() =>
   import("@/components/modules/inventory-count/quick-register-modal").then(
-    (module) => ({
-      default: module.QuickRegisterModal,
-    })
+    (module) => ({ default: module.QuickRegisterModal })
   )
 );
 const ClearDataModal = lazy(() =>
@@ -72,16 +72,12 @@ const ClearDataModal = lazy(() =>
 );
 const BarcodeScanner = lazy(() =>
   import("@/components/modules/inventory-count/barcode-scanner").then(
-    (module) => ({
-      default: module.BarcodeScanner,
-    })
+    (module) => ({ default: module.BarcodeScanner })
   )
 );
 const PremiumUpgradeModal = lazy(() =>
   import("@/components/modules/premium/premium-upgrade-modal").then(
-    (module) => ({
-      default: module.PremiumUpgradeModal,
-    })
+    (module) => ({ default: module.PremiumUpgradeModal }) // AQUI ESTÁ A CORREÇÃO
   )
 );
 
