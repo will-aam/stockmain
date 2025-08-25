@@ -33,7 +33,7 @@ interface PremiumUpgradeModalProps {
   feature?: string;
 }
 
-export default function PremiumUpgradeModal({
+export function PremiumUpgradeModal({
   isOpen,
   onClose,
   feature,
