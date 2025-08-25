@@ -9,7 +9,7 @@ interface ClearDataModalProps {
   onConfirm: () => void;
 }
 
-export function ClearDataModal({
+export default function ClearDataModal({
   isOpen,
   onClose,
   onConfirm,

@@ -14,7 +14,7 @@ interface BarcodeScannerProps {
   onClose: () => void;
 }
 
-export function BarcodeScanner({
+export default function BarcodeScanner({
   onScan,
   isActive,
   onClose,
