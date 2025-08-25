@@ -2,14 +2,10 @@
 
 import type React from "react";
 
-import {
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-  lazy,
-  Suspense,
-} from "react";
+// 1. A importação de 'lazy' e 'Suspense' foi removida
+import { useState, useEffect, useMemo, useCallback } from "react";
+
+// Importações de componentes da UI (inalteradas)
 import {
   Card,
   CardContent,
@@ -52,43 +48,28 @@ import {
   Package,
   Crown,
   Camera,
-  Lightbulb,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import Papa, { type ParseResult } from "papaparse";
 
-// Em: app/system/page.tsx
+// 2. Modais importados diretamente (sem lazy loading)
+import { QuickRegisterModal } from "@/components/modules/inventory-count/quick-register-modal";
+import { ClearDataModal } from "@/components/shared/clear-data-modal";
+import { BarcodeScanner } from "@/components/modules/inventory-count/barcode-scanner";
+import { PremiumUpgradeModal } from "@/components/modules/premium/premium-upgrade-modal";
 
-// Lazy load heavy components
-const QuickRegisterModal = lazy(
-  () => import("@/components/modules/inventory-count/quick-register-modal")
-);
-
-const ClearDataModal = lazy(
-  () => import("@/components/shared/clear-data-modal")
-);
-
-const BarcodeScanner = lazy(
-  () => import("@/components/modules/inventory-count/barcode-scanner")
-);
-
-const PremiumUpgradeModal = lazy(
-  () => import("@/components/modules/premium/premium-upgrade-modal")
-);
-
+// Interfaces (inalteradas)
 interface Product {
   id: number;
   codigo_produto: string;
   descricao: string;
   saldo_estoque: number;
 }
-
 interface BarCode {
   codigo_de_barras: string;
   produto_id: number;
   produto?: Product;
 }
-
 interface ProductCount {
   id: string;
   codigo_de_barras: string;
@@ -101,7 +82,6 @@ interface ProductCount {
   local_estoque: string;
   data_hora: string;
 }
-
 interface InventoryHistory {
   id: number;
   data_contagem: string;
@@ -110,15 +90,12 @@ interface InventoryHistory {
   local_estoque: string;
   status: string;
 }
-
 interface CsvRow {
   codigo_de_barras: string;
   codigo_produto: string;
   descricao: string;
   saldo_estoque: string;
 }
-
-// Temporary product interface for quick register
 interface TempProduct {
   id: string;
   codigo_de_barras: string;
@@ -128,7 +105,7 @@ interface TempProduct {
   isTemporary: true;
 }
 
-// Memoized components
+// Componentes Memoizados (inalterados)
 const ProductCountItem = ({
   item,
   onRemove,
@@ -169,7 +146,6 @@ const ProductCountItem = ({
     </Button>
   </div>
 );
-
 ProductCountItem.displayName = "ProductCountItem";
 
 const ProductTableRow = ({
@@ -190,13 +166,13 @@ const ProductTableRow = ({
     </TableCell>
   </TableRow>
 );
-
 ProductTableRow.displayName = "ProductTableRow";
 
 export default function InventorySystem() {
+  // Hooks de estado (inalterados)
   const [products, setProducts] = useState<Product[]>([]);
   const [barCodes, setBarCodes] = useState<BarCode[]>([]);
-  const [tempProducts, setTempProducts] = useState<TempProduct[]>([]); // Temporary products from quick register
+  const [tempProducts, setTempProducts] = useState<TempProduct[]>([]);
   const [scanInput, setScanInput] = useState("");
   const [quantityInput, setQuantityInput] = useState("");
   const [currentProduct, setCurrentProduct] = useState<
@@ -222,7 +198,7 @@ export default function InventorySystem() {
     quantidade: "",
   });
 
-  // Memoized locations
+  // Memos e Callbacks (inalterados)
   const locations = useMemo(
     () => [
       { value: "loja-1", label: "Loja 1" },
@@ -233,7 +209,6 @@ export default function InventorySystem() {
     []
   );
 
-  // Memoized calculations
   const productCountsStats = useMemo(() => {
     const totalLoja = productCounts.reduce(
       (sum, item) => sum + item.quant_loja,
@@ -248,11 +223,9 @@ export default function InventorySystem() {
       0
     );
     const consolidado = totalLoja + totalEstoque - totalSistema;
-
     return { totalLoja, totalEstoque, totalSistema, consolidado };
   }, [productCounts]);
 
-  // Optimized data loading - only load persistent products
   useEffect(() => {
     const loadData = async () => {
       const savedData = localStorage.getItem("inventory-system-data");
@@ -261,17 +234,14 @@ export default function InventorySystem() {
           const data = JSON.parse(savedData);
           setProducts(data.products || []);
           setBarCodes(data.barCodes || []);
-          // Don't load productCounts from localStorage - they should be session-only
         } catch (error) {
           console.error("Erro ao carregar dados do localStorage:", error);
         }
       }
     };
-
     loadData();
   }, []);
 
-  // Debounced save to localStorage - only save persistent data
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       const dataToSave = {
@@ -281,11 +251,9 @@ export default function InventorySystem() {
       };
       localStorage.setItem("inventory-system-data", JSON.stringify(dataToSave));
     }, 500);
-
     return () => clearTimeout(timeoutId);
-  }, [products, barCodes]); // Removed productCounts and tempProducts from dependencies
+  }, [products, barCodes]);
 
-  // Memoized callbacks
   const handleClearAllData = useCallback(() => {
     localStorage.removeItem("inventory-system-data");
     setProducts([]);
@@ -323,7 +291,7 @@ export default function InventorySystem() {
         header: true,
         delimiter: ";",
         skipEmptyLines: true,
-        worker: true, // Use web worker for better performance
+        worker: true,
         complete: (results: ParseResult<CsvRow>) => {
           const errors: string[] = [];
           const newProducts: Product[] = [];
@@ -331,7 +299,6 @@ export default function InventorySystem() {
           const existingBarCodes = new Set(
             barCodes.map((bc) => bc.codigo_de_barras)
           );
-
           results.data.forEach((row: CsvRow, index: number) => {
             const {
               codigo_de_barras,
@@ -339,7 +306,6 @@ export default function InventorySystem() {
               descricao,
               saldo_estoque,
             } = row;
-
             if (
               !codigo_de_barras ||
               !codigo_produto ||
@@ -349,7 +315,6 @@ export default function InventorySystem() {
               errors.push(`Linha ${index + 2}: Dados incompletos`);
               return;
             }
-
             if (existingBarCodes.has(codigo_de_barras)) {
               errors.push(
                 `Linha ${
@@ -358,7 +323,6 @@ export default function InventorySystem() {
               );
               return;
             }
-
             const saldoNumerico = Number.parseInt(saldo_estoque);
             if (isNaN(saldoNumerico)) {
               errors.push(
@@ -366,14 +330,12 @@ export default function InventorySystem() {
               );
               return;
             }
-
             const product = {
               id: Date.now() + index,
               codigo_produto,
               descricao,
               saldo_estoque: saldoNumerico,
             };
-
             newProducts.push(product);
             newBarCodes.push({
               codigo_de_barras,
@@ -382,7 +344,6 @@ export default function InventorySystem() {
             });
             existingBarCodes.add(codigo_de_barras);
           });
-
           setCsvErrors(errors);
           if (errors.length === 0 && newProducts.length > 0) {
             setProducts((prev) => [...prev, ...newProducts]);
@@ -407,7 +368,6 @@ export default function InventorySystem() {
   );
 
   const handleScan = useCallback(() => {
-    // First check in permanent products
     const barCode = barCodes.find((bc) => bc.codigo_de_barras === scanInput);
     if (barCode && barCode.produto) {
       setCurrentProduct(barCode.produto);
@@ -417,8 +377,6 @@ export default function InventorySystem() {
       });
       return;
     }
-
-    // Then check in temporary products
     const tempProduct = tempProducts.find(
       (tp) => tp.codigo_de_barras === scanInput
     );
@@ -430,8 +388,6 @@ export default function InventorySystem() {
       });
       return;
     }
-
-    // If not found, open quick register
     setQuickRegisterData({
       codigo_de_barras: scanInput,
       descricao: "",
@@ -444,10 +400,7 @@ export default function InventorySystem() {
     (barcode: string) => {
       setScanInput(barcode);
       setShowBarcodeScanner(false);
-
-      // Auto-scan after setting the input
       setTimeout(() => {
-        // First check in permanent products
         const barCode = barCodes.find((bc) => bc.codigo_de_barras === barcode);
         if (barCode && barCode.produto) {
           setCurrentProduct(barCode.produto);
@@ -457,8 +410,6 @@ export default function InventorySystem() {
           });
           return;
         }
-
-        // Then check in temporary products
         const tempProduct = tempProducts.find(
           (tp) => tp.codigo_de_barras === barcode
         );
@@ -470,8 +421,6 @@ export default function InventorySystem() {
           });
           return;
         }
-
-        // If not found, open quick register
         setQuickRegisterData({
           codigo_de_barras: barcode,
           descricao: "",
@@ -489,7 +438,6 @@ export default function InventorySystem() {
       descricao: string;
       quantidade: string;
     }) => {
-      // Create temporary product (not saved to localStorage)
       const newTempProduct: TempProduct = {
         id: `temp-${Date.now()}`,
         codigo_de_barras: data.codigo_de_barras,
@@ -498,12 +446,10 @@ export default function InventorySystem() {
         saldo_estoque: 0,
         isTemporary: true,
       };
-
       setTempProducts((prev) => [...prev, newTempProduct]);
       setCurrentProduct(newTempProduct);
       setQuantityInput(data.quantidade);
       setShowQuickRegister(false);
-
       toast({
         title: "Produto temporário cadastrado!",
         description: "Este produto não será salvo permanentemente",
@@ -519,16 +465,12 @@ export default function InventorySystem() {
     []
   );
 
-  // Função para calcular expressões matemáticas
   const calculateExpression = useCallback(
     (
       expression: string
     ): { result: number; isValid: boolean; error?: string } => {
       try {
-        // Remove espaços em branco
         const cleanExpression = expression.replace(/\s/g, "");
-
-        // Validação básica - apenas números, operadores e pontos decimais
         const validPattern = /^[0-9+\-*/().]+$/;
         if (!validPattern.test(cleanExpression)) {
           return {
@@ -537,8 +479,6 @@ export default function InventorySystem() {
             error: "Caracteres inválidos na expressão",
           };
         }
-
-        // Verifica se há operadores consecutivos (ex: ++, --, etc)
         const consecutiveOperators = /[+\-*/]{2,}/;
         if (consecutiveOperators.test(cleanExpression)) {
           return {
@@ -547,8 +487,6 @@ export default function InventorySystem() {
             error: "Operadores consecutivos não permitidos",
           };
         }
-
-        // Verifica se começa ou termina com operador (exceto - no início)
         const startsWithOperator = /^[+*/]/;
         const endsWithOperator = /[+\-*/]$/;
         if (
@@ -561,18 +499,11 @@ export default function InventorySystem() {
             error: "Expressão não pode começar ou terminar com operador",
           };
         }
-
-        // Avalia a expressão usando Function constructor (mais seguro que eval)
         const result = new Function("return " + cleanExpression)();
-
-        // Verifica se o resultado é um número válido
         if (typeof result !== "number" || isNaN(result) || !isFinite(result)) {
           return { result: 0, isValid: false, error: "Resultado inválido" };
         }
-
-        // Arredonda para 2 casas decimais
         const roundedResult = Math.round(result * 100) / 100;
-
         return { result: roundedResult, isValid: true };
       } catch (error) {
         return {
@@ -585,7 +516,6 @@ export default function InventorySystem() {
     []
   );
 
-  // Função para lidar com o Enter no campo de quantidade
   const handleAddCount = useCallback(() => {
     if (!currentProduct || !quantityInput) {
       toast({
@@ -595,11 +525,8 @@ export default function InventorySystem() {
       });
       return;
     }
-
-    // Primeiro, verifica se é uma expressão matemática e calcula se necessário
     let finalQuantity: number;
     const hasOperators = /[+\-*/]/.test(quantityInput);
-
     if (hasOperators) {
       const calculation = calculateExpression(quantityInput);
       if (!calculation.isValid) {
@@ -623,33 +550,25 @@ export default function InventorySystem() {
       }
       finalQuantity = parsed;
     }
-
-    // Arredonda para número inteiro (já que estamos contando produtos)
     const quantidade = Math.round(finalQuantity);
-
     const existingIndex = productCounts.findIndex(
       (item) => item.codigo_de_barras === scanInput
     );
-
     if (existingIndex >= 0) {
       const updatedCounts = [...productCounts];
       const existing = updatedCounts[existingIndex];
-
       if (countingMode === "loja") {
-        existing.quant_loja += quantidade; // Soma ao invés de substituir
+        existing.quant_loja += quantidade;
       } else {
-        existing.quant_estoque += quantidade; // Soma ao invés de substituir
+        existing.quant_estoque += quantidade;
       }
-
       existing.total = calculateTotal(
         existing.quant_loja,
         existing.quant_estoque,
         existing.saldo_estoque
       );
       existing.data_hora = new Date().toLocaleString("pt-BR");
-
       setProductCounts(updatedCounts);
-
       const expressionText = hasOperators
         ? ` (${quantityInput} = ${quantidade})`
         : "";
@@ -676,9 +595,7 @@ export default function InventorySystem() {
         local_estoque: selectedLocation,
         data_hora: new Date().toLocaleString("pt-BR"),
       };
-
       setProductCounts((prev) => [...prev, newCount]);
-
       const expressionText = hasOperators
         ? ` (${quantityInput} = ${quantidade})`
         : "";
@@ -686,7 +603,6 @@ export default function InventorySystem() {
         title: `Quantidade de ${countingMode} adicionada!${expressionText}`,
       });
     }
-
     setScanInput("");
     setQuantityInput("");
     setCurrentProduct(null);
@@ -705,20 +621,13 @@ export default function InventorySystem() {
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter") {
         e.preventDefault();
-
         const expression = quantityInput.trim();
         if (!expression) return;
-
-        // Se contém operadores matemáticos, calcula a expressão
         const hasOperators = /[+\-*/]/.test(expression);
-
         if (hasOperators) {
           const calculation = calculateExpression(expression);
-
           if (calculation.isValid) {
-            // Atualiza o campo com o resultado
             setQuantityInput(calculation.result.toString());
-
             toast({
               title: "Cálculo realizado!",
               description: `${expression} = ${calculation.result}`,
@@ -731,7 +640,6 @@ export default function InventorySystem() {
             });
           }
         } else {
-          // Se não tem operadores, apenas adiciona a contagem
           if (currentProduct) {
             handleAddCount();
           }
@@ -751,7 +659,6 @@ export default function InventorySystem() {
       toast({ title: "Nenhum item para exportar", variant: "destructive" });
       return;
     }
-
     const dataToExport = productCounts.map((item) => ({
       codigo_de_barras: item.codigo_de_barras,
       codigo_produto: item.codigo_produto,
@@ -761,13 +668,11 @@ export default function InventorySystem() {
       quant_estoque: item.quant_estoque,
       total: item.total,
     }));
-
     const csv = Papa.unparse(dataToExport, {
       header: true,
       delimiter: ";",
       quotes: true,
     });
-
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -775,7 +680,7 @@ export default function InventorySystem() {
       new Date().toISOString().split("T")[0]
     }.csv`;
     link.click();
-    URL.revokeObjectURL(link.href); // Clean up
+    URL.revokeObjectURL(link.href);
     toast({ title: "CSV exportado com sucesso!" });
   }, [productCounts, selectedLocation]);
 
@@ -800,13 +705,11 @@ export default function InventorySystem() {
         saldo_estoque: "75",
       },
     ];
-
     const csv = Papa.unparse(templateData, {
       header: true,
       delimiter: ";",
       quotes: true,
     });
-
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -1205,7 +1108,6 @@ export default function InventorySystem() {
               </AlertDescription>
             </Alert>
 
-            {/* Preview de Itens Faltantes */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -1269,7 +1171,6 @@ export default function InventorySystem() {
                   </div>
                 </div>
 
-                {/* Barra de Progresso */}
                 {products.length + tempProducts.length > 0 && (
                   <div className="mt-4">
                     <div className="flex items-center justify-between mb-2">
@@ -1297,7 +1198,6 @@ export default function InventorySystem() {
                   </div>
                 )}
 
-                {/* Alertas baseados no progresso */}
                 {products.length + tempProducts.length > 0 &&
                   productCounts.length === 0 && (
                     <Alert className="mt-4 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20">
@@ -1351,7 +1251,6 @@ export default function InventorySystem() {
             </Card>
 
             <Card>
-              {/* className="opacity-60" */}
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Download className="h-5 w-5 mr-2" />
@@ -1501,47 +1400,36 @@ export default function InventorySystem() {
         </Tabs>
       </main>
 
-      {/* Lazy loaded modals */}
-      <Suspense fallback={<div />}>
-        {showQuickRegister && (
-          <QuickRegisterModal
-            isOpen={showQuickRegister}
-            onClose={() => setShowQuickRegister(false)}
-            onSave={handleQuickRegister}
-            initialData={quickRegisterData}
-          />
-        )}
-      </Suspense>
-
-      <Suspense fallback={<div />}>
-        {showClearDataModal && (
-          <ClearDataModal
-            isOpen={showClearDataModal}
-            onClose={() => setShowClearDataModal(false)}
-            onConfirm={handleClearAllData}
-          />
-        )}
-      </Suspense>
-
-      <Suspense fallback={<div />}>
-        {showBarcodeScanner && (
-          <BarcodeScanner
-            isActive={showBarcodeScanner}
-            onClose={() => setShowBarcodeScanner(false)}
-            onScan={handleBarcodeScanned}
-          />
-        )}
-      </Suspense>
-
-      <Suspense fallback={<div />}>
-        {showPremiumModal && (
-          <PremiumUpgradeModal
-            isOpen={showPremiumModal}
-            onClose={() => setShowPremiumModal(false)}
-            feature={premiumModalFeature}
-          />
-        )}
-      </Suspense>
+      {/* Modais renderizados condicionalmente */}
+      {showQuickRegister && (
+        <QuickRegisterModal
+          isOpen={showQuickRegister}
+          onClose={() => setShowQuickRegister(false)}
+          onSave={handleQuickRegister}
+          initialData={quickRegisterData}
+        />
+      )}
+      {showClearDataModal && (
+        <ClearDataModal
+          isOpen={showClearDataModal}
+          onClose={() => setShowClearDataModal(false)}
+          onConfirm={handleClearAllData}
+        />
+      )}
+      {showBarcodeScanner && (
+        <BarcodeScanner
+          isActive={showBarcodeScanner}
+          onClose={() => setShowBarcodeScanner(false)}
+          onScan={handleBarcodeScanned}
+        />
+      )}
+      {showPremiumModal && (
+        <PremiumUpgradeModal
+          isOpen={showPremiumModal}
+          onClose={() => setShowPremiumModal(false)}
+          feature={premiumModalFeature}
+        />
+      )}
     </div>
   );
 }
