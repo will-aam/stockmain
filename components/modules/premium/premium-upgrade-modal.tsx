@@ -1,10 +1,16 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Crown,
   Download,
@@ -18,23 +24,30 @@ import {
   X,
   Star,
   Zap,
-} from "lucide-react"
-import Link from "next/link"
+} from "lucide-react";
+import Link from "next/link";
 
 interface PremiumUpgradeModalProps {
-  isOpen: boolean
-  onClose: () => void
-  feature?: string
+  isOpen: boolean;
+  onClose: () => void;
+  feature?: string;
 }
 
-export function PremiumUpgradeModal({ isOpen, onClose, feature }: PremiumUpgradeModalProps) {
-  const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">("monthly")
+export default function PremiumUpgradeModal({
+  isOpen,
+  onClose,
+  feature,
+}: PremiumUpgradeModalProps) {
+  const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">(
+    "monthly"
+  );
 
   const premiumFeatures = [
     {
       icon: Download,
       title: "Exportação Completa",
-      description: "Exporte contagens em CSV, PDF e Excel com relatórios detalhados",
+      description:
+        "Exporte contagens em CSV, PDF e Excel com relatórios detalhados",
       highlight: feature === "export",
     },
     {
@@ -58,7 +71,8 @@ export function PremiumUpgradeModal({ isOpen, onClose, feature }: PremiumUpgrade
     {
       icon: Smartphone,
       title: "Sincronização",
-      description: "Acesse de qualquer dispositivo com dados sempre atualizados",
+      description:
+        "Acesse de qualquer dispositivo com dados sempre atualizados",
       highlight: false,
     },
     {
@@ -79,11 +93,13 @@ export function PremiumUpgradeModal({ isOpen, onClose, feature }: PremiumUpgrade
       description: "Atendimento especializado via chat, email e telefone",
       highlight: false,
     },
-  ]
+  ];
 
-  const monthlyPrice = 29
-  const yearlyPrice = 290
-  const yearlyDiscount = Math.round(((monthlyPrice * 12 - yearlyPrice) / (monthlyPrice * 12)) * 100)
+  const monthlyPrice = 29;
+  const yearlyPrice = 290;
+  const yearlyDiscount = Math.round(
+    ((monthlyPrice * 12 - yearlyPrice) / (monthlyPrice * 12)) * 100
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -115,7 +131,9 @@ export function PremiumUpgradeModal({ isOpen, onClose, feature }: PremiumUpgrade
               </div>
               <div>
                 <h3 className="font-semibold text-blue-900 dark:text-blue-100">
-                  {feature === "export" ? "Exportação Premium" : "Histórico Completo"}
+                  {feature === "export"
+                    ? "Exportação Premium"
+                    : "Histórico Completo"}
                 </h3>
                 <p className="text-sm text-blue-700 dark:text-blue-300">
                   {feature === "export"
@@ -133,33 +151,43 @@ export function PremiumUpgradeModal({ isOpen, onClose, feature }: PremiumUpgrade
             <Card
               key={index}
               className={`p-4 transition-all duration-200 ${
-                feature.highlight ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-md" : "hover:shadow-md"
+                feature.highlight
+                  ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-md"
+                  : "hover:shadow-md"
               }`}
             >
               <CardContent className="p-0">
                 <div className="flex items-start space-x-3">
                   <div
                     className={`p-2 rounded-lg ${
-                      feature.highlight ? "bg-blue-100 dark:bg-blue-900/30" : "bg-gray-100 dark:bg-gray-800"
+                      feature.highlight
+                        ? "bg-blue-100 dark:bg-blue-900/30"
+                        : "bg-gray-100 dark:bg-gray-800"
                     }`}
                   >
                     <feature.icon
                       className={`h-5 w-5 ${
-                        feature.highlight ? "text-blue-600 dark:text-blue-400" : "text-gray-600 dark:text-gray-400"
+                        feature.highlight
+                          ? "text-blue-600 dark:text-blue-400"
+                          : "text-gray-600 dark:text-gray-400"
                       }`}
                     />
                   </div>
                   <div className="flex-1">
                     <h3
                       className={`font-semibold mb-1 ${
-                        feature.highlight ? "text-blue-900 dark:text-blue-100" : "text-gray-900 dark:text-white"
+                        feature.highlight
+                          ? "text-blue-900 dark:text-blue-100"
+                          : "text-gray-900 dark:text-white"
                       }`}
                     >
                       {feature.title}
                     </h3>
                     <p
                       className={`text-sm ${
-                        feature.highlight ? "text-blue-700 dark:text-blue-300" : "text-gray-600 dark:text-gray-300"
+                        feature.highlight
+                          ? "text-blue-700 dark:text-blue-300"
+                          : "text-gray-600 dark:text-gray-300"
                       }`}
                     >
                       {feature.description}
@@ -200,15 +228,22 @@ export function PremiumUpgradeModal({ isOpen, onClose, feature }: PremiumUpgrade
                 }`}
               >
                 Anual
-                <Badge className="absolute -top-2 -right-2 bg-green-500 text-xs px-1">-{yearlyDiscount}%</Badge>
+                <Badge className="absolute -top-2 -right-2 bg-green-500 text-xs px-1">
+                  -{yearlyDiscount}%
+                </Badge>
               </button>
             </div>
           </div>
 
           <div className="text-center">
             <div className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-              R$ {selectedPlan === "monthly" ? monthlyPrice : Math.round(yearlyPrice / 12)}
-              <span className="text-lg font-normal text-gray-600 dark:text-gray-400">/mês</span>
+              R${" "}
+              {selectedPlan === "monthly"
+                ? monthlyPrice
+                : Math.round(yearlyPrice / 12)}
+              <span className="text-lg font-normal text-gray-600 dark:text-gray-400">
+                /mês
+              </span>
             </div>
             {selectedPlan === "yearly" && (
               <div className="text-sm text-green-600 dark:text-green-400 mb-2">
@@ -216,7 +251,9 @@ export function PremiumUpgradeModal({ isOpen, onClose, feature }: PremiumUpgrade
               </div>
             )}
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              {selectedPlan === "monthly" ? "Cobrança mensal" : `R$ ${yearlyPrice} cobrados anualmente`}
+              {selectedPlan === "monthly"
+                ? "Cobrança mensal"
+                : `R$ ${yearlyPrice} cobrados anualmente`}
             </div>
           </div>
         </div>
@@ -226,15 +263,21 @@ export function PremiumUpgradeModal({ isOpen, onClose, feature }: PremiumUpgrade
           <div className="grid md:grid-cols-3 gap-4 text-center">
             <div className="flex items-center justify-center space-x-2">
               <Shield className="h-5 w-5 text-green-600 dark:text-green-400" />
-              <span className="text-sm font-medium text-green-800 dark:text-green-200">Garantia 30 dias</span>
+              <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                Garantia 30 dias
+              </span>
             </div>
             <div className="flex items-center justify-center space-x-2">
               <Zap className="h-5 w-5 text-green-600 dark:text-green-400" />
-              <span className="text-sm font-medium text-green-800 dark:text-green-200">Ativação imediata</span>
+              <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                Ativação imediata
+              </span>
             </div>
             <div className="flex items-center justify-center space-x-2">
               <X className="h-5 w-5 text-green-600 dark:text-green-400" />
-              <span className="text-sm font-medium text-green-800 dark:text-green-200">Cancele quando quiser</span>
+              <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                Cancele quando quiser
+              </span>
             </div>
           </div>
         </div>
@@ -247,11 +290,15 @@ export function PremiumUpgradeModal({ isOpen, onClose, feature }: PremiumUpgrade
               Assinar Premium
             </Link>
           </Button>
-          <Button variant="outline" onClick={onClose} className="flex-1 h-12 bg-transparent">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="flex-1 h-12 bg-transparent"
+          >
             Continuar Grátis
           </Button>
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

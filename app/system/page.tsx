@@ -60,25 +60,20 @@ import Papa, { type ParseResult } from "papaparse";
 // Em: app/system/page.tsx
 
 // Lazy load heavy components
-const QuickRegisterModal = lazy(() =>
-  import("@/components/modules/inventory-count/quick-register-modal").then(
-    (module) => ({ default: module.QuickRegisterModal })
-  )
+const QuickRegisterModal = lazy(
+  () => import("@/components/modules/inventory-count/quick-register-modal")
 );
-const ClearDataModal = lazy(() =>
-  import("@/components/shared/clear-data-modal").then((module) => ({
-    default: module.ClearDataModal,
-  }))
+
+const ClearDataModal = lazy(
+  () => import("@/components/shared/clear-data-modal")
 );
-const BarcodeScanner = lazy(() =>
-  import("@/components/modules/inventory-count/barcode-scanner").then(
-    (module) => ({ default: module.BarcodeScanner })
-  )
+
+const BarcodeScanner = lazy(
+  () => import("@/components/modules/inventory-count/barcode-scanner")
 );
-const PremiumUpgradeModal = lazy(() =>
-  import("@/components/modules/premium/premium-upgrade-modal").then(
-    (module) => ({ default: module.PremiumUpgradeModal }) // AQUI ESTÁ A CORREÇÃO
-  )
+
+const PremiumUpgradeModal = lazy(
+  () => import("@/components/modules/premium/premium-upgrade-modal")
 );
 
 interface Product {

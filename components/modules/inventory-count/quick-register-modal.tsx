@@ -1,37 +1,46 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { X, Package, Save, AlertTriangle } from "lucide-react"
+import type React from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { X, Package, Save, AlertTriangle } from "lucide-react";
 
 interface QuickRegisterModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSave: (data: { codigo_de_barras: string; descricao: string; quantidade: string }) => void
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (data: {
+    codigo_de_barras: string;
+    descricao: string;
+    quantidade: string;
+  }) => void;
   initialData: {
-    codigo_de_barras: string
-    descricao: string
-    quantidade: string
-  }
+    codigo_de_barras: string;
+    descricao: string;
+    quantidade: string;
+  };
 }
 
-export function QuickRegisterModal({ isOpen, onClose, onSave, initialData }: QuickRegisterModalProps) {
-  const [formData, setFormData] = useState(initialData)
+export default function QuickRegisterModal({
+  isOpen,
+  onClose,
+  onSave,
+  initialData,
+}: QuickRegisterModalProps) {
+  const [formData, setFormData] = useState(initialData);
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSave(formData)
-  }
+    e.preventDefault();
+    onSave(formData);
+  };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -42,7 +51,9 @@ export function QuickRegisterModal({ isOpen, onClose, onSave, initialData }: Qui
               <Package className="h-5 w-5 mr-2" />
               Cadastro Rápido
             </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">Item não encontrado no sistema</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Item não encontrado no sistema
+            </p>
           </div>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-4 w-4" />
@@ -55,7 +66,9 @@ export function QuickRegisterModal({ isOpen, onClose, onSave, initialData }: Qui
               <Input
                 id="barcode"
                 value={formData.codigo_de_barras}
-                onChange={(e) => handleInputChange("codigo_de_barras", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("codigo_de_barras", e.target.value)
+                }
                 placeholder="Digite o código de barras"
                 required
                 className="font-mono"
@@ -80,7 +93,9 @@ export function QuickRegisterModal({ isOpen, onClose, onSave, initialData }: Qui
                 id="quantity"
                 type="number"
                 value={formData.quantidade}
-                onChange={(e) => handleInputChange("quantidade", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("quantidade", e.target.value)
+                }
                 placeholder="Digite a quantidade"
                 min="0"
                 required
@@ -88,7 +103,12 @@ export function QuickRegisterModal({ isOpen, onClose, onSave, initialData }: Qui
             </div>
 
             <div className="flex space-x-2 pt-4">
-              <Button type="button" variant="outline" onClick={onClose} className="flex-1 bg-transparent">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                className="flex-1 bg-transparent"
+              >
                 Cancelar
               </Button>
               <Button type="submit" className="flex-1">
@@ -102,10 +122,13 @@ export function QuickRegisterModal({ isOpen, onClose, onSave, initialData }: Qui
             <div className="flex items-start space-x-2">
               <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-xs text-amber-800 dark:text-amber-200 font-medium">Produto Temporário</p>
+                <p className="text-xs text-amber-800 dark:text-amber-200 font-medium">
+                  Produto Temporário
+                </p>
                 <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                  Este item será cadastrado apenas para esta sessão e não será salvo permanentemente. Para cadastro
-                  definitivo, use a aba de importação.
+                  Este item será cadastrado apenas para esta sessão e não será
+                  salvo permanentemente. Para cadastro definitivo, use a aba de
+                  importação.
                 </p>
               </div>
             </div>
@@ -113,5 +136,5 @@ export function QuickRegisterModal({ isOpen, onClose, onSave, initialData }: Qui
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
