@@ -13,6 +13,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://stock-system.vercel.app"),
   title: "Stock - Sistema de Conferência de Estoque",
   description:
     "Sistema web responsivo para conferência de estoque com leitor de código de barras",

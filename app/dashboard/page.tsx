@@ -1,1 +1,1 @@
-// aqui vai ser o amostragem dos mudulos
+export const dynamic = "force-dynamic";

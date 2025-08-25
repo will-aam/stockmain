@@ -1,16 +1,23 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
-import jwt from "jsonwebtoken"
+export const dynamic = "force-dynamic";
+import { type NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import jwt from "jsonwebtoken";
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
+    const authHeader = request.headers.get("authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Token de autorização necessário" }, { status: 401 })
+      return NextResponse.json(
+        { error: "Token de autorização necessário" },
+        { status: 401 }
+      );
     }
 
-    const token = authHeader.substring(7)
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret") as any
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "fallback-secret"
+    ) as any;
 
     const contagens = await prisma.contagem.findMany({
       where: {
@@ -27,7 +34,7 @@ export async function GET(request: NextRequest) {
       orderBy: {
         data_contagem: "desc",
       },
-    })
+    });
 
     const history = contagens.map((contagem) => ({
       id: contagem.id,
@@ -36,11 +43,14 @@ export async function GET(request: NextRequest) {
       total_itens: contagem._count.itens_contados,
       local_estoque: contagem.local_estoque,
       status: contagem.status,
-    }))
+    }));
 
-    return NextResponse.json({ history })
+    return NextResponse.json({ history });
   } catch (error) {
-    console.error("History error:", error)
-    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
+    console.error("History error:", error);
+    return NextResponse.json(
+      { error: "Erro interno do servidor" },
+      { status: 500 }
+    );
   }
 }
