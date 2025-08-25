@@ -55,7 +55,7 @@ import { ClearDataModal } from "@/components/shared/clear-data-modal";
 import { BarcodeScanner } from "@/components/modules/inventory-count/barcode-scanner";
 import { PremiumUpgradeModal } from "@/components/modules/premium/premium-upgrade-modal";
 
-// Interfaces
+// Interfaces (inalteradas)
 interface Product {
   id: number;
   codigo_produto: string;
@@ -102,7 +102,7 @@ interface TempProduct {
   isTemporary: true;
 }
 
-// Componentes Memoizados
+// Componentes Memoizados (inalterados)
 const ProductCountItem = ({
   item,
   onRemove,
@@ -200,6 +200,7 @@ export default function InventorySystem() {
     quantidade: "",
   });
 
+  // Lógica e callbacks
   const locations = useMemo(
     () => [
       { value: "loja-1", label: "Loja 1" },
