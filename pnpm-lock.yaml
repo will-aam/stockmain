@@ -177,6 +177,9 @@ importers:
       '@types/node':
         specifier: 20.10.0
         version: 20.10.0
+      '@types/papaparse':
+        specifier: ^5.3.16
+        version: 5.3.16
       '@types/react':
         specifier: ^19
         version: 19.1.11
@@ -1121,6 +1124,9 @@ packages:
 
   '@types/node@20.10.0':
     resolution: {integrity: sha512-D0WfRmU9TQ8I9PFx9Yc+EBHw+vSpIub4IDvQivcp26PtPrdMGAq5SDcpXEo/epqa/DXotVpekHiLNTg3iaKXBQ==}
+
+  '@types/papaparse@5.3.16':
+    resolution: {integrity: sha512-T3VuKMC2H0lgsjI9buTB3uuKj3EMD2eap1MOuEQuBQ44EnDx/IkGhU6EwiTf9zG3za4SKlmwKAImdDKdNnCsXg==}
 
   '@types/react-dom@19.1.7':
     resolution: {integrity: sha512-i5ZzwYpqjmrKenzkoLM2Ibzt6mAsM7pxB6BCIouEVVmgiqaMj1TjaK7hnA36hbW5aZv20kx7Lw6hWzPWg0Rurw==}
@@ -2987,6 +2993,10 @@ snapshots:
   '@types/node@20.10.0':
     dependencies:
       undici-types: 5.26.5
+
+  '@types/papaparse@5.3.16':
+    dependencies:
+      '@types/node': 20.10.0
 
   '@types/react-dom@19.1.7(@types/react@19.1.11)':
     dependencies:

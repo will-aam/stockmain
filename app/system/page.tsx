@@ -158,15 +158,14 @@ const ProductTableRow = ({
   barCode?: BarCode;
 }) => (
   <TableRow>
-    {" "}
-    <TableCell className="font-medium">{product.codigo_produto}</TableCell>{" "}
-    <TableCell>{product.descricao}</TableCell>{" "}
+    <TableCell className="font-medium">{product.codigo_produto}</TableCell>
+    <TableCell>{product.descricao}</TableCell>
     <TableCell>
       <Badge variant="outline">{product.saldo_estoque}</Badge>
-    </TableCell>{" "}
+    </TableCell>
     <TableCell className="font-mono text-sm">
       {barCode?.codigo_de_barras || "-"}
-    </TableCell>{" "}
+    </TableCell>
   </TableRow>
 );
 ProductTableRow.displayName = "ProductTableRow";
@@ -350,7 +349,7 @@ export default function InventorySystem() {
           }
           setIsLoading(false);
         },
-        error: (error) => {
+        error: (error: Error) => {
           toast({
             title: "Erro",
             description: "Falha ao processar arquivo CSV",
