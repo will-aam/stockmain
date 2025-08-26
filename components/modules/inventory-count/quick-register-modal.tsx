@@ -23,7 +23,7 @@ interface QuickRegisterModalProps {
   };
 }
 
-export default function QuickRegisterModal({
+export function QuickRegisterModal({
   isOpen,
   onClose,
   onSave,
