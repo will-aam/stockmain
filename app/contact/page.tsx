@@ -21,7 +21,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Navigation } from "@/components/shared/navigation";
 import { toast } from "@/hooks/use-toast";
 import {
   Package,
