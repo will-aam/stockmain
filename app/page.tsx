@@ -52,7 +52,7 @@ import Papa, { type ParseResult } from "papaparse";
 // 2. Modais importados diretamente com importações nomeadas (com chaves)
 // import { QuickRegisterModal } from "@/components/modules/inventory-count/quick-register-modal";
 import { ClearDataModal } from "@/components/shared/clear-data-modal";
-import { BarcodeScanner } from "@/components/modules/barcode-scanner";
+import { BarcodeScanner } from "@/components/features/barcode-scanner";
 // import { PremiumUpgradeModal } from "@/components/modules/premium/premium-upgrade-modal";
 
 // Interfaces (inalteradas)

@@ -2,13 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================================================
+   DEFINIÇÃO DAS VARIÁVEIS DE COR (TEMA CLARO E ESCURO)
+  ==========================================================================
+*/
 @layer base {
+  /* TEMA CLARO (LIGHT MODE) */
   :root {
-    --background: 0 0% 100%;
+    --background: 210 20% 98%; /* Ajustado para um branco mais suave */
     --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
+    --card: 210 20% 98%; /* Ajustado para um branco mais suave */
     --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
+    --popover: 210 20% 98%; /* Ajustado para um branco mais suave */
     --popover-foreground: 222.2 84% 4.9%;
     --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
@@ -20,8 +25,8 @@
     --accent-foreground: 222.2 84% 4.9%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --border: 214.3 31.8% 85.4%; /* Bordas mais escuras */
+    --input: 214.3 31.8% 85.4%; /* Bordas mais escuras */
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.5rem;
     --chart-1: 12 76% 61%;
@@ -31,25 +36,26 @@
     --chart-5: 27 87% 67%;
   }
 
+  /* TEMA ESCURO (DARK MODE) */
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 224 70% 5%; /* Fundo azul mais escuro e profundo */
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
+    --card: 224 70% 3.9%; /* Fundo azul mais escuro e profundo */
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
+    --popover: 224 70% 3.9%; /* Fundo azul mais escuro e profundo */
     --popover-foreground: 210 40% 98%;
     --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222.2 84% 4.9%;
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 220 30% 15%; /* Ajustado para o novo tom de azul */
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
+    --muted: 220 30% 15%; /* Ajustado para o novo tom de azul */
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 220 30% 15%; /* Ajustado para o novo tom de azul */
     --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
+    --border: 217.2 32.6% 20%; /* Borda com mais contraste */
+    --input: 217.2 32.6% 20%; /* Borda com mais contraste */
     --ring: 224.3 76.3% 94.1%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
@@ -59,6 +65,10 @@
   }
 }
 
+/* ==========================================================================
+   ESTILOS BASE E APLICAÇÃO DAS VARIÁVEIS
+  ==========================================================================
+*/
 @layer base {
   * {
     @apply border-border;
@@ -67,6 +77,11 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ==========================================================================
+   ESTILOS ESPECÍFICOS (MOBILE, PWA, ANIMAÇÕES, ETC.)
+  ==========================================================================
+*/
 
 /* Estilos específicos para mobile e leitores de código de barras */
 @media (max-width: 768px) {
