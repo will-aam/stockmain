@@ -108,14 +108,14 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
             <Scan className="h-5 w-5 mr-2" /> Scanner de Código de Barras
           </CardTitle>
           <CardDescription>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center space-x-2">
-                <Store className="h-4 w-4" />
+                <Store className="h-4 w-4 flex-shrink-0" />
                 <Select
                   value={selectedLocation}
                   onValueChange={setSelectedLocation}
                 >
-                  <SelectTrigger className="w-48">
+                  <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -127,7 +127,7 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex space-x-2">
+              <div className="flex space-x-2 justify-end">
                 <Button
                   variant={countingMode === "loja" ? "default" : "outline"}
                   className="mobile-button"

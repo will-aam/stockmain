@@ -74,7 +74,7 @@ export default function InventorySystem() {
         <BarcodeScanner
           onScan={inventory.handleBarcodeScanned}
           onClose={() => inventory.setShowBarcodeScanner(false)}
-          isActive={false}
+          isActive={inventory.showBarcodeScanner}
         />
       )}
 
@@ -82,7 +82,7 @@ export default function InventorySystem() {
         <ClearDataModal
           onClose={() => inventory.setShowClearDataModal(false)}
           onConfirm={inventory.handleClearAllData}
-          isOpen={false}
+          isOpen={inventory.showClearDataModal}
         />
       )}
     </>
