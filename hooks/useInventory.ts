@@ -465,26 +465,55 @@ export const useInventory = () => {
     toast({ title: "Item removido da contagem" });
   }, []);
 
+  // <<< INÍCIO DA ALTERAÇÃO >>>
   const exportToCsv = useCallback(() => {
-    if (productCounts.length === 0) {
-      toast({ title: "Nenhum item para exportar", variant: "destructive" });
+    if (products.length === 0) {
+      toast({
+        title: "Nenhum item importado para exportar",
+        variant: "destructive",
+      });
       return;
     }
-    const dataToExport = productCounts.map((item) => ({
-      codigo_de_barras: item.codigo_de_barras,
-      codigo_produto: item.codigo_produto,
-      descricao: item.descricao,
-      saldo_estoque: item.saldo_estoque,
-      quant_loja: item.quant_loja,
-      quant_estoque: item.quant_estoque,
-      total: item.total,
-    }));
+
+    const dataToExport = products.map((product) => {
+      const barCode = barCodes.find((bc) => bc.produto_id === product.id);
+      const countedItem = productCounts.find(
+        (pc) => pc.codigo_produto === product.codigo_produto
+      );
+
+      if (countedItem) {
+        // Se o item foi contado, usa os dados da contagem
+        return {
+          codigo_de_barras: countedItem.codigo_de_barras,
+          codigo_produto: countedItem.codigo_produto,
+          descricao: countedItem.descricao,
+          saldo_estoque: countedItem.saldo_estoque,
+          quant_loja: countedItem.quant_loja,
+          quant_estoque: countedItem.quant_estoque,
+          total: countedItem.total,
+        };
+      } else {
+        // Se o item não foi contado, zera as quantidades e calcula a diferença
+        return {
+          codigo_de_barras: barCode?.codigo_de_barras || "N/A",
+          codigo_produto: product.codigo_produto,
+          descricao: product.descricao,
+          saldo_estoque: product.saldo_estoque,
+          quant_loja: 0,
+          quant_estoque: 0,
+          total: -product.saldo_estoque,
+        };
+      }
+    });
+
     const csv = Papa.unparse(dataToExport, {
       header: true,
       delimiter: ";",
       quotes: true,
     });
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([`\uFEFF${csv}`], {
+      type: "text/csv;charset=utf-8;",
+    });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = `contagem_${selectedLocation}_${
@@ -493,7 +522,8 @@ export const useInventory = () => {
     link.click();
     URL.revokeObjectURL(link.href);
     toast({ title: "CSV exportado com sucesso!" });
-  }, [productCounts, selectedLocation]);
+  }, [products, barCodes, productCounts, selectedLocation]);
+  // <<< FIM DA ALTERAÇÃO >>>
 
   const downloadTemplateCSV = useCallback(() => {
     const templateData = [
@@ -521,7 +551,9 @@ export const useInventory = () => {
       delimiter: ";",
       quotes: true,
     });
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([`\uFEFF${csv}`], {
+      type: "text/csv;charset=utf-8;",
+    });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = "template_produtos.csv";

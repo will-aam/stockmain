@@ -18,6 +18,7 @@
     "@radix-ui/react-slot": "latest",
     "@radix-ui/react-tabs": "latest",
     "@radix-ui/react-toast": "latest",
+    "@zxing/library": "^0.21.3",
     "autoprefixer": "^10.4.21",
     "bcryptjs": "latest",
     "class-variance-authority": "^0.7.1",

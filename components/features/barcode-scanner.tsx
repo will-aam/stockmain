@@ -1,7 +1,8 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,49 +24,86 @@ export function BarcodeScanner({
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "environment",
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-      });
+  const stopCamera = useCallback(() => {
+    if (codeReaderRef.current) {
+      codeReaderRef.current.reset();
+    }
+    setIsCameraActive(false);
+  }, []);
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        streamRef.current = stream;
-        setIsCameraActive(true);
+  const handleScanResult = useCallback(
+    (result: string) => {
+      setIsScanning(true);
+      // Emite um som de "bip" para feedback
+      try {
+        const audioContext = new (window.AudioContext ||
+          (window as any).webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.1);
+      } catch (error) {
+        console.warn("Não foi possível reproduzir o som de feedback.");
       }
+
+      setTimeout(() => {
+        onScan(result);
+        setManualInput("");
+        setIsScanning(false);
+        stopCamera(); // Para a câmera após a leitura bem-sucedida
+      }, 300);
+    },
+    [onScan, stopCamera]
+  );
+
+  const startCamera = useCallback(async () => {
+    if (!videoRef.current) return;
+
+    codeReaderRef.current = new BrowserMultiFormatReader();
+    try {
+      const videoInputDevices =
+        await codeReaderRef.current.listVideoInputDevices();
+      const selectedDeviceId = videoInputDevices[0]?.deviceId;
+
+      if (!selectedDeviceId) {
+        throw new Error("Nenhum dispositivo de câmera encontrado.");
+      }
+
+      setIsCameraActive(true);
+
+      codeReaderRef.current.decodeFromVideoDevice(
+        selectedDeviceId,
+        videoRef.current,
+        (result, err) => {
+          if (result) {
+            handleScanResult(result.getText());
+          }
+          if (err && !(err instanceof NotFoundException)) {
+            console.error("Erro de decodificação:", err);
+          }
+        }
+      );
     } catch (error) {
       console.error("Erro ao acessar câmera:", error);
       alert(
         "Não foi possível acessar a câmera. Verifique as permissões ou use a entrada manual."
       );
+      setIsCameraActive(false);
     }
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    setIsCameraActive(false);
-  };
+  }, [handleScanResult]);
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (manualInput.trim()) {
-      setIsScanning(true);
-      setTimeout(() => {
-        onScan(manualInput.trim());
-        setManualInput("");
-        setIsScanning(false);
-      }, 300);
+      handleScanResult(manualInput.trim());
     }
   };
 
@@ -75,27 +113,21 @@ export function BarcodeScanner({
 
     // Auto-submit quando o código tiver 13 dígitos (EAN-13)
     if (value.length === 13 && /^\d+$/.test(value)) {
-      setIsScanning(true);
-      setTimeout(() => {
-        onScan(value);
-        setManualInput("");
-        setIsScanning(false);
-      }, 300);
+      handleScanResult(value);
     }
   };
 
   useEffect(() => {
-    if (isActive && inputRef.current) {
-      // Focar no input quando o scanner abrir
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 100);
+    if (isActive) {
+      setTimeout(() => inputRef.current?.focus(), 100);
+    } else {
+      stopCamera();
     }
 
     return () => {
       stopCamera();
     };
-  }, [isActive]);
+  }, [isActive, stopCamera]);
 
   if (!isActive) return null;
 
@@ -211,7 +243,6 @@ export function BarcodeScanner({
           {/* Dicas de uso */}
           <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
             <p>
-              <i className="fab lightbulb"></i>
               <strong>Dicas:</strong>
             </p>
             <p>• Códigos EAN-13 são processados automaticamente</p>
