@@ -55,13 +55,6 @@ export function Navigation({
       description: "Página inicial do Stock",
     },
     {
-      href: "/system",
-      label: "Sistema",
-      icon: Settings,
-      description: "Ferramenta de inventário",
-      badge: "Premium",
-    },
-    {
       href: "/about",
       label: "Sobre",
       icon: Info,
@@ -90,17 +83,6 @@ export function Navigation({
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="flex justify-between items-center h-16">
-        {/* Logo */}
-        <Link href="/system" className="flex items-center space-x-2 group">
-          <div className="relative">
-            <Package className="h-8 w-8 text-blue-600 dark:text-blue-400 transition-transform group-hover:scale-110" />
-            <div className="absolute inset-0 bg-blue-600/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-          <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Stock
-          </span>
-        </Link>
-
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-1">
           {navItems.map((item) => {
@@ -121,17 +103,6 @@ export function Navigation({
                   group flex items-center space-x-2
                 `}
               >
-                <Icon className="h-4 w-4" />
-                <span>{item.label}</span>
-                {item.badge && (
-                  <Badge
-                    variant="secondary"
-                    className="text-xs bg-gradient-to-r from-amber-400 to-orange-500 text-white border-0"
-                  >
-                    <Crown className="h-3 w-3 mr-1" />
-                    {item.badge}
-                  </Badge>
-                )}
                 {active && (
                   <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-blue-600 dark:bg-blue-400 rounded-full" />
                 )}
@@ -175,15 +146,6 @@ export function Navigation({
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-80">
-              <SheetHeader>
-                <SheetTitle className="flex items-center space-x-2">
-                  <Package className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                  <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    Stock
-                  </span>
-                </SheetTitle>
-              </SheetHeader>
-
               <nav className="mt-8 space-y-2">
                 {navItems.map((item) => {
                   const Icon = item.icon;
@@ -217,18 +179,6 @@ export function Navigation({
                         <Icon className="h-4 w-4" />
                       </div>
                       <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium">{item.label}</span>
-                          {item.badge && (
-                            <Badge
-                              variant="secondary"
-                              className="text-xs bg-gradient-to-r from-amber-400 to-orange-500 text-white border-0"
-                            >
-                              <Crown className="h-3 w-3 mr-1" />
-                              {item.badge}
-                            </Badge>
-                          )}
-                        </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           {item.description}
                         </p>
