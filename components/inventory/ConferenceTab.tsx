@@ -127,20 +127,20 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex space-x-2 justify-end">
+              <div className="flex flex-1 space-x-2">
                 <Button
                   variant={countingMode === "loja" ? "default" : "outline"}
-                  className="mobile-button"
+                  className="mobile-button flex-1"
                   onClick={() => setCountingMode("loja")}
                 >
-                  <Store className="h-3 w-3 mr-1" /> Loja
+                  <Store className="h-4 w-4 mr-2" /> Loja
                 </Button>
                 <Button
                   variant={countingMode === "estoque" ? "default" : "outline"}
-                  className="mobile-button"
+                  className="mobile-button flex-1"
                   onClick={() => setCountingMode("estoque")}
                 >
-                  <Package className="h-3 w-3 mr-1" /> Estoque
+                  <Package className="h-4 w-4 mr-2" /> Estoque
                 </Button>
               </div>
             </div>
