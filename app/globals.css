@@ -169,12 +169,16 @@
 /* Estilos para tabelas responsivas */
 @media (max-width: 640px) {
   .responsive-table {
-    font-size: 0.875rem;
+    font-size: 0.875rem; /* 14px */
+    width: 100%;
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
   }
 
   .responsive-table th,
   .responsive-table td {
-    padding: 0.5rem 0.25rem;
+    padding: 0.5rem 0.25rem; /* 8px 4px */
   }
 }
 
@@ -225,4 +229,13 @@
 .dark .variance-neutral {
   color: #9ca3af;
   background-color: rgba(107, 114, 128, 0.1);
+}
+
+/* Estilos para abas em mobile */
+@media (max-width: 640px) {
+  .mobile-tabs-list > button {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    font-size: 0.875rem;
+  }
 }
