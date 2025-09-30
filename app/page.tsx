@@ -1,7 +1,6 @@
 "use client";
 
 import type React from "react";
-// 1. As importações de 'lazy' e 'Suspense' foram removidas
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Card,
@@ -14,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Table,
   TableBody,
@@ -43,17 +41,15 @@ import {
   Store,
   AlertCircle,
   Package,
-  Crown,
   Camera,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import Papa, { type ParseResult } from "papaparse";
 
-// 2. Modais importados diretamente com importações nomeadas (com chaves)
-// import { QuickRegisterModal } from "@/components/modules/inventory-count/quick-register-modal";
+// Modais importados diretamente
 import { ClearDataModal } from "@/components/shared/clear-data-modal";
 import { BarcodeScanner } from "@/components/features/barcode-scanner";
-// import { PremiumUpgradeModal } from "@/components/modules/premium/premium-upgrade-modal";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 // Interfaces (inalteradas)
 interface Product {
@@ -188,16 +184,8 @@ export default function InventorySystem() {
   );
   const [countingMode, setCountingMode] = useState<"loja" | "estoque">("loja");
   const [productCounts, setProductCounts] = useState<ProductCount[]>([]);
-  const [showQuickRegister, setShowQuickRegister] = useState(false);
   const [showClearDataModal, setShowClearDataModal] = useState(false);
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
-  const [showPremiumModal, setShowPremiumModal] = useState(false);
-  const [premiumModalFeature, setPremiumModalFeature] = useState<string>("");
-  const [quickRegisterData, setQuickRegisterData] = useState({
-    codigo_de_barras: "",
-    descricao: "",
-    quantidade: "",
-  });
 
   // Lógica e callbacks
   const locations = useMemo(
@@ -382,12 +370,12 @@ export default function InventorySystem() {
       });
       return;
     }
-    setQuickRegisterData({
-      codigo_de_barras: scanInput,
-      descricao: "",
-      quantidade: "",
+    toast({
+      title: "Produto não encontrado",
+      description: `O código "${scanInput}" não está na sua base de dados.`,
+      variant: "destructive",
     });
-    setShowQuickRegister(true);
+    setCurrentProduct(null); // Limpa o produto atual
   }, [scanInput, barCodes, tempProducts]);
   const handleBarcodeScanned = useCallback(
     (barcode: string) => {
@@ -414,40 +402,15 @@ export default function InventorySystem() {
           });
           return;
         }
-        setQuickRegisterData({
-          codigo_de_barras: barcode,
-          descricao: "",
-          quantidade: "",
+        toast({
+          title: "Produto não encontrado",
+          description: `O código "${barcode}" não está na sua base de dados.`,
+          variant: "destructive",
         });
-        setShowQuickRegister(true);
+        setCurrentProduct(null); // Limpa o produto atual
       }, 100);
     },
     [barCodes, tempProducts]
-  );
-  const handleQuickRegister = useCallback(
-    (data: {
-      codigo_de_barras: string;
-      descricao: string;
-      quantidade: string;
-    }) => {
-      const newTempProduct: TempProduct = {
-        id: `temp-${Date.now()}`,
-        codigo_de_barras: data.codigo_de_barras,
-        codigo_produto: `TEMP-${Date.now()}`,
-        descricao: data.descricao,
-        saldo_estoque: 0,
-        isTemporary: true,
-      };
-      setTempProducts((prev) => [...prev, newTempProduct]);
-      setCurrentProduct(newTempProduct);
-      setQuantityInput(data.quantidade);
-      setShowQuickRegister(false);
-      toast({
-        title: "Produto temporário cadastrado!",
-        description: "Este produto não será salvo permanentemente",
-      });
-    },
-    []
   );
   const calculateTotal = useCallback(
     (quantLoja: number, quantEstoque: number, saldoEstoque: number) => {
@@ -702,10 +665,6 @@ export default function InventorySystem() {
     link.click();
     URL.revokeObjectURL(link.href);
     toast({ title: "Template CSV baixado com sucesso!" });
-  }, []);
-  const handlePremiumUpgrade = useCallback((feature: string) => {
-    setPremiumModalFeature(feature);
-    setShowPremiumModal(true);
   }, []);
 
   return (
