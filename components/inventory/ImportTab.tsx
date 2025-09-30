@@ -17,9 +17,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Upload, Download, AlertCircle } from "lucide-react";
+import { Upload, Download, AlertCircle, Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { Product, BarCode } from "@/lib/types";
 
@@ -52,6 +59,61 @@ const ProductTableRow = ({
 );
 ProductTableRow.displayName = "ProductTableRow";
 
+// Componente reutilizável para as instruções
+const CsvInstructions = ({
+  downloadTemplateCSV,
+}: {
+  downloadTemplateCSV: () => void;
+}) => (
+  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+    <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2 flex items-center">
+      <AlertCircle className="h-4 w-4 mr-2" />
+      Instruções para o arquivo CSV
+    </h4>
+    <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+      <li>
+        • <strong>Separador:</strong> Use ponto e vírgula (;) entre as colunas
+      </li>
+      <li>
+        • <strong>Código de barras:</strong> Formate a coluna como NÚMERO (não
+        texto)
+      </li>
+      <li>
+        • <strong>Saldo estoque:</strong> Use apenas números inteiros
+      </li>
+      <li>
+        • <strong>Codificação:</strong> Salve o arquivo em UTF-8
+      </li>
+      <li>
+        • <strong>Cabeçalho:</strong> Primeira linha deve conter os nomes das
+        colunas
+      </li>
+    </ul>
+    {/* A MUDANÇA ESTÁ NA LINHA ABAIXO */}
+    <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="text-xs text-blue-600 dark:text-blue-400">
+        <strong>Exemplo:</strong>{" "}
+        <span className="block break-all">
+          codigo_de_barras;codigo_produto;descricao;saldo_estoque
+        </span>
+        <span className="block break-all">
+          7891234567890;PROD001;Produto Exemplo;100
+        </span>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={downloadTemplateCSV}
+        className="shrink-0 border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900/30 bg-transparent"
+      >
+        <Download className="h-3 w-3 mr-1" />
+        Baixar Template
+      </Button>
+    </div>
+  </div>
+);
+CsvInstructions.displayName = "CsvInstructions";
+
 export const ImportTab: React.FC<ImportTabProps> = ({
   handleCsvUpload,
   isLoading,
@@ -68,52 +130,31 @@ export const ImportTab: React.FC<ImportTabProps> = ({
             <Upload className="h-5 w-5 mr-2" />
             Importar Produtos
           </CardTitle>
-          <CardDescription>
-            Faça upload de um arquivo CSV com formato:
-            codigo_de_barras;codigo_produto;descricao;saldo_estoque
-          </CardDescription>
-          <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-            <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2 flex items-center">
-              <AlertCircle className="h-4 w-4 mr-2" />
-              Instruções para o arquivo CSV
-            </h4>
-            <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
-              <li>
-                • <strong>Separador:</strong> Use ponto e vírgula (;) entre as
-                colunas
-              </li>
-              <li>
-                • <strong>Código de barras:</strong> Formate a coluna como
-                NÚMERO (não texto)
-              </li>
-              <li>
-                • <strong>Saldo estoque:</strong> Use apenas números inteiros
-              </li>
-              <li>
-                • <strong>Codificação:</strong> Salve o arquivo em UTF-8
-              </li>
-              <li>
-                • <strong>Cabeçalho:</strong> Primeira linha deve conter os
-                nomes das colunas
-              </li>
-            </ul>
-            <div className="mt-3 flex items-center justify-between">
-              <div className="text-xs text-blue-600 dark:text-blue-400">
-                <strong>Exemplo:</strong>{" "}
-                codigo_de_barras;codigo_produto;descricao;saldo_estoque
-                <br />
-                7891234567890;PROD001;Produto Exemplo;100
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={downloadTemplateCSV}
-                className="ml-4 border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900/30 bg-transparent"
-              >
-                <Download className="h-3 w-3 mr-1" />
-                Baixar Template
-              </Button>
-            </div>
+          <CardDescription>Faça upload de um arquivo CSV</CardDescription>
+
+          {/* Instruções visíveis em telas grandes */}
+          <div className="hidden sm:block mt-4">
+            <CsvInstructions downloadTemplateCSV={downloadTemplateCSV} />
+          </div>
+
+          {/* Botão para abrir modal em telas pequenas */}
+          <div className="sm:hidden mt-4">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="w-full">
+                  <Info className="h-4 w-4 mr-2" />
+                  Ver Instruções para o CSV
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-[90vw] rounded-lg">
+                <DialogHeader>
+                  <DialogTitle>Instruções para o arquivo CSV</DialogTitle>
+                </DialogHeader>
+                <div className="-mx-4 px-4">
+                  <CsvInstructions downloadTemplateCSV={downloadTemplateCSV} />
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
