@@ -39,7 +39,8 @@ interface ConferenceTabProps {
   handleQuantityKeyPress: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   handleAddCount: () => void;
   productCounts: ProductCount[];
-  handleRemoveCount: (id: string) => void;
+  // --- CORREÇÃO APLICADA AQUI ---
+  handleRemoveCount: (id: number) => void; // Alterado de string para number
 }
 
 const ProductCountItem = ({
@@ -47,7 +48,8 @@ const ProductCountItem = ({
   onRemove,
 }: {
   item: ProductCount;
-  onRemove: (id: string) => void;
+  // --- E AQUI TAMBÉM ---
+  onRemove: (id: number) => void; // Alterado de string para number
 }) => (
   <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
     <div className="flex-1">

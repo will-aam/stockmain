@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInventory } from "@/hooks/useInventory";
 import { AuthModal } from "@/components/shared/AuthModal";
@@ -19,16 +19,29 @@ import {
 
 export const dynamic = "force-dynamic";
 
+// --- INÍCIO DA CORREÇÃO PRINCIPAL ---
+// Função para obter o ID do usuário da sessão do navegador
+const getSessionUserId = (): number | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const savedUserId = sessionStorage.getItem("currentUserId");
+  return savedUserId ? parseInt(savedUserId, 10) : null;
+};
+// --- FIM DA CORREÇÃO PRINCIPAL ---
+
 export default function InventorySystem() {
-  // Trocamos isAuthenticated por currentUserId
-  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  // O estado agora é inicializado com o usuário da sessão, se existir.
+  const [currentUserId, setCurrentUserId] = useState<number | null>(
+    getSessionUserId
+  );
   const [activeTab, setActiveTab] = useState("scan");
 
-  // O hook de inventário agora é condicional e receberá o ID do usuário
-  // Por enquanto, apenas passamos um valor fixo, mas a estrutura está pronta
   const inventory = useInventory({ userId: currentUserId });
 
   const handleUnlock = (userId: number) => {
+    // Salva o ID do usuário na sessão do navegador para persistir após atualizações
+    sessionStorage.setItem("currentUserId", userId.toString());
     setCurrentUserId(userId);
   };
 
