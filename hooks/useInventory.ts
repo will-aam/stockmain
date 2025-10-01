@@ -39,9 +39,21 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       const data = await response.json();
       setProducts(data.products || []);
       setBarCodes(data.barCodes || []);
-      const savedCounts = localStorage.getItem(`productCounts-${userId}`);
-      if (savedCounts) setProductCounts(JSON.parse(savedCounts));
-      else setProductCounts([]);
+
+      // --- Início da Correção ---
+      // Prioriza os dados do banco de dados, se existirem.
+      // Caso contrário, tenta carregar do localStorage.
+      if (data.productCounts && data.productCounts.length > 0) {
+        setProductCounts(data.productCounts);
+      } else {
+        const savedCounts = localStorage.getItem(`productCounts-${userId}`);
+        if (savedCounts) {
+          setProductCounts(JSON.parse(savedCounts));
+        } else {
+          setProductCounts([]);
+        }
+      }
+      // --- Fim da Correção ---
     } catch (error: any) {
       toast({
         title: "Erro ao carregar dados",
