@@ -16,36 +16,44 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Loader2 } from "lucide-react"; // Importar o ícone de carregamento
 
 export const dynamic = "force-dynamic";
 
-// --- INÍCIO DA CORREÇÃO PRINCIPAL ---
-// Função para obter o ID do usuário da sessão do navegador
-const getSessionUserId = (): number | null => {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  const savedUserId = sessionStorage.getItem("currentUserId");
-  return savedUserId ? parseInt(savedUserId, 10) : null;
-};
-// --- FIM DA CORREÇÃO PRINCIPAL ---
-
 export default function InventorySystem() {
-  // O estado agora é inicializado com o usuário da sessão, se existir.
-  const [currentUserId, setCurrentUserId] = useState<number | null>(
-    getSessionUserId
-  );
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("scan");
+
+  // --- INÍCIO DA CORREÇÃO DE HIDRATAÇÃO ---
+  const [isLoading, setIsLoading] = useState(true); // Novo estado de carregamento
+
+  useEffect(() => {
+    // Este código só roda no navegador, após a primeira renderização
+    const savedUserId = sessionStorage.getItem("currentUserId");
+    if (savedUserId) {
+      setCurrentUserId(parseInt(savedUserId, 10));
+    }
+    setIsLoading(false); // Finaliza o carregamento
+  }, []); // O array vazio [] garante que isso só rode uma vez
 
   const inventory = useInventory({ userId: currentUserId });
 
   const handleUnlock = (userId: number) => {
-    // Salva o ID do usuário na sessão do navegador para persistir após atualizações
     sessionStorage.setItem("currentUserId", userId.toString());
     setCurrentUserId(userId);
   };
 
-  // Se não houver userId, mostra o modal de login
+  // Enquanto verifica a sessão, exibe uma tela de carregamento
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+  // --- FIM DA CORREÇÃO DE HIDRATAÇÃO ---
+
+  // Se não houver userId após o carregamento, mostra o modal de login
   if (!currentUserId) {
     return <AuthModal onUnlock={handleUnlock} />;
   }

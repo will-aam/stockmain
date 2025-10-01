@@ -11,6 +11,20 @@ import type {
   Location,
 } from "@/lib/types";
 
+// Função auxiliar para carregar os dados do localStorage
+const loadCountsFromLocalStorage = (userId: number | null): ProductCount[] => {
+  if (typeof window === "undefined" || !userId) {
+    return [];
+  }
+  try {
+    const savedCounts = localStorage.getItem(`productCounts-${userId}`);
+    return savedCounts ? JSON.parse(savedCounts) : [];
+  } catch (error) {
+    console.error("Falha ao ler contagens do localStorage", error);
+    return [];
+  }
+};
+
 export const useInventory = ({ userId }: { userId: number | null }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [barCodes, setBarCodes] = useState<BarCode[]>([]);
@@ -26,20 +40,12 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   const [selectedLocation, setSelectedLocation] = useState("loja-1");
   const [countingMode, setCountingMode] = useState<"loja" | "estoque">("loja");
 
-  // O estado é inicializado lendo do localStorage. Como o userId agora é estável,
-  // isso vai funcionar de forma confiável na primeira renderização.
-  const [productCounts, setProductCounts] = useState<ProductCount[]>(() => {
-    if (typeof window === "undefined" || !userId) {
-      return [];
-    }
-    const savedCounts = localStorage.getItem(`productCounts-${userId}`);
-    return savedCounts ? JSON.parse(savedCounts) : [];
-  });
+  const [productCounts, setProductCounts] = useState<ProductCount[]>([]);
 
   const [showClearDataModal, setShowClearDataModal] = useState(false);
   const [isCameraViewActive, setIsCameraViewActive] = useState(false);
 
-  // Carrega apenas o catálogo de produtos, não a contagem.
+  // Carrega apenas o catálogo de produtos do servidor.
   const loadCatalogFromDb = useCallback(async () => {
     if (!userId) {
       setIsLoading(false);
@@ -64,13 +70,19 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     }
   }, [userId]);
 
-  // Carrega o catálogo uma vez quando o hook é montado com um userId válido.
+  // --- INÍCIO DA CORREÇÃO FINAL ---
   useEffect(() => {
     loadCatalogFromDb();
-  }, [userId, loadCatalogFromDb]);
+    // Este é o passo crucial: quando o userId estiver disponível (após o login ou recarga),
+    // carregamos a contagem correta do localStorage.
+    setProductCounts(loadCountsFromLocalStorage(userId));
+  }, [userId, loadCatalogFromDb]); // Dispara quando o userId muda de null para um número
+  // --- FIM DA CORREÇÃO FINAL ---
 
   // Salva a contagem no localStorage sempre que ela for alterada.
   useEffect(() => {
+    // A verificação 'productCounts.length > 0' evita apagar o localStorage
+    // durante a transição de logout/login.
     if (userId) {
       localStorage.setItem(
         `productCounts-${userId}`,
@@ -255,7 +267,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     [userId, loadCatalogFromDb]
   );
 
-  // O restante do arquivo permanece igual...
   const handleCsvUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
