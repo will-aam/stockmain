@@ -11,8 +11,9 @@ export interface BarCode {
   produto?: Product;
 }
 
+// TIPO CORRIGIDO
 export interface ProductCount {
-  id: string;
+  id: number; // Corrigido para number
   codigo_de_barras: string;
   codigo_produto: string;
   descricao: string;
@@ -25,6 +26,7 @@ export interface ProductCount {
 }
 
 export interface InventoryHistory {
+  // ... (sem alterações)
   id: number;
   data_contagem: string;
   usuario_email: string;
@@ -34,6 +36,7 @@ export interface InventoryHistory {
 }
 
 export interface CsvRow {
+  // ... (sem alterações)
   codigo_de_barras: string;
   codigo_produto: string;
   descricao: string;
@@ -41,6 +44,7 @@ export interface CsvRow {
 }
 
 export interface TempProduct {
+  // ... (sem alterações)
   id: string;
   codigo_de_barras: string;
   codigo_produto: string;
@@ -50,6 +54,7 @@ export interface TempProduct {
 }
 
 export interface Location {
+  // ... (sem alterações)
   value: string;
   label: string;
 }

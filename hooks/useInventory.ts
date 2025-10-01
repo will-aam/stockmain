@@ -33,21 +33,15 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     if (!userId) return;
     setIsLoading(true);
     try {
-      // 1. Carrega a lista de PRODUTOS do banco de dados
       const response = await fetch(`/api/inventory/${userId}`);
       if (!response.ok)
         throw new Error("Falha ao carregar a lista de produtos.");
       const data = await response.json();
       setProducts(data.products || []);
       setBarCodes(data.barCodes || []);
-
-      // 2. Carrega as CONTAGENS do localStorage, específicas para este usuário
       const savedCounts = localStorage.getItem(`productCounts-${userId}`);
-      if (savedCounts) {
-        setProductCounts(JSON.parse(savedCounts));
-      } else {
-        setProductCounts([]); // Limpa se não houver contagens salvas
-      }
+      if (savedCounts) setProductCounts(JSON.parse(savedCounts));
+      else setProductCounts([]);
     } catch (error: any) {
       toast({
         title: "Erro ao carregar dados",
@@ -62,14 +56,12 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   useEffect(() => {
     loadDataFromDb();
   }, [userId, loadDataFromDb]);
-
   useEffect(() => {
-    if (userId) {
+    if (userId)
       localStorage.setItem(
         `productCounts-${userId}`,
         JSON.stringify(productCounts)
       );
-    }
   }, [productCounts, userId]);
 
   const calculateExpression = useCallback(
@@ -99,10 +91,8 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     []
   );
 
-  // <<< LÓGICA DE ADICIONAR CONTAGEM CORRIGIDA PARA USAR LOCALSTORAGE >>>
   const handleAddCount = useCallback(() => {
     if (!currentProduct || !quantityInput) return;
-
     let finalQuantity: number;
     const hasOperators = /[+\-*/]/.test(quantityInput);
     if (hasOperators) {
@@ -128,20 +118,16 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       }
       finalQuantity = parsed;
     }
-
     const quantidade = Math.round(finalQuantity);
-
     setProductCounts((prevCounts) => {
       const existingIndex = prevCounts.findIndex(
         (item) => item.codigo_produto === currentProduct.codigo_produto
       );
-
       if (existingIndex >= 0) {
         const updatedCounts = [...prevCounts];
         const existingItem = { ...updatedCounts[existingIndex] };
         if (countingMode === "loja") existingItem.quant_loja += quantidade;
         else existingItem.quant_estoque += quantidade;
-
         existingItem.total =
           existingItem.quant_loja +
           existingItem.quant_estoque -
@@ -150,8 +136,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
         return updatedCounts;
       } else {
         const newCount: ProductCount = {
-          id: Date.now().toString(),
-          // CORRIGIDO AQUI: Usa o `scanInput` que é a fonte da verdade para o código de barras.
+          id: Date.now(),
           codigo_de_barras: scanInput,
           codigo_produto: currentProduct.codigo_produto,
           descricao: currentProduct.descricao,
@@ -163,12 +148,11 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
             (countingMode === "estoque" ? quantidade : 0) -
             currentProduct.saldo_estoque,
           local_estoque: selectedLocation,
-          data_hora: new Date().toLocaleString("pt-BR"),
+          data_hora: new Date().toISOString(),
         };
         return [...prevCounts, newCount];
       }
     });
-
     toast({ title: "Contagem adicionada!" });
     setScanInput("");
     setQuantityInput("");
@@ -189,7 +173,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("Falha ao limpar dados do servidor.");
-
       localStorage.removeItem(`productCounts-${userId}`);
       setProducts([]);
       setBarCodes([]);
@@ -209,7 +192,9 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     }
   }, [userId]);
 
-  const handleRemoveCount = useCallback((id: string) => {
+  // <<< CORREÇÃO APLICADA AQUI >>>
+  const handleRemoveCount = useCallback((id: number) => {
+    // O tipo do 'id' agora é 'number'
     setProductCounts((prev) => prev.filter((item) => item.id !== id));
     toast({ title: "Item removido da contagem" });
   }, []);

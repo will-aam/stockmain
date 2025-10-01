@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Produto } from "@prisma/client"; // Corrigido de 'Product' para 'Produto'
 
 export async function GET(
   request: Request,
@@ -7,7 +8,6 @@ export async function GET(
 ) {
   try {
     const userId = parseInt(params.userId, 10);
-
     if (isNaN(userId)) {
       return NextResponse.json(
         { error: "ID de usuário inválido" },
@@ -15,36 +15,44 @@ export async function GET(
       );
     }
 
-    const activeCount = await prisma.contagem.findFirst({
-      where: {
-        usuario_id: userId,
-        status: "em_andamento",
-      },
-      include: {
-        itens_contados: true,
-      },
-    });
-
-    // <<< LÓGICA CORRIGIDA AQUI >>>
-    // Agora buscamos os códigos de barras E incluímos o produto relacionado
     const userBarCodes = await prisma.codigoBarras.findMany({
-      where: {
-        usuario_id: userId,
-      },
-      include: {
-        produto: true, // A MÁGICA ACONTECE AQUI
-      },
+      where: { usuario_id: userId },
+      include: { produto: true },
     });
 
-    // A lista de produtos agora é derivada dos códigos de barras
     const userProducts = userBarCodes
       .map((bc) => bc.produto)
-      .filter((p) => p !== null);
+      .filter((p): p is Produto => p !== null);
+
+    const activeCount = await prisma.contagem.findFirst({
+      where: { usuario_id: userId, status: "em_andamento" },
+      include: {
+        itens_contados: {
+          include: {
+            produto: true,
+          },
+        },
+      },
+    });
+
+    const productCountsForFrontend =
+      activeCount?.itens_contados.map((item) => ({
+        id: item.id,
+        codigo_de_barras: item.codigo_de_barras,
+        codigo_produto: item.produto.codigo_produto,
+        descricao: item.produto.descricao,
+        saldo_estoque: item.saldo_estoque_inicial,
+        quant_loja: item.quant_loja,
+        quant_estoque: item.quant_estoque,
+        total: item.total,
+        local_estoque: activeCount.local_estoque,
+        data_hora: item.data_hora.toISOString(),
+      })) || [];
 
     return NextResponse.json({
       products: userProducts,
       barCodes: userBarCodes,
-      productCounts: activeCount?.itens_contados || [],
+      productCounts: productCountsForFrontend,
     });
   } catch (error) {
     console.error("Erro ao buscar dados de inventário:", error);
@@ -55,38 +63,27 @@ export async function GET(
   }
 }
 
-// NOVA FUNÇÃO ADICIONADA
 export async function DELETE(
   request: Request,
   { params }: { params: { userId: string } }
 ) {
+  // (Esta função DELETE permanece a mesma)
   try {
     const userId = parseInt(params.userId, 10);
-
     if (isNaN(userId)) {
       return NextResponse.json(
         { error: "ID de usuário inválido" },
         { status: 400 }
       );
     }
-
-    // Usamos uma transação para garantir que tudo seja deletado
     await prisma.$transaction([
-      // Deleta primeiro os itens que têm dependências
       prisma.itemContado.deleteMany({
         where: { contagem: { usuario_id: userId } },
       }),
-      prisma.contagem.deleteMany({
-        where: { usuario_id: userId },
-      }),
-      prisma.codigoBarras.deleteMany({
-        where: { usuario_id: userId },
-      }),
-      prisma.produto.deleteMany({
-        where: { usuario_id: userId },
-      }),
+      prisma.contagem.deleteMany({ where: { usuario_id: userId } }),
+      prisma.codigoBarras.deleteMany({ where: { usuario_id: userId } }),
+      prisma.produto.deleteMany({ where: { usuario_id: userId } }),
     ]);
-
     return NextResponse.json({
       success: true,
       message: "Todos os dados da sessão foram limpos.",

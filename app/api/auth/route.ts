@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// Vamos definir as senhas "mágicas" aqui por enquanto
+// Adicione as novas senhas aqui
 const hardcodedPasswords: Record<string, number> = {
-  "1234": 1, // Senha "1234" está associada ao usuário com ID 1
-  "6789": 2, // Senha "6789" está associada ao usuário com ID 2
-  "1111": 3, // Novo usuário
-  "2222": 4, // Novo usuário
-  "3333": 5, // Novo usuário
+  "1234": 1,
+  "6789": 2,
+  "1111": 3, // Novo usuário 3
+  "2222": 4, // Novo usuário 4
+  "3333": 5, // Novo usuário 5
 };
 
 export async function POST(request: Request) {
@@ -27,13 +27,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Se a senha estiver correta, procuramos o usuário no banco de dados
-    // (Isso é importante para futuras associações, por enquanto apenas confirma que existe)
+    // Garante que o usuário exista no banco de dados. Se não existir, cria um.
     const user = await prisma.usuario.findUnique({
       where: { id: userId },
     });
 
-    // Se não houver um usuário correspondente no banco de dados, criamos um
     if (!user) {
       await prisma.usuario.create({
         data: {
