@@ -2,18 +2,16 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { toast } from "@/hooks/use-toast";
-import Papa, { type ParseResult } from "papaparse";
+import Papa from "papaparse";
 import type {
   Product,
   BarCode,
   ProductCount,
-  InventoryHistory,
-  CsvRow,
   TempProduct,
   Location,
 } from "@/lib/types";
 
-export const useInventory = () => {
+export const useInventory = ({ userId }: { userId: number | null }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [barCodes, setBarCodes] = useState<BarCode[]>([]);
   const [tempProducts, setTempProducts] = useState<TempProduct[]>([]);
@@ -24,244 +22,55 @@ export const useInventory = () => {
   >(null);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvErrors, setCsvErrors] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedLocation, setSelectedLocation] = useState("loja-1");
-  const [inventoryHistory, setInventoryHistory] = useState<InventoryHistory[]>(
-    []
-  );
   const [countingMode, setCountingMode] = useState<"loja" | "estoque">("loja");
   const [productCounts, setProductCounts] = useState<ProductCount[]>([]);
   const [showClearDataModal, setShowClearDataModal] = useState(false);
   const [isCameraViewActive, setIsCameraViewActive] = useState(false);
 
-  const locations: Location[] = useMemo(
-    () => [
-      { value: "loja-1", label: "Loja 1" },
-      { value: "loja-2", label: "Loja 2" },
-      { value: "deposito", label: "Depósito" },
-      { value: "estoque-central", label: "Estoque Central" },
-    ],
-    []
-  );
+  const loadDataFromDb = useCallback(async () => {
+    if (!userId) return;
+    setIsLoading(true);
+    try {
+      // 1. Carrega a lista de PRODUTOS do banco de dados
+      const response = await fetch(`/api/inventory/${userId}`);
+      if (!response.ok)
+        throw new Error("Falha ao carregar a lista de produtos.");
+      const data = await response.json();
+      setProducts(data.products || []);
+      setBarCodes(data.barCodes || []);
 
-  const productCountsStats = useMemo(() => {
-    const totalLoja = productCounts.reduce(
-      (sum, item) => sum + item.quant_loja,
-      0
-    );
-    const totalEstoque = productCounts.reduce(
-      (sum, item) => sum + item.quant_estoque,
-      0
-    );
-    const totalSistema = productCounts.reduce(
-      (sum, item) => sum + item.saldo_estoque,
-      0
-    );
-    const consolidado = totalLoja + totalEstoque - totalSistema;
-    return { totalLoja, totalEstoque, totalSistema, consolidado };
-  }, [productCounts]);
+      // 2. Carrega as CONTAGENS do localStorage, específicas para este usuário
+      const savedCounts = localStorage.getItem(`productCounts-${userId}`);
+      if (savedCounts) {
+        setProductCounts(JSON.parse(savedCounts));
+      } else {
+        setProductCounts([]); // Limpa se não houver contagens salvas
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao carregar dados",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userId]);
 
   useEffect(() => {
-    const loadData = async () => {
-      const savedData = localStorage.getItem("inventory-system-data");
-      if (savedData) {
-        try {
-          const data = JSON.parse(savedData);
-          setProducts(data.products || []);
-          setBarCodes(data.barCodes || []);
-        } catch (error) {
-          console.error("Erro ao carregar dados do localStorage:", error);
-        }
-      }
-    };
-    loadData();
-  }, []);
+    loadDataFromDb();
+  }, [userId, loadDataFromDb]);
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      const dataToSave = {
-        products,
-        barCodes,
-        timestamp: new Date().toISOString(),
-      };
-      localStorage.setItem("inventory-system-data", JSON.stringify(dataToSave));
-    }, 500);
-    return () => clearTimeout(timeoutId);
-  }, [products, barCodes]);
-
-  const handleClearAllData = useCallback(() => {
-    localStorage.removeItem("inventory-system-data");
-    setProducts([]);
-    setBarCodes([]);
-    setTempProducts([]);
-    setProductCounts([]);
-    setScanInput("");
-    setQuantityInput("");
-    setCurrentProduct(null);
-    setCsvFile(null);
-    setCsvErrors([]);
-    setShowClearDataModal(false);
-    toast({
-      title: "Dados apagados",
-      description: "Todos os dados foram removidos com sucesso",
-      variant: "destructive",
-    });
-  }, []);
-
-  const processCsvFile = useCallback(
-    (file: File) => {
-      setIsLoading(true);
-      Papa.parse<CsvRow>(file, {
-        header: true,
-        delimiter: ";",
-        skipEmptyLines: true,
-        worker: true,
-        complete: (results: ParseResult<CsvRow>) => {
-          const errors: string[] = [];
-          const newProducts: Product[] = [];
-          const newBarCodes: BarCode[] = [];
-          const existingBarCodes = new Set(
-            barCodes.map((bc) => bc.codigo_de_barras)
-          );
-
-          results.data.forEach((row: CsvRow, index: number) => {
-            const {
-              codigo_de_barras,
-              codigo_produto,
-              descricao,
-              saldo_estoque,
-            } = row;
-            if (
-              !codigo_de_barras ||
-              !codigo_produto ||
-              !descricao ||
-              saldo_estoque === undefined
-            ) {
-              errors.push(`Linha ${index + 2}: Dados incompletos`);
-              return;
-            }
-            if (existingBarCodes.has(codigo_de_barras)) {
-              errors.push(
-                `Linha ${
-                  index + 2
-                }: Código de barras ${codigo_de_barras} duplicado`
-              );
-              return;
-            }
-            const saldoNumerico = Number.parseInt(saldo_estoque);
-            if (isNaN(saldoNumerico)) {
-              errors.push(
-                `Linha ${index + 2}: Saldo de estoque deve ser um número`
-              );
-              return;
-            }
-            const product = {
-              id: Date.now() + index,
-              codigo_produto,
-              descricao,
-              saldo_estoque: saldoNumerico,
-            };
-            newProducts.push(product);
-            newBarCodes.push({
-              codigo_de_barras,
-              produto_id: product.id,
-              produto: product,
-            });
-            existingBarCodes.add(codigo_de_barras);
-          });
-
-          setCsvErrors(errors);
-          if (errors.length === 0 && newProducts.length > 0) {
-            setProducts((prev) => [...prev, ...newProducts]);
-            setBarCodes((prev) => [...prev, ...newBarCodes]);
-            toast({
-              title: `${newProducts.length} produtos importados com sucesso!`,
-            });
-          }
-          setIsLoading(false);
-        },
-        error: (error: Error) => {
-          toast({
-            title: "Erro",
-            description: "Falha ao processar arquivo CSV",
-            variant: "destructive",
-          });
-          setIsLoading(false);
-        },
-      });
-    },
-    [barCodes]
-  );
-
-  const handleCsvUpload = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        setCsvFile(file);
-        processCsvFile(file);
-      }
-    },
-    [processCsvFile]
-  );
-
-  const handleScan = useCallback(() => {
-    if (scanInput.trim() === "") return;
-
-    const barCode = barCodes.find((bc) => bc.codigo_de_barras === scanInput);
-    if (barCode && barCode.produto) {
-      setCurrentProduct(barCode.produto);
-      toast({
-        title: "Produto encontrado!",
-        description: `${barCode.produto.descricao} - Estoque: ${barCode.produto.saldo_estoque}`,
-      });
-      return;
+    if (userId) {
+      localStorage.setItem(
+        `productCounts-${userId}`,
+        JSON.stringify(productCounts)
+      );
     }
-
-    const tempProduct = tempProducts.find(
-      (tp) => tp.codigo_de_barras === scanInput
-    );
-    if (tempProduct) {
-      setCurrentProduct(tempProduct);
-      toast({
-        title: "Produto temporário encontrado!",
-        description: `${tempProduct.descricao}`,
-      });
-      return;
-    }
-
-    const newTempProduct: TempProduct = {
-      id: `TEMP-${scanInput}`,
-      codigo_de_barras: scanInput,
-      codigo_produto: `TEMP-${scanInput}`,
-      descricao: `Novo Produto (Cód: ${scanInput})`,
-      saldo_estoque: 0,
-      isTemporary: true,
-    };
-    setCurrentProduct(newTempProduct);
-    toast({
-      title: "Produto não cadastrado",
-      description:
-        "Digite a quantidade para adicionar este novo item à contagem.",
-    });
-  }, [scanInput, barCodes, tempProducts]);
-
-  const handleBarcodeScanned = useCallback(
-    (barcode: string) => {
-      setIsCameraViewActive(false);
-      setScanInput(barcode);
-      setTimeout(() => {
-        handleScan();
-      }, 100);
-    },
-    [handleScan]
-  );
-
-  const calculateTotal = useCallback(
-    (quantLoja: number, quantEstoque: number, saldoEstoque: number) => {
-      return quantLoja + quantEstoque - saldoEstoque;
-    },
-    []
-  );
+  }, [productCounts, userId]);
 
   const calculateExpression = useCallback(
     (
@@ -269,18 +78,15 @@ export const useInventory = () => {
     ): { result: number; isValid: boolean; error?: string } => {
       try {
         const cleanExpression = expression.replace(/\s/g, "");
-        const validPattern = /^[0-9+\-*/().]+$/;
-        if (!validPattern.test(cleanExpression)) {
+        if (!/^[0-9+\-*/().]+$/.test(cleanExpression))
           return {
             result: 0,
             isValid: false,
             error: "Caracteres inválidos na expressão",
           };
-        }
         const result = new Function("return " + cleanExpression)();
-        if (typeof result !== "number" || isNaN(result) || !isFinite(result)) {
+        if (typeof result !== "number" || isNaN(result) || !isFinite(result))
           return { result: 0, isValid: false, error: "Resultado inválido" };
-        }
         return { result: Math.round(result * 100) / 100, isValid: true };
       } catch (error) {
         return {
@@ -293,24 +99,9 @@ export const useInventory = () => {
     []
   );
 
+  // <<< LÓGICA DE ADICIONAR CONTAGEM CORRIGIDA PARA USAR LOCALSTORAGE >>>
   const handleAddCount = useCallback(() => {
-    if (!currentProduct || !quantityInput) {
-      toast({
-        title: "Erro",
-        description: "Selecione um produto e informe a quantidade",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if ("isTemporary" in currentProduct && currentProduct.isTemporary) {
-      const isAlreadyTemp = tempProducts.some(
-        (p) => p.id === currentProduct.id
-      );
-      if (!isAlreadyTemp) {
-        setTempProducts((prev) => [...prev, currentProduct]);
-      }
-    }
+    if (!currentProduct || !quantityInput) return;
 
     let finalQuantity: number;
     const hasOperators = /[+\-*/]/.test(quantityInput);
@@ -319,7 +110,7 @@ export const useInventory = () => {
       if (!calculation.isValid) {
         toast({
           title: "Erro no cálculo",
-          description: calculation.error || "Expressão matemática inválida",
+          description: calculation.error || "Expressão inválida",
           variant: "destructive",
         });
         return;
@@ -337,40 +128,47 @@ export const useInventory = () => {
       }
       finalQuantity = parsed;
     }
+
     const quantidade = Math.round(finalQuantity);
-    const existingIndex = productCounts.findIndex(
-      (item) => item.codigo_de_barras === scanInput
-    );
-    if (existingIndex >= 0) {
-      const updatedCounts = [...productCounts];
-      const existing = updatedCounts[existingIndex];
-      if (countingMode === "loja") existing.quant_loja += quantidade;
-      else existing.quant_estoque += quantidade;
-      existing.total = calculateTotal(
-        existing.quant_loja,
-        existing.quant_estoque,
-        existing.saldo_estoque
+
+    setProductCounts((prevCounts) => {
+      const existingIndex = prevCounts.findIndex(
+        (item) => item.codigo_produto === currentProduct.codigo_produto
       );
-      setProductCounts(updatedCounts);
-    } else {
-      const newCount: ProductCount = {
-        id: Date.now().toString(),
-        codigo_de_barras: scanInput,
-        codigo_produto: currentProduct.codigo_produto,
-        descricao: currentProduct.descricao,
-        saldo_estoque: currentProduct.saldo_estoque,
-        quant_loja: countingMode === "loja" ? quantidade : 0,
-        quant_estoque: countingMode === "estoque" ? quantidade : 0,
-        total: calculateTotal(
-          countingMode === "loja" ? quantidade : 0,
-          countingMode === "estoque" ? quantidade : 0,
-          currentProduct.saldo_estoque
-        ),
-        local_estoque: selectedLocation,
-        data_hora: new Date().toLocaleString("pt-BR"),
-      };
-      setProductCounts((prev) => [...prev, newCount]);
-    }
+
+      if (existingIndex >= 0) {
+        const updatedCounts = [...prevCounts];
+        const existingItem = { ...updatedCounts[existingIndex] };
+        if (countingMode === "loja") existingItem.quant_loja += quantidade;
+        else existingItem.quant_estoque += quantidade;
+
+        existingItem.total =
+          existingItem.quant_loja +
+          existingItem.quant_estoque -
+          existingItem.saldo_estoque;
+        updatedCounts[existingIndex] = existingItem;
+        return updatedCounts;
+      } else {
+        const newCount: ProductCount = {
+          id: Date.now().toString(),
+          // CORRIGIDO AQUI: Usa o `scanInput` que é a fonte da verdade para o código de barras.
+          codigo_de_barras: scanInput,
+          codigo_produto: currentProduct.codigo_produto,
+          descricao: currentProduct.descricao,
+          saldo_estoque: currentProduct.saldo_estoque,
+          quant_loja: countingMode === "loja" ? quantidade : 0,
+          quant_estoque: countingMode === "estoque" ? quantidade : 0,
+          total:
+            (countingMode === "loja" ? quantidade : 0) +
+            (countingMode === "estoque" ? quantidade : 0) -
+            currentProduct.saldo_estoque,
+          local_estoque: selectedLocation,
+          data_hora: new Date().toLocaleString("pt-BR"),
+        };
+        return [...prevCounts, newCount];
+      }
+    });
+
     toast({ title: "Contagem adicionada!" });
     setScanInput("");
     setQuantityInput("");
@@ -378,15 +176,131 @@ export const useInventory = () => {
   }, [
     currentProduct,
     quantityInput,
-    productCounts,
-    scanInput,
     countingMode,
     selectedLocation,
-    calculateTotal,
+    scanInput,
     calculateExpression,
-    tempProducts,
   ]);
 
+  const handleClearAllData = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const response = await fetch(`/api/inventory/${userId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Falha ao limpar dados do servidor.");
+
+      localStorage.removeItem(`productCounts-${userId}`);
+      setProducts([]);
+      setBarCodes([]);
+      setTempProducts([]);
+      setProductCounts([]);
+      setShowClearDataModal(false);
+      toast({
+        title: "Sucesso!",
+        description: "Todos os dados da sessão foram removidos.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao limpar dados",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  }, [userId]);
+
+  const handleRemoveCount = useCallback((id: string) => {
+    setProductCounts((prev) => prev.filter((item) => item.id !== id));
+    toast({ title: "Item removido da contagem" });
+  }, []);
+
+  const processCsvFile = useCallback(
+    async (file: File) => {
+      if (!userId) {
+        toast({
+          title: "Erro",
+          description: "Sessão de usuário não encontrada.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setIsLoading(true);
+      setCsvErrors([]);
+      const formData = new FormData();
+      formData.append("file", file);
+      try {
+        const response = await fetch(`/api/inventory/${userId}/import`, {
+          method: "POST",
+          body: formData,
+        });
+        const data = await response.json();
+        if (!response.ok)
+          throw new Error(data.error || "Falha ao importar o arquivo CSV.");
+        toast({
+          title: "Sucesso!",
+          description: `${data.importedCount} produtos foram importados.`,
+        });
+        await loadDataFromDb();
+      } catch (error: any) {
+        setCsvErrors([error.message]);
+        toast({
+          title: "Erro na importação",
+          description: error.message,
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [userId, loadDataFromDb]
+  );
+  const handleCsvUpload = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        setCsvFile(file);
+        processCsvFile(file);
+      }
+    },
+    [processCsvFile]
+  );
+  const handleScan = useCallback(() => {
+    if (scanInput.trim() === "") return;
+    const barCode = barCodes.find((bc) => bc.codigo_de_barras === scanInput);
+    if (barCode?.produto) {
+      setCurrentProduct(barCode.produto);
+      return;
+    }
+    const tempProduct = tempProducts.find(
+      (tp) => tp.codigo_de_barras === scanInput
+    );
+    if (tempProduct) {
+      setCurrentProduct(tempProduct);
+      return;
+    }
+    const newTempProduct: TempProduct = {
+      id: `TEMP-${scanInput}`,
+      codigo_de_barras: scanInput,
+      codigo_produto: `TEMP-${scanInput}`,
+      descricao: `Novo Produto (Cód: ${scanInput})`,
+      saldo_estoque: 0,
+      isTemporary: true,
+    };
+    setCurrentProduct(newTempProduct);
+    toast({
+      title: "Produto não cadastrado",
+      description:
+        "Digite a quantidade para adicionar este novo item à contagem.",
+    });
+  }, [scanInput, barCodes, tempProducts]);
+  const handleBarcodeScanned = useCallback(
+    (barcode: string) => {
+      setIsCameraViewActive(false);
+      setScanInput(barcode);
+      setTimeout(() => handleScan(), 100);
+    },
+    [handleScan]
+  );
   const handleQuantityKeyPress = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter") {
@@ -395,35 +309,24 @@ export const useInventory = () => {
         if (!expression) return;
         if (/[+\-*/]/.test(expression)) {
           const calculation = calculateExpression(expression);
-          if (calculation.isValid) {
+          if (calculation.isValid)
             setQuantityInput(calculation.result.toString());
-          } else {
+          else
             toast({
               title: "Erro no cálculo",
               description: calculation.error,
               variant: "destructive",
             });
-          }
-        } else if (currentProduct) {
-          handleAddCount();
-        }
+        } else if (currentProduct) handleAddCount();
       }
     },
     [quantityInput, calculateExpression, currentProduct, handleAddCount]
   );
-
-  const handleRemoveCount = useCallback((id: string) => {
-    setProductCounts((prev) => prev.filter((item) => item.id !== id));
-    toast({ title: "Item removido da contagem" });
-  }, []);
-
-  // <<< INÍCIO DA LÓGICA DE EXPORTAÇÃO CORRIGIDA >>>
   const exportToCsv = useCallback(() => {
     if (products.length === 0 && productCounts.length === 0) {
       toast({ title: "Nenhum item para exportar", variant: "destructive" });
       return;
     }
-
     const countedItemsData = productCounts.map((item) => ({
       codigo_de_barras: item.codigo_de_barras,
       codigo_produto: item.codigo_produto,
@@ -433,11 +336,9 @@ export const useInventory = () => {
       quant_estoque: item.quant_estoque,
       total: item.total,
     }));
-
     const countedProductCodes = new Set(
       productCounts.map((pc) => pc.codigo_produto)
     );
-
     const uncountedItemsData = products
       .filter((p) => !countedProductCodes.has(p.codigo_produto))
       .map((product) => {
@@ -452,14 +353,11 @@ export const useInventory = () => {
           total: -product.saldo_estoque,
         };
       });
-
     const dataToExport = [...countedItemsData, ...uncountedItemsData];
-
     if (dataToExport.length === 0) {
       toast({ title: "Nenhum item para exportar", variant: "destructive" });
       return;
     }
-
     const csv = Papa.unparse(dataToExport, {
       header: true,
       delimiter: ";",
@@ -475,10 +373,7 @@ export const useInventory = () => {
     }.csv`;
     link.click();
     URL.revokeObjectURL(link.href);
-    toast({ title: "CSV exportado com sucesso!" });
   }, [products, barCodes, productCounts, selectedLocation]);
-  // <<< FIM DA LÓGICA DE EXPORTAÇÃO CORRIGIDA >>>
-
   const downloadTemplateCSV = useCallback(() => {
     const templateData = [
       {
@@ -508,6 +403,31 @@ export const useInventory = () => {
     link.click();
     URL.revokeObjectURL(link.href);
   }, []);
+  const locations: Location[] = useMemo(
+    () => [
+      { value: "loja-1", label: "Loja 1" },
+      { value: "loja-2", label: "Loja 2" },
+      { value: "deposito", label: "Depósito" },
+      { value: "estoque-central", label: "Estoque Central" },
+    ],
+    []
+  );
+  const productCountsStats = useMemo(() => {
+    const totalLoja = productCounts.reduce(
+      (sum, item) => sum + item.quant_loja,
+      0
+    );
+    const totalEstoque = productCounts.reduce(
+      (sum, item) => sum + item.quant_estoque,
+      0
+    );
+    const totalSistema = productCounts.reduce(
+      (sum, item) => sum + item.saldo_estoque,
+      0
+    );
+    const consolidado = totalLoja + totalEstoque - totalSistema;
+    return { totalLoja, totalEstoque, totalSistema, consolidado };
+  }, [productCounts]);
 
   return {
     products,
@@ -523,7 +443,6 @@ export const useInventory = () => {
     isLoading,
     selectedLocation,
     setSelectedLocation,
-    inventoryHistory,
     countingMode,
     setCountingMode,
     productCounts,

@@ -20,18 +20,24 @@ import {
 export const dynamic = "force-dynamic";
 
 export default function InventorySystem() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Trocamos isAuthenticated por currentUserId
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("scan");
-  const inventory = useInventory();
 
-  const handleUnlock = () => {
-    setIsAuthenticated(true);
+  // O hook de inventário agora é condicional e receberá o ID do usuário
+  // Por enquanto, apenas passamos um valor fixo, mas a estrutura está pronta
+  const inventory = useInventory({ userId: currentUserId });
+
+  const handleUnlock = (userId: number) => {
+    setCurrentUserId(userId);
   };
 
-  if (!isAuthenticated) {
+  // Se não houver userId, mostra o modal de login
+  if (!currentUserId) {
     return <AuthModal onUnlock={handleUnlock} />;
   }
 
+  // Se houver, mostra a aplicação principal
   return (
     <>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

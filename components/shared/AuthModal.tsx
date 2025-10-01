@@ -12,24 +12,44 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LockKeyhole } from "lucide-react";
+import { LockKeyhole, Loader2 } from "lucide-react";
 
 interface AuthModalProps {
-  onUnlock: () => void;
+  // Agora onUnlock recebe o ID do usuário
+  onUnlock: (userId: number) => void;
 }
-
-const HARDCODED_PASSWORD = "1234";
 
 export function AuthModal({ onUnlock }: AuthModalProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleUnlock = () => {
-    if (password === HARDCODED_PASSWORD) {
-      setError("");
-      onUnlock();
-    } else {
-      setError("Senha incorreta. Tente novamente.");
+  const handleUnlock = async () => {
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/auth", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Erro ao autenticar");
+      }
+
+      if (data.success && data.userId) {
+        onUnlock(data.userId);
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -48,20 +68,22 @@ export function AuthModal({ onUnlock }: AuthModalProps) {
             Acesso Restrito
           </CardTitle>
           <CardDescription>
-            Por favor, insira a senha para acessar o sistema de inventário.
+            Por favor, insira a senha de acesso para iniciar a sessão de
+            contagem.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
+            <Label htmlFor="password">Senha da Sessão</Label>
             <Input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="••••••••"
+              placeholder="••••"
               autoFocus
+              disabled={isLoading}
             />
           </div>
           {error && (
@@ -71,8 +93,13 @@ export function AuthModal({ onUnlock }: AuthModalProps) {
           )}
         </CardContent>
         <CardFooter>
-          <Button onClick={handleUnlock} className="w-full">
-            Desbloquear
+          <Button
+            onClick={handleUnlock}
+            className="w-full"
+            disabled={isLoading}
+          >
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isLoading ? "Verificando..." : "Desbloquear"}
           </Button>
         </CardFooter>
       </Card>
