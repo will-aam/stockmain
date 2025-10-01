@@ -41,7 +41,6 @@ model CodigoBarras {
   usuario_id       Int
   usuario          Usuario       @relation(fields: [usuario_id], references: [id])
   produto          Produto       @relation(fields: [produto_id], references: [id], onDelete: Cascade)
-  itens_contados   ItemContado[]
 
   @@map("codigos_de_barras")
 }
