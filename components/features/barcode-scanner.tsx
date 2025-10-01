@@ -6,8 +6,7 @@ import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Camera, X, Scan, Zap } from "lucide-react";
+import { Camera, X, Scan, Zap, Loader2 } from "lucide-react";
 
 interface BarcodeScannerProps {
   onScan: (barcode: string) => void;
@@ -22,81 +21,104 @@ export function BarcodeScanner({
 }: BarcodeScannerProps) {
   const [manualInput, setManualInput] = useState("");
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isCameraLoading, setIsCameraLoading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+
+  const playBeep = () => {
+    try {
+      const audioContext = new (window.AudioContext ||
+        (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+      oscillator.connect(audioContext.destination);
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.1);
+    } catch (error) {
+      console.warn("Não foi possível reproduzir o som de feedback.");
+    }
+  };
 
   const stopCamera = useCallback(() => {
     if (codeReaderRef.current) {
       codeReaderRef.current.reset();
     }
     setIsCameraActive(false);
+    setIsCameraLoading(false);
   }, []);
 
   const handleScanResult = useCallback(
     (result: string) => {
+      if (isScanning) return;
+
       setIsScanning(true);
-      // Emite um som de "bip" para feedback
-      try {
-        const audioContext = new (window.AudioContext ||
-          (window as any).webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        oscillator.type = "sine";
-        oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
-        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-        oscillator.start();
-        oscillator.stop(audioContext.currentTime + 0.1);
-      } catch (error) {
-        console.warn("Não foi possível reproduzir o som de feedback.");
-      }
+      playBeep();
 
       setTimeout(() => {
         onScan(result);
         setManualInput("");
         setIsScanning(false);
-        stopCamera(); // Para a câmera após a leitura bem-sucedida
+        stopCamera();
       }, 300);
     },
-    [onScan, stopCamera]
+    [onScan, stopCamera, isScanning]
   );
 
   const startCamera = useCallback(async () => {
-    if (!videoRef.current) return;
-
+    setIsCameraLoading(true);
     codeReaderRef.current = new BrowserMultiFormatReader();
+
     try {
       const videoInputDevices =
         await codeReaderRef.current.listVideoInputDevices();
-      const selectedDeviceId = videoInputDevices[0]?.deviceId;
+      const rearCamera = videoInputDevices.find(
+        (device) =>
+          device.label.toLowerCase().includes("back") ||
+          device.label.toLowerCase().includes("traseira") ||
+          device.label.toLowerCase().includes("environment")
+      );
+      const deviceId = rearCamera?.deviceId || videoInputDevices[0]?.deviceId;
 
-      if (!selectedDeviceId) {
-        throw new Error("Nenhum dispositivo de câmera encontrado.");
+      if (!deviceId) {
+        // CORREÇÃO: Usa alert() em vez de throw new Error() para não quebrar a aplicação.
+        alert(
+          "Nenhuma câmera foi encontrada ou a permissão do navegador foi negada."
+        );
+        setIsCameraLoading(false);
+        return;
       }
 
       setIsCameraActive(true);
+      setIsCameraLoading(false);
 
-      codeReaderRef.current.decodeFromVideoDevice(
-        selectedDeviceId,
-        videoRef.current,
-        (result, err) => {
-          if (result) {
-            handleScanResult(result.getText());
+      if (videoRef.current) {
+        await codeReaderRef.current.decodeFromVideoDevice(
+          deviceId,
+          videoRef.current,
+          (result, error) => {
+            if (result) {
+              handleScanResult(result.getText());
+            }
+            if (error && !(error instanceof NotFoundException)) {
+              if (
+                error.name !== "FormatException" &&
+                error.name !== "ChecksumException"
+              ) {
+                console.error("Erro de leitura do scanner:", error);
+              }
+            }
           }
-          if (err && !(err instanceof NotFoundException)) {
-            console.error("Erro de decodificação:", err);
-          }
-        }
-      );
+        );
+      }
     } catch (error) {
-      console.error("Erro ao acessar câmera:", error);
+      console.error("Erro ao iniciar a câmera:", error);
       alert(
-        "Não foi possível acessar a câmera. Verifique as permissões ou use a entrada manual."
+        "Não foi possível acessar a câmera. Verifique as permissões do navegador para este site."
       );
       setIsCameraActive(false);
+      setIsCameraLoading(false);
     }
   }, [handleScanResult]);
 
@@ -107,23 +129,10 @@ export function BarcodeScanner({
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setManualInput(value);
-
-    // Auto-submit quando o código tiver 13 dígitos (EAN-13)
-    if (value.length === 13 && /^\d+$/.test(value)) {
-      handleScanResult(value);
-    }
-  };
-
   useEffect(() => {
-    if (isActive) {
-      setTimeout(() => inputRef.current?.focus(), 100);
-    } else {
+    if (!isActive) {
       stopCamera();
     }
-
     return () => {
       stopCamera();
     };
@@ -131,62 +140,61 @@ export function BarcodeScanner({
 
   if (!isActive) return null;
 
+  // CORREÇÃO: A estrutura JSX foi completamente reescrita e verificada.
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <Card className="w-full max-w-md mx-auto">
         <CardHeader className="flex flex-row items-center justify-between pb-4">
-          <div>
-            <CardTitle className="flex items-center text-lg">
-              <Scan className="h-5 w-5 mr-2" />
-              Scanner de Código
-            </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Digite ou escaneie o código de barras
-            </p>
-          </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <CardTitle className="flex items-center text-lg">
+            <Scan className="h-5 w-5 mr-2" />
+            Scanner
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={onClose}
+          >
             <X className="h-4 w-4" />
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Entrada Manual */}
-          <form onSubmit={handleManualSubmit} className="space-y-3">
-            <div className="relative">
-              <Input
-                ref={inputRef}
-                value={manualInput}
-                onChange={handleInputChange}
-                placeholder="Digite o código de barras"
-                className="barcode-input mobile-optimized pr-12"
-                autoFocus
-                autoComplete="off"
-                inputMode="numeric"
-                pattern="[0-9]*"
-              />
-              {isScanning && (
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                  <Zap className="h-4 w-4 text-blue-500 animate-pulse" />
+          {isCameraActive ? (
+            <div className="space-y-3">
+              <div className="relative overflow-hidden rounded-lg">
+                <video
+                  ref={videoRef}
+                  className="w-full h-48 bg-black object-cover"
+                  autoPlay
+                  playsInline
+                />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-3/4 h-1/2 border-2 border-red-500/70 rounded-lg" />
                 </div>
-              )}
+              </div>
+              <Button
+                onClick={stopCamera}
+                variant="destructive"
+                className="w-full mobile-button"
+              >
+                Parar Câmera
+              </Button>
             </div>
+          ) : (
             <Button
-              type="submit"
-              className="w-full mobile-button"
-              disabled={!manualInput.trim() || isScanning}
+              onClick={startCamera}
+              variant="outline"
+              className="w-full mobile-button bg-transparent"
+              disabled={isCameraLoading}
             >
-              {isScanning ? (
-                <>
-                  <Zap className="h-4 w-4 mr-2 animate-pulse" />
-                  Processando...
-                </>
+              {isCameraLoading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
-                <>
-                  <Scan className="h-4 w-4 mr-2" />
-                  Confirmar Código
-                </>
+                <Camera className="h-4 w-4 mr-2" />
               )}
+              {isCameraLoading ? "Iniciando..." : "Usar Câmera"}
             </Button>
-          </form>
+          )}
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
@@ -199,56 +207,30 @@ export function BarcodeScanner({
             </div>
           </div>
 
-          {/* Scanner de Câmera */}
-          {!isCameraActive ? (
-            <Button
-              onClick={startCamera}
-              variant="outline"
-              className="w-full mobile-button bg-transparent"
-            >
-              <Camera className="h-4 w-4 mr-2" />
-              Usar Câmera
-            </Button>
-          ) : (
-            <div className="space-y-3">
-              <div className="relative">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-48 bg-black rounded-lg object-cover"
-                />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-48 h-24 border-2 border-red-500 rounded-lg bg-transparent">
-                    <div className="w-full h-full border border-red-300 rounded-lg animate-pulse" />
-                  </div>
-                </div>
-              </div>
-              <Button
-                onClick={stopCamera}
-                variant="outline"
-                className="w-full mobile-button bg-transparent"
-              >
-                Parar Câmera
-              </Button>
-              <div className="text-center">
-                <Badge variant="secondary" className="text-xs">
-                  Posicione o código de barras dentro do quadro
-                </Badge>
-              </div>
+          <form onSubmit={handleManualSubmit} className="space-y-3">
+            <div className="relative">
+              <Input
+                value={manualInput}
+                onChange={(e) => setManualInput(e.target.value)}
+                placeholder="Digite o código manualmente"
+                className="barcode-input mobile-optimized pr-12 text-center"
+                autoComplete="off"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                disabled={isCameraActive || isScanning}
+              />
+              {isScanning && !isCameraActive && (
+                <Zap className="h-4 w-4 text-blue-500 animate-pulse absolute right-3 top-1/2 -translate-y-1/2" />
+              )}
             </div>
-          )}
-
-          {/* Dicas de uso */}
-          <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
-            <p>
-              <strong>Dicas:</strong>
-            </p>
-            <p>• Códigos EAN-13 são processados automaticamente</p>
-            <p>• Use Enter para confirmar códigos manuais</p>
-            <p>• Mantenha boa iluminação para a câmera</p>
-          </div>
+            <Button
+              type="submit"
+              className="w-full mobile-button"
+              disabled={!manualInput.trim() || isScanning || isCameraActive}
+            >
+              Confirmar Código
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </div>
