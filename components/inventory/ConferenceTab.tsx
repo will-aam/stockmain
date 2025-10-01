@@ -19,8 +19,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Scan, Store, Package, Camera, Plus, Trash2 } from "lucide-react";
 import type { Product, TempProduct, ProductCount, Location } from "@/lib/types";
+import { BarcodeScanner } from "@/components/features/barcode-scanner";
 
-// Props para o componente
 interface ConferenceTabProps {
   selectedLocation: string;
   setSelectedLocation: (value: string) => void;
@@ -30,7 +30,9 @@ interface ConferenceTabProps {
   scanInput: string;
   setScanInput: (value: string) => void;
   handleScan: () => void;
-  setShowBarcodeScanner: (show: boolean) => void;
+  isCameraViewActive: boolean;
+  setIsCameraViewActive: (show: boolean) => void;
+  handleBarcodeScanned: (barcode: string) => void;
   currentProduct: Product | TempProduct | null;
   quantityInput: string;
   setQuantityInput: (value: string) => void;
@@ -91,7 +93,9 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
   scanInput,
   setScanInput,
   handleScan,
-  setShowBarcodeScanner,
+  isCameraViewActive,
+  setIsCameraViewActive,
+  handleBarcodeScanned,
   currentProduct,
   quantityInput,
   setQuantityInput,
@@ -147,107 +151,119 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="barcode">Código de Barras</Label>
-            <div className="flex space-x-2">
-              <Input
-                id="barcode"
-                value={scanInput}
-                onChange={(e) => setScanInput(e.target.value)}
-                placeholder="Digite ou escaneie o código"
-                className="flex-1 mobile-optimized"
-                onKeyPress={(e) => e.key === "Enter" && handleScan()}
-              />
-              <Button onClick={handleScan}>
-                <Scan className="h-4 w-4" />
-              </Button>
-              <Button
-                onClick={() => setShowBarcodeScanner(true)}
-                variant="outline"
-              >
-                <Camera className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-          {currentProduct && (
-            <div
-              className={`p-4 border rounded-lg ${
-                "isTemporary" in currentProduct && currentProduct.isTemporary
-                  ? "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800"
-                  : "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h3
-                    className={`font-semibold ${
-                      "isTemporary" in currentProduct &&
-                      currentProduct.isTemporary
-                        ? "text-amber-800 dark:text-amber-200"
-                        : "text-green-800 dark:text-green-200"
-                    }`}
-                  >
-                    {"isTemporary" in currentProduct &&
-                    currentProduct.isTemporary
-                      ? "Produto Temporário"
-                      : "Produto Encontrado"}
-                  </h3>
-                  <p
-                    className={`text-sm ${
-                      "isTemporary" in currentProduct &&
-                      currentProduct.isTemporary
-                        ? "text-amber-700 dark:text-amber-300"
-                        : "text-green-700 dark:text-green-300"
-                    }`}
-                  >
-                    {currentProduct.descricao}
-                  </p>
-                  <p
-                    className={`text-xs ${
-                      "isTemporary" in currentProduct &&
-                      currentProduct.isTemporary
-                        ? "text-amber-600 dark:text-amber-400"
-                        : "text-green-600 dark:text-green-400"
-                    }`}
-                  >
-                    Código: {currentProduct.codigo_produto}
-                  </p>
-                </div>
-                <Badge variant="secondary" className="ml-2">
-                  Estoque: {currentProduct.saldo_estoque}
-                </Badge>
-              </div>
-            </div>
-          )}
-          <div className="space-y-2">
-            <Label htmlFor="quantity">
-              Quantidade {countingMode === "loja" ? "em Loja" : "em Estoque"}
-              <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-                (Ex: 24+24 ou 10*3)
-              </span>
-            </Label>
-            <Input
-              id="quantity"
-              type="text"
-              value={quantityInput}
-              onChange={(e) => setQuantityInput(e.target.value)}
-              onKeyPress={handleQuantityKeyPress}
-              placeholder="Digite quantidade ou expressão (24+24)"
-              min="0"
-              className="mobile-optimized font-mono"
+          {isCameraViewActive ? (
+            <BarcodeScanner
+              onScan={handleBarcodeScanned}
+              onClose={() => setIsCameraViewActive(false)}
             />
-            <p className="text-xs text-gray-500 dark:text-gray-400 bold">
-              Pressione Enter para calcular expressões matemáticas
-            </p>
-          </div>
-          <Button
-            onClick={handleAddCount}
-            className="w-full mobile-button"
-            disabled={!currentProduct || !quantityInput}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Adicionar Contagem de {countingMode === "loja" ? "Loja" : "Estoque"}
-          </Button>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="barcode">Código de Barras</Label>
+                <div className="flex space-x-2">
+                  <Input
+                    id="barcode"
+                    value={scanInput}
+                    onChange={(e) => setScanInput(e.target.value)}
+                    placeholder="Digite ou escaneie o código"
+                    className="flex-1 mobile-optimized"
+                    onKeyPress={(e) => e.key === "Enter" && handleScan()}
+                  />
+                  <Button onClick={handleScan}>
+                    <Scan className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    onClick={() => setIsCameraViewActive(true)}
+                    variant="outline"
+                  >
+                    <Camera className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              {currentProduct && (
+                <div
+                  className={`p-4 border rounded-lg ${
+                    "isTemporary" in currentProduct &&
+                    currentProduct.isTemporary
+                      ? "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800"
+                      : "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3
+                        className={`font-semibold ${
+                          "isTemporary" in currentProduct &&
+                          currentProduct.isTemporary
+                            ? "text-amber-800 dark:text-amber-200"
+                            : "text-green-800 dark:text-green-200"
+                        }`}
+                      >
+                        {"isTemporary" in currentProduct &&
+                        currentProduct.isTemporary
+                          ? "Produto Temporário"
+                          : "Produto Encontrado"}
+                      </h3>
+                      <p
+                        className={`text-sm ${
+                          "isTemporary" in currentProduct &&
+                          currentProduct.isTemporary
+                            ? "text-amber-700 dark:text-amber-300"
+                            : "text-green-700 dark:text-green-300"
+                        }`}
+                      >
+                        {currentProduct.descricao}
+                      </p>
+                      <p
+                        className={`text-xs ${
+                          "isTemporary" in currentProduct &&
+                          currentProduct.isTemporary
+                            ? "text-amber-600 dark:text-amber-400"
+                            : "text-green-600 dark:text-green-400"
+                        }`}
+                      >
+                        Código: {currentProduct.codigo_produto}
+                      </p>
+                    </div>
+                    <Badge variant="secondary" className="ml-2">
+                      Estoque: {currentProduct.saldo_estoque}
+                    </Badge>
+                  </div>
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="quantity">
+                  Quantidade{" "}
+                  {countingMode === "loja" ? "em Loja" : "em Estoque"}
+                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                    (Ex: 24+24 ou 10*3)
+                  </span>
+                </Label>
+                <Input
+                  id="quantity"
+                  type="text"
+                  value={quantityInput}
+                  onChange={(e) => setQuantityInput(e.target.value)}
+                  onKeyPress={handleQuantityKeyPress}
+                  placeholder="Digite quantidade ou expressão (24+24)"
+                  min="0"
+                  className="mobile-optimized font-mono"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 bold">
+                  Pressione Enter para calcular expressões matemáticas
+                </p>
+              </div>
+              <Button
+                onClick={handleAddCount}
+                className="w-full mobile-button"
+                disabled={!currentProduct || !quantityInput}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Contagem de{" "}
+                {countingMode === "loja" ? "Loja" : "Estoque"}
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
       <Card>
@@ -279,5 +295,4 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
     </div>
   );
 };
-
 ConferenceTab.displayName = "ConferenceTab";

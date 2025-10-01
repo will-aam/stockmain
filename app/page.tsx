@@ -2,6 +2,13 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useInventory } from "@/hooks/useInventory";
+import { AuthModal } from "@/components/shared/AuthModal";
+import { ConferenceTab } from "@/components/inventory/ConferenceTab";
+import { ImportTab } from "@/components/inventory/ImportTab";
+import { ExportTab } from "@/components/inventory/ExportTab";
+import { HistoryTab } from "@/components/inventory/HistoryTab";
+import { ClearDataModal } from "@/components/shared/clear-data-modal";
 import {
   Select,
   SelectContent,
@@ -9,14 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useInventory } from "@/hooks/useInventory";
-import { AuthModal } from "@/components/shared/AuthModal";
-import { ConferenceTab } from "@/components/inventory/ConferenceTab";
-import { ImportTab } from "@/components/inventory/ImportTab";
-import { ExportTab } from "@/components/inventory/ExportTab";
-import { HistoryTab } from "@/components/inventory/HistoryTab";
-import { BarcodeScanner } from "@/components/features/barcode-scanner";
-import { ClearDataModal } from "@/components/shared/clear-data-modal";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +40,6 @@ export default function InventorySystem() {
           onValueChange={setActiveTab}
           className="space-y-6"
         >
-          {/* Tabs para telas maiores (escondido em mobile) */}
           <div className="hidden sm:block">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="scan">Conferência</TabsTrigger>
@@ -51,7 +49,6 @@ export default function InventorySystem() {
             </TabsList>
           </div>
 
-          {/* Select para telas menores (mobile) */}
           <div className="sm:hidden">
             <Select onValueChange={setActiveTab} value={activeTab}>
               <SelectTrigger className="w-full">
@@ -66,7 +63,6 @@ export default function InventorySystem() {
             </Select>
           </div>
 
-          {/* Conteúdo das abas */}
           <TabsContent value="scan" className="space-y-6">
             <ConferenceTab {...inventory} />
           </TabsContent>
@@ -100,14 +96,6 @@ export default function InventorySystem() {
           </TabsContent>
         </Tabs>
       </main>
-
-      {inventory.showBarcodeScanner && (
-        <BarcodeScanner
-          onScan={inventory.handleBarcodeScanned}
-          onClose={() => inventory.setShowBarcodeScanner(false)}
-          isActive={inventory.showBarcodeScanner}
-        />
-      )}
 
       {inventory.showClearDataModal && (
         <ClearDataModal

@@ -32,7 +32,8 @@ export const useInventory = () => {
   const [countingMode, setCountingMode] = useState<"loja" | "estoque">("loja");
   const [productCounts, setProductCounts] = useState<ProductCount[]>([]);
   const [showClearDataModal, setShowClearDataModal] = useState(false);
-  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  // RENOMEADO
+  const [isCameraViewActive, setIsCameraViewActive] = useState(false);
 
   const locations: Location[] = useMemo(
     () => [
@@ -235,8 +236,9 @@ export const useInventory = () => {
 
   const handleBarcodeScanned = useCallback(
     (barcode: string) => {
+      setIsCameraViewActive(false); // Fecha a câmera
       setScanInput(barcode);
-      setShowBarcodeScanner(false);
+
       setTimeout(() => {
         const barCode = barCodes.find((bc) => bc.codigo_de_barras === barcode);
         if (barCode && barCode.produto) {
@@ -465,7 +467,6 @@ export const useInventory = () => {
     toast({ title: "Item removido da contagem" });
   }, []);
 
-  // <<< INÍCIO DA ALTERAÇÃO >>>
   const exportToCsv = useCallback(() => {
     if (products.length === 0) {
       toast({
@@ -482,7 +483,6 @@ export const useInventory = () => {
       );
 
       if (countedItem) {
-        // Se o item foi contado, usa os dados da contagem
         return {
           codigo_de_barras: countedItem.codigo_de_barras,
           codigo_produto: countedItem.codigo_produto,
@@ -493,7 +493,6 @@ export const useInventory = () => {
           total: countedItem.total,
         };
       } else {
-        // Se o item não foi contado, zera as quantidades e calcula a diferença
         return {
           codigo_de_barras: barCode?.codigo_de_barras || "N/A",
           codigo_produto: product.codigo_produto,
@@ -523,7 +522,6 @@ export const useInventory = () => {
     URL.revokeObjectURL(link.href);
     toast({ title: "CSV exportado com sucesso!" });
   }, [products, barCodes, productCounts, selectedLocation]);
-  // <<< FIM DA ALTERAÇÃO >>>
 
   const downloadTemplateCSV = useCallback(() => {
     const templateData = [
@@ -582,8 +580,8 @@ export const useInventory = () => {
     productCounts,
     showClearDataModal,
     setShowClearDataModal,
-    showBarcodeScanner,
-    setShowBarcodeScanner,
+    isCameraViewActive,
+    setIsCameraViewActive,
     locations,
     productCountsStats,
     handleClearAllData,
