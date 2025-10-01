@@ -11,6 +11,20 @@ import type {
   Location,
 } from "@/lib/types";
 
+// Função auxiliar para carregar os dados do localStorage de forma segura no cliente
+const loadInitialCounts = (userId: number | null): ProductCount[] => {
+  if (typeof window === "undefined" || !userId) {
+    return [];
+  }
+  try {
+    const savedCounts = localStorage.getItem(`productCounts-${userId}`);
+    return savedCounts ? JSON.parse(savedCounts) : [];
+  } catch (error) {
+    console.error("Failed to parse product counts from localStorage", error);
+    return [];
+  }
+};
+
 export const useInventory = ({ userId }: { userId: number | null }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [barCodes, setBarCodes] = useState<BarCode[]>([]);
@@ -25,11 +39,20 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedLocation, setSelectedLocation] = useState("loja-1");
   const [countingMode, setCountingMode] = useState<"loja" | "estoque">("loja");
-  const [productCounts, setProductCounts] = useState<ProductCount[]>([]);
+
+  // --- INÍCIO DA CORREÇÃO PRINCIPAL ---
+  // O estado agora é inicializado diretamente com os dados do localStorage.
+  // Isso evita que a lista comece vazia e apague os dados salvos.
+  const [productCounts, setProductCounts] = useState<ProductCount[]>(() =>
+    loadInitialCounts(userId)
+  );
+  // --- FIM DA CORREÇÃO PRINCIPAL ---
+
   const [showClearDataModal, setShowClearDataModal] = useState(false);
   const [isCameraViewActive, setIsCameraViewActive] = useState(false);
 
-  const loadDataFromDb = useCallback(async () => {
+  // Esta função agora carrega APENAS o catálogo de produtos, não a contagem.
+  const loadCatalogFromDb = useCallback(async () => {
     if (!userId) return;
     setIsLoading(true);
     try {
@@ -39,24 +62,9 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       const data = await response.json();
       setProducts(data.products || []);
       setBarCodes(data.barCodes || []);
-
-      // --- Início da Correção ---
-      // Prioriza os dados do banco de dados, se existirem.
-      // Caso contrário, tenta carregar do localStorage.
-      if (data.productCounts && data.productCounts.length > 0) {
-        setProductCounts(data.productCounts);
-      } else {
-        const savedCounts = localStorage.getItem(`productCounts-${userId}`);
-        if (savedCounts) {
-          setProductCounts(JSON.parse(savedCounts));
-        } else {
-          setProductCounts([]);
-        }
-      }
-      // --- Fim da Correção ---
     } catch (error: any) {
       toast({
-        title: "Erro ao carregar dados",
+        title: "Erro ao carregar catálogo",
         description: error.message,
         variant: "destructive",
       });
@@ -65,16 +73,25 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     }
   }, [userId]);
 
+  // Carrega o catálogo quando o usuário é definido.
   useEffect(() => {
-    loadDataFromDb();
-  }, [userId, loadDataFromDb]);
+    loadCatalogFromDb();
+  }, [userId, loadCatalogFromDb]);
+
+  // Salva a contagem no localStorage TODA VEZ que ela for alterada.
   useEffect(() => {
-    if (userId)
+    if (userId) {
       localStorage.setItem(
         `productCounts-${userId}`,
         JSON.stringify(productCounts)
       );
+    }
   }, [productCounts, userId]);
+
+  // Recarrega a contagem do localStorage se o ID do usuário mudar (troca de sessão).
+  useEffect(() => {
+    setProductCounts(loadInitialCounts(userId));
+  }, [userId]);
 
   const calculateExpression = useCallback(
     (
@@ -103,6 +120,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     []
   );
 
+  // A função de adicionar contagem agora salva APENAS no estado local (que dispara o salvamento no localStorage).
   const handleAddCount = useCallback(() => {
     if (!currentProduct || !quantityInput) return;
     let finalQuantity: number;
@@ -181,19 +199,24 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   const handleClearAllData = useCallback(async () => {
     if (!userId) return;
     try {
+      // Limpa a contagem local
+      setProductCounts([]);
+
+      // Limpa os dados do servidor (catálogo)
       const response = await fetch(`/api/inventory/${userId}`, {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("Falha ao limpar dados do servidor.");
+
+      // Limpa o localStorage e reseta o estado local
       localStorage.removeItem(`productCounts-${userId}`);
       setProducts([]);
       setBarCodes([]);
       setTempProducts([]);
-      setProductCounts([]);
       setShowClearDataModal(false);
       toast({
         title: "Sucesso!",
-        description: "Todos os dados da sessão foram removidos.",
+        description: "Todos os dados foram removidos.",
       });
     } catch (error: any) {
       toast({
@@ -204,9 +227,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     }
   }, [userId]);
 
-  // <<< CORREÇÃO APLICADA AQUI >>>
   const handleRemoveCount = useCallback((id: number) => {
-    // O tipo do 'id' agora é 'number'
     setProductCounts((prev) => prev.filter((item) => item.id !== id));
     toast({ title: "Item removido da contagem" });
   }, []);
@@ -237,7 +258,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
           title: "Sucesso!",
           description: `${data.importedCount} produtos foram importados.`,
         });
-        await loadDataFromDb();
+        await loadCatalogFromDb();
       } catch (error: any) {
         setCsvErrors([error.message]);
         toast({
@@ -249,7 +270,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
         setIsLoading(false);
       }
     },
-    [userId, loadDataFromDb]
+    [userId, loadCatalogFromDb]
   );
   const handleCsvUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

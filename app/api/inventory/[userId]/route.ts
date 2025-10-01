@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Produto } from "@prisma/client"; // Corrigido de 'Product' para 'Produto'
+import { Produto } from "@prisma/client";
 
 export async function GET(
   request: Request,
@@ -15,6 +15,8 @@ export async function GET(
       );
     }
 
+    // A API agora busca apenas o catálogo de produtos e códigos de barras.
+    // A contagem é gerenciada 100% no lado do cliente.
     const userBarCodes = await prisma.codigoBarras.findMany({
       where: { usuario_id: userId },
       include: { produto: true },
@@ -24,35 +26,10 @@ export async function GET(
       .map((bc) => bc.produto)
       .filter((p): p is Produto => p !== null);
 
-    const activeCount = await prisma.contagem.findFirst({
-      where: { usuario_id: userId, status: "em_andamento" },
-      include: {
-        itens_contados: {
-          include: {
-            produto: true,
-          },
-        },
-      },
-    });
-
-    const productCountsForFrontend =
-      activeCount?.itens_contados.map((item) => ({
-        id: item.id,
-        codigo_de_barras: item.codigo_de_barras,
-        codigo_produto: item.produto.codigo_produto,
-        descricao: item.produto.descricao,
-        saldo_estoque: item.saldo_estoque_inicial,
-        quant_loja: item.quant_loja,
-        quant_estoque: item.quant_estoque,
-        total: item.total,
-        local_estoque: activeCount.local_estoque,
-        data_hora: item.data_hora.toISOString(),
-      })) || [];
-
     return NextResponse.json({
       products: userProducts,
       barCodes: userBarCodes,
-      productCounts: productCountsForFrontend,
+      // A chave productCounts não é mais enviada, pois não é responsabilidade da API.
     });
   } catch (error) {
     console.error("Erro ao buscar dados de inventário:", error);
@@ -67,7 +44,6 @@ export async function DELETE(
   request: Request,
   { params }: { params: { userId: string } }
 ) {
-  // (Esta função DELETE permanece a mesma)
   try {
     const userId = parseInt(params.userId, 10);
     if (isNaN(userId)) {
@@ -76,6 +52,8 @@ export async function DELETE(
         { status: 400 }
       );
     }
+    // A função de apagar continua a mesma, pois limpa tanto o catálogo (servidor)
+    // quanto a contagem (o frontend lida com o localStorage).
     await prisma.$transaction([
       prisma.itemContado.deleteMany({
         where: { contagem: { usuario_id: userId } },
