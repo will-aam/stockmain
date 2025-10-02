@@ -23,7 +23,7 @@ model Produto {
   id             Int            @id @default(autoincrement())
   codigo_produto String
   descricao      String
-  saldo_estoque  Int            @default(0)
+  saldo_estoque  Decimal        @default(0) // <-- ALTERADO DE INT PARA DECIMAL
   created_at     DateTime       @default(now())
   usuario_id     Int
   usuario        Usuario        @relation(fields: [usuario_id], references: [id])
@@ -35,16 +35,16 @@ model Produto {
 }
 
 model CodigoBarras {
-  codigo_de_barras String        @id
+  codigo_de_barras String
   produto_id       Int
-  created_at       DateTime      @default(now())
+  created_at       DateTime @default(now())
   usuario_id       Int
-  usuario          Usuario       @relation(fields: [usuario_id], references: [id])
-  produto          Produto       @relation(fields: [produto_id], references: [id], onDelete: Cascade)
+  usuario          Usuario  @relation(fields: [usuario_id], references: [id])
+  produto          Produto  @relation(fields: [produto_id], references: [id], onDelete: Cascade)
 
+  @@id([codigo_de_barras, usuario_id])
   @@map("codigos_de_barras")
 }
-
 model Contagem {
   id             Int           @id @default(autoincrement())
   usuario_id     Int

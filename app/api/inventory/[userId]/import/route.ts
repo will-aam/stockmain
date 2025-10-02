@@ -78,7 +78,7 @@ export async function POST(
 
     let importedCount = 0;
     for (const row of parseResult.data) {
-      const saldoNumerico = parseInt(row.saldo_estoque, 10);
+      const saldoNumerico = parseFloat(row.saldo_estoque.replace(",", "."));
       if (
         isNaN(saldoNumerico) ||
         !row.codigo_produto ||

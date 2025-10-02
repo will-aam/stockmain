@@ -56,14 +56,6 @@ export async function DELETE(
     console.log(
       `--- Iniciando exclusão de dados para o usuário: ${userId} ---`
     );
-
-    // Ordem de exclusão para evitar erros de restrição de chave estrangeira:
-    // 1. Itens Contados (dependem de Contagem e Produto)
-    // 2. Contagens (depois que seus Itens Contados se foram)
-    // 3. Códigos de Barras (dependem de Produto)
-    // 4. Produtos (depois que tudo que depende deles se foi)
-
-    // Passo 1: Excluir Itens Contados
     const deletedItems = await prisma.itemContado.deleteMany({
       where: { contagem: { usuario_id: userId } },
     });
