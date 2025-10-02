@@ -1,87 +1,114 @@
-// Script para popular o banco de dados com dados de exemplo
-const { PrismaClient } = require("@prisma/client")
-const bcrypt = require("bcryptjs")
+const { PrismaClient } = require("@prisma/client");
+const bcrypt = require("bcrypt");
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient();
 
 async function seedDatabase() {
-  console.log("🌱 Iniciando população do banco de dados...")
-
+  console.log("🌱 Iniciando população do banco de dados...");
   try {
-    // Criar usuário administrador
-    const hashedPassword = await bcrypt.hash("admin123", 12)
-
-    const adminUser = await prisma.usuario.upsert({
-      where: { email: "admin@sistema.com" },
-      update: {},
-      create: {
-        email: "admin@sistema.com",
-        senha_hash: hashedPassword,
+    // --- Criação de Usuários ---
+    const usersData = [
+      {
+        id: 1,
+        email: "loja1@example.com",
+        senha_hash: await bcrypt.hash("1234", 10),
       },
-    })
+      {
+        id: 2,
+        email: "loja2@example.com",
+        senha_hash: await bcrypt.hash("6789", 10),
+      },
+      {
+        id: 3,
+        email: "loja3@example.com",
+        senha_hash: await bcrypt.hash("1111", 10),
+      },
+      {
+        id: 4,
+        email: "loja4@example.com",
+        senha_hash: await bcrypt.hash("2222", 10),
+      },
+      {
+        id: 5,
+        email: "loja5@example.com",
+        senha_hash: await bcrypt.hash("3333", 10),
+      },
+    ];
 
-    console.log("👤 Usuário admin criado/atualizado")
-
-    // Produtos de exemplo
-    const produtos = [
-      { codigo_produto: "113639", descricao: "AGUA H2O LIMONETO 500ML", saldo_estoque: 50 },
-      { codigo_produto: "113640", descricao: "REFRIGERANTE COLA 350ML", saldo_estoque: 30 },
-      { codigo_produto: "113641", descricao: "SUCO LARANJA 1L", saldo_estoque: 25 },
-      { codigo_produto: "113642", descricao: "BISCOITO CHOCOLATE 200G", saldo_estoque: 40 },
-      { codigo_produto: "113643", descricao: "LEITE INTEGRAL 1L", saldo_estoque: 35 },
-      { codigo_produto: "113644", descricao: "CAFE TORRADO 500G", saldo_estoque: 20 },
-      { codigo_produto: "113645", descricao: "AÇUCAR CRISTAL 1KG", saldo_estoque: 60 },
-      { codigo_produto: "113646", descricao: "ARROZ BRANCO 5KG", saldo_estoque: 15 },
-      { codigo_produto: "113647", descricao: "FEIJAO PRETO 1KG", saldo_estoque: 25 },
-      { codigo_produto: "113648", descricao: "MACARRAO ESPAGUETE 500G", saldo_estoque: 45 },
-    ]
-
-    // Códigos de barras correspondentes
-    const codigosBarras = [
-      "7892840812850",
-      "7892840812851",
-      "7892840812852",
-      "7892840812853",
-      "7892840812854",
-      "7892840812855",
-      "7892840812856",
-      "7892840812857",
-      "7892840812858",
-      "7892840812859",
-    ]
-
-    // Inserir produtos e códigos de barras
-    for (let i = 0; i < produtos.length; i++) {
-      const produto = await prisma.produto.upsert({
-        where: { codigo_produto: produtos[i].codigo_produto },
+    for (const userData of usersData) {
+      await prisma.usuario.upsert({
+        where: { id: userData.id },
         update: {},
-        create: produtos[i],
-      })
-
-      await prisma.codigoBarras.upsert({
-        where: { codigo_de_barras: codigosBarras[i] },
-        update: {},
-        create: {
-          codigo_de_barras: codigosBarras[i],
-          produto_id: produto.id,
-        },
-      })
+        create: userData,
+      });
+      console.log(`👤 Usuário ${userData.id} criado/atualizado.`);
     }
 
-    console.log(`📦 ${produtos.length} produtos inseridos/atualizados`)
-    console.log(`🏷️ ${codigosBarras.length} códigos de barras inseridos/atualizados`)
-    console.log("✅ Banco de dados populado com sucesso!")
-    console.log("📧 Email: admin@sistema.com")
-    console.log("🔑 Senha: admin123")
+    // --- Criação de Produtos e Códigos de Barras (APENAS PARA O USUÁRIO 1) ---
+    // Dados de exemplo
+    const produtos = [
+      {
+        codigo_produto: "113639",
+        descricao: "AGUA H2O LIMONETO 500ML",
+        saldo_estoque: 50,
+        codigo_de_barras: "7892840812850",
+      },
+      {
+        codigo_produto: "105101",
+        descricao: "AGUA H2OH LIMAO 500ML",
+        saldo_estoque: 30,
+        codigo_de_barras: "7892840812423",
+      },
+    ];
+
+    const userIdForSeed = 1; // Vamos popular dados apenas para o usuário 1
+
+    for (const p of produtos) {
+      // **CORREÇÃO AQUI**
+      const produto = await prisma.produto.upsert({
+        where: {
+          // Usando a nova chave composta
+          codigo_produto_usuario_id: {
+            codigo_produto: p.codigo_produto,
+            usuario_id: userIdForSeed,
+          },
+        },
+        update: {},
+        create: {
+          codigo_produto: p.codigo_produto,
+          descricao: p.descricao,
+          saldo_estoque: p.saldo_estoque,
+          usuario_id: userIdForSeed, // Associando ao usuário
+        },
+      });
+
+      // **CORREÇÃO AQUI**
+      await prisma.codigoBarras.upsert({
+        where: {
+          // Usando a nova chave composta
+          codigo_de_barras_usuario_id: {
+            codigo_de_barras: p.codigo_de_barras,
+            usuario_id: userIdForSeed,
+          },
+        },
+        update: {},
+        create: {
+          codigo_de_barras: p.codigo_de_barras,
+          produto_id: produto.id,
+          usuario_id: userIdForSeed, // Associando ao usuário
+        },
+      });
+    }
+    console.log(
+      `📦 Produtos e códigos de barras de exemplo criados para o usuário ${userIdForSeed}.`
+    );
   } catch (error) {
-    console.error("❌ Erro ao popular banco de dados:", error)
-    throw error
+    console.error("❌ Erro ao popular banco de dados:", error);
+    process.exit(1);
   } finally {
-    await prisma.$disconnect()
+    await prisma.$disconnect();
+    console.log("✅ População do banco de dados finalizada.");
   }
 }
 
-seedDatabase().catch((error) => {
-  console.error(error)
-  process.exit(1)
-})
+seedDatabase();
