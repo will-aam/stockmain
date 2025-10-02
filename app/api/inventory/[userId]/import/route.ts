@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import * as Papa from "papaparse";
+import { Prisma } from "@prisma/client"; // Importante: Importe o Prisma
+
 interface CsvRow {
   codigo_de_barras: string;
   codigo_produto: string;
@@ -44,10 +46,37 @@ export async function POST(
       );
     }
 
-    let importedCount = 0;
+    // --- Validação de Duplicados ---
+    const barcodes = new Map<string, number[]>();
+    parseResult.data.forEach((row, index) => {
+      const lineNumber = index + 2;
+      const barcode = row.codigo_de_barras;
+      if (barcode) {
+        if (!barcodes.has(barcode)) {
+          barcodes.set(barcode, []);
+        }
+        barcodes.get(barcode)?.push(lineNumber);
+      }
+    });
 
-    // --- INÍCIO DA CORREÇÃO ---
-    // Em vez de uma transação gigante, processamos cada linha individualmente.
+    const duplicates = Array.from(barcodes.entries())
+      .filter(([_, lines]) => lines.length > 1)
+      .map(([barcode, lines]) => ({
+        codigo_de_barras: barcode,
+        linhas: lines,
+      }));
+
+    if (duplicates.length > 0) {
+      return NextResponse.json(
+        {
+          error: "Códigos de barras duplicados encontrados no arquivo.",
+          details: duplicates,
+        },
+        { status: 400 }
+      );
+    }
+
+    let importedCount = 0;
     for (const row of parseResult.data) {
       const saldoNumerico = parseInt(row.saldo_estoque, 10);
       if (
@@ -55,13 +84,10 @@ export async function POST(
         !row.codigo_produto ||
         !row.codigo_de_barras
       ) {
-        continue; // Pula linhas mal formatadas
+        continue;
       }
 
-      // Agora, usamos uma transação separada para cada linha do CSV.
-      // Isso é muito mais rápido e evita que a conexão expire.
       await prisma.$transaction(async (tx) => {
-        // 1. Atualiza ou cria o produto
         const product = await tx.produto.upsert({
           where: {
             codigo_produto_usuario_id: {
@@ -81,12 +107,10 @@ export async function POST(
           },
         });
 
-        // 2. Apaga códigos de barras antigos associados a este produto
         await tx.codigoBarras.deleteMany({
           where: { produto_id: product.id },
         });
 
-        // 3. Cria o novo código de barras
         await tx.codigoBarras.create({
           data: {
             codigo_de_barras: row.codigo_de_barras,
@@ -98,17 +122,33 @@ export async function POST(
 
       importedCount++;
     }
-    // --- FIM DA CORREÇÃO ---
 
     return NextResponse.json({ success: true, importedCount });
   } catch (error) {
     console.error("Erro na importação de CSV:", error);
-    if (error instanceof Error) {
+
+    // --- INÍCIO DA CORREÇÃO DO CATCH ---
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      // Verifica se o erro é um erro conhecido do Prisma
+      if (error.code === "P2002") {
+        const target = (error.meta?.target as string[])?.join(", ");
+        return NextResponse.json(
+          {
+            error: `Erro de duplicidade no banco de dados.`,
+            details: `Já existe um registro com o mesmo valor no campo: ${target}.`,
+          },
+          { status: 409 } // Conflict
+        );
+      }
+    } else if (error instanceof Error) {
+      // Tratamento para outros erros genéricos
       console.error(error.message);
     }
+
     return NextResponse.json(
       { error: "Erro interno do servidor ao importar arquivo." },
       { status: 500 }
     );
+    // --- FIM DA CORREÇÃO DO CATCH ---
   }
 }
