@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import * as Papa from "papaparse";
-import { Prisma } from "@prisma/client"; // Importante: Importe o Prisma
+import { Prisma } from "@prisma/client";
 
 interface CsvRow {
   codigo_de_barras: string;
@@ -84,52 +84,68 @@ export async function POST(
         !row.codigo_produto ||
         !row.codigo_de_barras
       ) {
+        console.log("Linha ignorada por dados inválidos:", row);
         continue;
       }
 
-      await prisma.$transaction(async (tx) => {
-        const product = await tx.produto.upsert({
-          where: {
-            codigo_produto_usuario_id: {
+      try {
+        await prisma.$transaction(async (tx) => {
+          const product = await tx.produto.upsert({
+            where: {
+              codigo_produto_usuario_id: {
+                codigo_produto: row.codigo_produto,
+                usuario_id: userId,
+              },
+            },
+            update: {
+              descricao: row.descricao,
+              saldo_estoque: saldoNumerico,
+            },
+            create: {
               codigo_produto: row.codigo_produto,
+              descricao: row.descricao,
+              saldo_estoque: saldoNumerico,
               usuario_id: userId,
             },
-          },
-          update: {
-            descricao: row.descricao,
-            saldo_estoque: saldoNumerico,
-          },
-          create: {
-            codigo_produto: row.codigo_produto,
-            descricao: row.descricao,
-            saldo_estoque: saldoNumerico,
-            usuario_id: userId,
-          },
+          });
+
+          await tx.codigoBarras.deleteMany({
+            where: { produto_id: product.id },
+          });
+
+          await tx.codigoBarras.create({
+            data: {
+              codigo_de_barras: row.codigo_de_barras,
+              produto_id: product.id,
+              usuario_id: userId,
+            },
+          });
         });
 
-        await tx.codigoBarras.deleteMany({
-          where: { produto_id: product.id },
-        });
-
-        await tx.codigoBarras.create({
-          data: {
-            codigo_de_barras: row.codigo_de_barras,
-            produto_id: product.id,
-            usuario_id: userId,
-          },
-        });
-      });
-
-      importedCount++;
+        importedCount++;
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002"
+        ) {
+          console.log(
+            `Código de barras duplicado no banco de dados, ignorando linha: ${row.codigo_de_barras}`
+          );
+        } else {
+          console.error(
+            "Erro inesperado durante a transação, importação interrompida:",
+            error
+          );
+          throw error;
+        }
+      }
     }
 
     return NextResponse.json({ success: true, importedCount });
   } catch (error) {
     console.error("Erro na importação de CSV:", error);
 
-    // --- INÍCIO DA CORREÇÃO DO CATCH ---
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      // Verifica se o erro é um erro conhecido do Prisma
       if (error.code === "P2002") {
         const target = (error.meta?.target as string[])?.join(", ");
         return NextResponse.json(
@@ -137,11 +153,10 @@ export async function POST(
             error: `Erro de duplicidade no banco de dados.`,
             details: `Já existe um registro com o mesmo valor no campo: ${target}.`,
           },
-          { status: 409 } // Conflict
+          { status: 409 }
         );
       }
     } else if (error instanceof Error) {
-      // Tratamento para outros erros genéricos
       console.error(error.message);
     }
 
@@ -149,6 +164,5 @@ export async function POST(
       { error: "Erro interno do servidor ao importar arquivo." },
       { status: 500 }
     );
-    // --- FIM DA CORREÇÃO DO CATCH ---
   }
 }

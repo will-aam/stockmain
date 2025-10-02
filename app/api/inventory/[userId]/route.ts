@@ -52,22 +52,49 @@ export async function DELETE(
         { status: 400 }
       );
     }
-    // A função de apagar continua a mesma, pois limpa tanto o catálogo (servidor)
-    // quanto a contagem (o frontend lida com o localStorage).
-    await prisma.$transaction([
-      prisma.itemContado.deleteMany({
-        where: { contagem: { usuario_id: userId } },
-      }),
-      prisma.contagem.deleteMany({ where: { usuario_id: userId } }),
-      prisma.codigoBarras.deleteMany({ where: { usuario_id: userId } }),
-      prisma.produto.deleteMany({ where: { usuario_id: userId } }),
-    ]);
+
+    console.log(
+      `--- Iniciando exclusão de dados para o usuário: ${userId} ---`
+    );
+
+    // Ordem de exclusão para evitar erros de restrição de chave estrangeira:
+    // 1. Itens Contados (dependem de Contagem e Produto)
+    // 2. Contagens (depois que seus Itens Contados se foram)
+    // 3. Códigos de Barras (dependem de Produto)
+    // 4. Produtos (depois que tudo que depende deles se foi)
+
+    // Passo 1: Excluir Itens Contados
+    const deletedItems = await prisma.itemContado.deleteMany({
+      where: { contagem: { usuario_id: userId } },
+    });
+    console.log(`Itens Contados excluídos: ${deletedItems.count}`);
+
+    // Passo 2: Excluir Contagens
+    const deletedCounts = await prisma.contagem.deleteMany({
+      where: { usuario_id: userId },
+    });
+    console.log(`Contagens excluídas: ${deletedCounts.count}`);
+
+    // Passo 3: Excluir Códigos de Barras
+    const deletedBarcodes = await prisma.codigoBarras.deleteMany({
+      where: { usuario_id: userId },
+    });
+    console.log(`Códigos de Barras excluídos: ${deletedBarcodes.count}`);
+
+    // Passo 4: Excluir Produtos
+    const deletedProducts = await prisma.produto.deleteMany({
+      where: { usuario_id: userId },
+    });
+    console.log(`Produtos excluídos: ${deletedProducts.count}`);
+
+    console.log(`--- Fim da exclusão para o usuário: ${userId} ---`);
+
     return NextResponse.json({
       success: true,
-      message: "Todos os dados da sessão foram limpos.",
+      message: "Todos os dados do inventário foram limpos.",
     });
   } catch (error) {
-    console.error("Erro ao limpar dados do inventário:", error);
+    console.error("Erro detalhado ao limpar dados do inventário:", error);
     return NextResponse.json(
       { error: "Erro interno do servidor ao limpar dados" },
       { status: 500 }
