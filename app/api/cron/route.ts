@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     const result = await prisma.codigoBarras.deleteMany({
       where: {
         created_at: {
-          lt: twentyFourHoursAgo, // lt = less than (menor que)
+          lt: twentyFourHoursAgo,
         },
       },
     });
