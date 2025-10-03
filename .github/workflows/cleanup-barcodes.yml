@@ -1,0 +1,25 @@
+# Nome do nosso job agendado
+name: Limpeza Diaria de Codigos de Barras
+
+# Gatilho (trigger): como o job é acionado
+on:
+  schedule:
+    # Executa todos os dias às 5h da manhã no fuso horário UTC.
+    # Você pode ajustar o horário conforme sua necessidade.
+    # '0 5 * * *' é a sintaxe "cron" para "às 5:00, todos os dias".
+    - cron: "0 5 * * *"
+  # Permite também rodar manualmente pela interface do GitHub
+  workflow_dispatch:
+
+# Tarefas que serão executadas
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest # O job vai rodar numa máquina virtual com Ubuntu
+
+    steps:
+      - name: Chamar o endpoint de limpeza da API
+        # Usamos a ferramenta 'curl' para fazer uma requisição web
+        run: |
+          curl --request GET \
+          --url '${{ secrets.SITE_URL }}/api/cron' \
+          --header 'Authorization: Bearer ${{ secrets.CRON_SECRET }}'
