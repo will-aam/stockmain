@@ -37,7 +37,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvErrors, setCsvErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedLocation, setSelectedLocation] = useState("loja-1");
   const [countingMode, setCountingMode] = useState<"loja" | "estoque">("loja");
 
   const [productCounts, setProductCounts] = useState<ProductCount[]>([]);
@@ -70,19 +69,13 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     }
   }, [userId]);
 
-  // --- INÍCIO DA CORREÇÃO FINAL ---
   useEffect(() => {
     loadCatalogFromDb();
-    // Este é o passo crucial: quando o userId estiver disponível (após o login ou recarga),
-    // carregamos a contagem correta do localStorage.
     setProductCounts(loadCountsFromLocalStorage(userId));
-  }, [userId, loadCatalogFromDb]); // Dispara quando o userId muda de null para um número
-  // --- FIM DA CORREÇÃO FINAL ---
+  }, [userId, loadCatalogFromDb]);
 
   // Salva a contagem no localStorage sempre que ela for alterada.
   useEffect(() => {
-    // A verificação 'productCounts.length > 0' evita apagar o localStorage
-    // durante a transição de logout/login.
     if (userId) {
       localStorage.setItem(
         `productCounts-${userId}`,
@@ -174,7 +167,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
             (countingMode === "loja" ? quantidade : 0) +
             (countingMode === "estoque" ? quantidade : 0) -
             currentProduct.saldo_estoque,
-          local_estoque: selectedLocation,
+          local_estoque: "",
           data_hora: new Date().toISOString(),
         };
         return [...prevCounts, newCount];
@@ -188,7 +181,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     currentProduct,
     quantityInput,
     countingMode,
-    selectedLocation,
     scanInput,
     calculateExpression,
   ]);
@@ -277,6 +269,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     },
     [processCsvFile]
   );
+
   const handleScan = useCallback(() => {
     if (scanInput.trim() === "") return;
     const barCode = barCodes.find((bc) => bc.codigo_de_barras === scanInput);
@@ -306,6 +299,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
         "Digite a quantidade para adicionar este novo item à contagem.",
     });
   }, [scanInput, barCodes, tempProducts]);
+
   const handleBarcodeScanned = useCallback(
     (barcode: string) => {
       setIsCameraViewActive(false);
@@ -314,6 +308,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     },
     [handleScan]
   );
+
   const handleQuantityKeyPress = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter") {
@@ -335,6 +330,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     },
     [quantityInput, calculateExpression, currentProduct, handleAddCount]
   );
+
   const exportToCsv = useCallback(() => {
     if (products.length === 0 && productCounts.length === 0) {
       toast({ title: "Nenhum item para exportar", variant: "destructive" });
@@ -381,12 +377,11 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `contagem_${selectedLocation}_${
-      new Date().toISOString().split("T")[0]
-    }.csv`;
+    link.download = `contagem_${new Date().toISOString().split("T")[0]}.csv`;
     link.click();
     URL.revokeObjectURL(link.href);
-  }, [products, barCodes, productCounts, selectedLocation]);
+  }, [products, barCodes, productCounts]);
+
   const downloadTemplateCSV = useCallback(() => {
     const templateData = [
       {
@@ -416,15 +411,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     link.click();
     URL.revokeObjectURL(link.href);
   }, []);
-  const locations: Location[] = useMemo(
-    () => [
-      { value: "loja-1", label: "Loja 1" },
-      { value: "loja-2", label: "Loja 2" },
-      { value: "deposito", label: "Depósito" },
-      { value: "estoque-central", label: "Estoque Central" },
-    ],
-    []
-  );
+
   const productCountsStats = useMemo(() => {
     const totalLoja = productCounts.reduce(
       (sum, item) => sum + item.quant_loja,
@@ -454,8 +441,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     csvFile,
     csvErrors,
     isLoading,
-    selectedLocation,
-    setSelectedLocation,
     countingMode,
     setCountingMode,
     productCounts,
@@ -463,7 +448,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     setShowClearDataModal,
     isCameraViewActive,
     setIsCameraViewActive,
-    locations,
     productCountsStats,
     handleClearAllData,
     handleCsvUpload,

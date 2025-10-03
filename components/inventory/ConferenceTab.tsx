@@ -9,13 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { CloudUpload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Scan, Store, Package, Camera, Plus, Trash2 } from "lucide-react";
 import type { Product, TempProduct, ProductCount, Location } from "@/lib/types";
@@ -116,22 +110,10 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
           <CardDescription>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center space-x-2">
-                <Store className="h-4 w-4 flex-shrink-0" />
-                <Select
-                  value={selectedLocation}
-                  onValueChange={setSelectedLocation}
-                >
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations.map((location) => (
-                      <SelectItem key={location.value} value={location.value}>
-                        {location.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Button variant="outline">
+                  <CloudUpload className="mr-2 h-4 w-4" />
+                  Salvar
+                </Button>
               </div>
               <div className="flex flex-1 space-x-2">
                 <Button
@@ -237,9 +219,6 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                 <Label htmlFor="quantity">
                   Quantidade{" "}
                   {countingMode === "loja" ? "em Loja" : "em Estoque"}
-                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-                    (Ex: 24+24 ou 10*3)
-                  </span>
                 </Label>
                 <Input
                   id="quantity"
@@ -252,7 +231,7 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                   className="mobile-optimized font-mono"
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 bold">
-                  Pressione Enter para calcular expressões matemáticas
+                  Pressione Enter para calcular
                 </p>
               </div>
               <Button
