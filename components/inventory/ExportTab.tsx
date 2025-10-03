@@ -16,8 +16,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Download, FileSpreadsheet, Package, Trash2 } from "lucide-react";
-import type { Product, TempProduct, ProductCount, Location } from "@/lib/types";
+import { CloudUpload, Download, FileSpreadsheet, Package } from "lucide-react";
+import type { Product, TempProduct, ProductCount } from "@/lib/types";
 
 interface ExportTabProps {
   products: Product[];
@@ -28,8 +28,7 @@ interface ExportTabProps {
     totalEstoque: number;
   };
   exportToCsv: () => void;
-  selectedLocation: string;
-  locations: Location[];
+  handleSaveCount: () => void;
   setShowClearDataModal: (show: boolean) => void;
 }
 
@@ -39,8 +38,7 @@ export const ExportTab: React.FC<ExportTabProps> = ({
   productCounts,
   productCountsStats,
   exportToCsv,
-  selectedLocation,
-  locations,
+  handleSaveCount,
   setShowClearDataModal,
 }) => {
   return (
@@ -64,10 +62,6 @@ export const ExportTab: React.FC<ExportTabProps> = ({
               <p className="text-sm text-blue-800 dark:text-blue-200">
                 Produtos Importados
               </p>
-              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                {products.length} permanentes + {tempProducts.length}{" "}
-                temporários
-              </p>
             </div>
             <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-center">
               <p className="text-2xl font-bold text-green-600 dark:text-green-400">
@@ -75,10 +69,6 @@ export const ExportTab: React.FC<ExportTabProps> = ({
               </p>
               <p className="text-sm text-green-800 dark:text-green-200">
                 Produtos Contados
-              </p>
-              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                {productCountsStats.totalLoja + productCountsStats.totalEstoque}{" "}
-                unidades totais
               </p>
             </div>
             <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-center">
@@ -91,18 +81,9 @@ export const ExportTab: React.FC<ExportTabProps> = ({
               <p className="text-sm text-amber-800 dark:text-amber-200">
                 Itens Faltantes
               </p>
-              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                {productCounts.length === 0
-                  ? "Nenhuma contagem iniciada"
-                  : `${Math.round(
-                      (productCounts.length /
-                        (products.length + tempProducts.length)) *
-                        100
-                    )}% concluído`}
-              </p>
             </div>
           </div>
-          {products.length + tempProducts.length > 0 && (
+          {(products.length > 0 || tempProducts.length > 0) && (
             <div className="mt-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -120,7 +101,7 @@ export const ExportTab: React.FC<ExportTabProps> = ({
                     width: `${Math.min(
                       100,
                       (productCounts.length /
-                        (products.length + tempProducts.length)) *
+                        (products.length + tempProducts.length || 1)) *
                         100
                     )}%`,
                   }}
@@ -137,37 +118,19 @@ export const ExportTab: React.FC<ExportTabProps> = ({
             Ações de Contagem
           </CardTitle>
           <CardDescription>
-            Exporte os dados da contagem ou limpe todos os dados do sistema.
+            Exporte os dados da contagem ou salve no histórico.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Button
-              onClick={exportToCsv}
-              disabled={productCounts.length === 0}
-              className="h-12"
-            >
-              <FileSpreadsheet className="h-4 w-4 mr-2" />
-              Exportar CSV
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={exportToCsv} variant="outline">
+              <Download className="mr-2 h-4 w-4" />
+              Exportar para CSV
             </Button>
-            <Button
-              variant="destructive"
-              onClick={() => setShowClearDataModal(true)}
-              className="h-12"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Limpar Dados
+            <Button onClick={handleSaveCount}>
+              <CloudUpload className="mr-2 h-4 w-4" />
+              Salvar Contagem
             </Button>
-          </div>
-          <div className="grid grid-cols-1 gap-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {productCounts.length}
-              </p>
-              <p className="text-sm text-blue-800 dark:text-blue-200">
-                Produtos Contados
-              </p>
-            </div>
           </div>
           {productCounts.length > 0 ? (
             <div className="max-h-96 overflow-y-auto">

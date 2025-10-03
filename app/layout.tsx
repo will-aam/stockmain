@@ -1,120 +1,23 @@
-import type React from "react";
-import type { Metadata, Viewport } from "next"; // 1. Importe Viewport
+import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme/theme-provider";
-import { Navigation } from "@/components/shared/navigation";
+import { Toaster } from "@/components/ui/toaster";
+import "./globals.css";
 
-const inter = Inter({
-  subsets: ["latin"],
-  display: "swap",
-  preload: true,
-});
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://stock-system.vercel.app"),
-  title: "Stock - Sistema de Conferência de Estoque",
-  description:
-    "Sistema web responsivo para conferência de estoque com leitor de código de barras",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Stock",
-  },
-  generator: "v0.dev",
-  // Open Graph
-  openGraph: {
-    title: "Stock - Sistema de Conferência de Estoque",
-    description:
-      "Sistema web responsivo para conferência de estoque com leitor de código de barras",
-    url: "https://stock-system.vercel.app",
-    siteName: "Stock",
-    images: [
-      {
-        url: "/icon-512x512.png",
-        width: 512,
-        height: 512,
-        alt: "Stock - Sistema de Estoque",
-      },
-    ],
-    locale: "pt_BR",
-    type: "website",
-  },
-  // Twitter Cards
-  twitter: {
-    card: "summary_large_image",
-    title: "Stock - Sistema de Conferência de Estoque",
-    description:
-      "Sistema web responsivo para conferência de estoque com leitor de código de barras",
-    images: ["/icon-512x512.png"],
-    creator: "@stock_system",
-  },
-  // Additional meta tags
-  keywords: [
-    "estoque",
-    "inventário",
-    "código de barras",
-    "conferência",
-    "sistema",
-    "stock",
-    "warehouse",
-  ],
-  authors: [{ name: "Stock System" }],
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-    },
-  },
-};
-
-export const viewport: Viewport = {
-  themeColor: "#3b82f6",
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  title: "Stock Control",
+  description: "Sistema de contagem de estoque",
 };
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <head>
-        {/* Preload critical resources */}
-        <link
-          rel="preload"
-          href="/icon-192x192.png"
-          as="image"
-          type="image/png"
-        />
-        <link
-          rel="preload"
-          href="/manifest.json"
-          as="fetch"
-          crossOrigin="anonymous"
-        />
-
-        {/* PWA manifest */}
-
-        {/* Apple Touch Icons */}
-
-        {/* Standard favicon */}
-
-        {/* DNS prefetch for external resources */}
-        <link rel="dns-prefetch" href="//fonts.googleapis.com" />
-        <link rel="dns-prefetch" href="//fonts.gstatic.com" />
-      </head>
       <body className={inter.className}>
         <ThemeProvider
           attribute="class"
@@ -122,13 +25,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
-            <header className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-md shadow-sm border-b dark:border-gray-700">
-              <Navigation />
-            </header>
-            {children}
-          </div>
-
+          {children}
           <Toaster />
         </ThemeProvider>
       </body>

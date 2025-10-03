@@ -43,6 +43,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
 
   const [showClearDataModal, setShowClearDataModal] = useState(false);
   const [isCameraViewActive, setIsCameraViewActive] = useState(false);
+  const [history, setHistory] = useState<any[]>([]);
 
   // Carrega apenas o catálogo de produtos do servidor.
   const loadCatalogFromDb = useCallback(async () => {
@@ -213,6 +214,70 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     }
   }, [userId]);
 
+  // Nova função para salvar a contagem no banco de dados
+  const handleSaveCount = useCallback(async () => {
+    if (!userId || productCounts.length === 0) {
+      toast({
+        title: "Nada para salvar",
+        description: "A contagem de produtos está vazia.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Reutiliza a lógica de geração de CSV da função de exportação
+    const csvContent = Papa.unparse(productCounts, {
+      header: true,
+      delimiter: ";",
+      quotes: true,
+    });
+
+    const fileName = `contagem_${new Date().toISOString().split("T")[0]}.csv`;
+
+    try {
+      const response = await fetch(`/api/inventory/${userId}/history`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName, csvContent }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Falha ao salvar a contagem no servidor.");
+      }
+
+      toast({
+        title: "Sucesso!",
+        description: "Sua contagem foi salva no histórico.",
+      });
+      // Opcional: recarregar o histórico após salvar
+      // loadHistory();
+    } catch (error: any) {
+      toast({
+        title: "Erro ao salvar",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  }, [userId, productCounts]);
+
+  // Nova função para carregar o histórico do banco de dados
+  const loadHistory = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const response = await fetch(`/api/inventory/${userId}/history`);
+      if (!response.ok) {
+        throw new Error("Falha ao carregar o histórico.");
+      }
+      const data = await response.json();
+      setHistory(data);
+    } catch (error: any) {
+      toast({
+        title: "Erro ao carregar histórico",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  }, [userId]);
   const handleRemoveCount = useCallback((id: number) => {
     setProductCounts((prev) => prev.filter((item) => item.id !== id));
     toast({ title: "Item removido da contagem" });
@@ -459,5 +524,8 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     handleRemoveCount,
     exportToCsv,
     downloadTemplateCSV,
+    history,
+    loadHistory,
+    handleSaveCount,
   };
 };

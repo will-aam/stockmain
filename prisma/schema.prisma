@@ -15,6 +15,7 @@ model Usuario {
   contagens      Contagem[]
   produtos       Produto[]
   codigos_barras CodigoBarras[]
+  contagens_salvas ContagemSalva[]
 
   @@map("usuarios")
 }
@@ -76,4 +77,15 @@ model ItemContado {
 
   @@unique([contagem_id, produto_id])
   @@map("itens_contados")
+}
+
+model ContagemSalva {
+  id           Int      @id @default(autoincrement())
+  nome_arquivo String
+  conteudo_csv String
+  created_at   DateTime @default(now())
+  usuario_id   Int
+  usuario      Usuario  @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@map("contagens_salvas")
 }

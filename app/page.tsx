@@ -9,6 +9,7 @@ import { ImportTab } from "@/components/inventory/ImportTab";
 import { ExportTab } from "@/components/inventory/ExportTab";
 import { HistoryTab } from "@/components/inventory/HistoryTab";
 import { ClearDataModal } from "@/components/shared/clear-data-modal";
+import { Navigation } from "@/components/shared/navigation"; // Importa a navegação
 import {
   Select,
   SelectContent,
@@ -16,25 +17,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react"; // Importar o ícone de carregamento
+import { Loader2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default function InventorySystem() {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("scan");
-
-  // --- INÍCIO DA CORREÇÃO DE HIDRATAÇÃO ---
-  const [isLoading, setIsLoading] = useState(true); // Novo estado de carregamento
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Este código só roda no navegador, após a primeira renderização
     const savedUserId = sessionStorage.getItem("currentUserId");
     if (savedUserId) {
       setCurrentUserId(parseInt(savedUserId, 10));
     }
-    setIsLoading(false); // Finaliza o carregamento
-  }, []); // O array vazio [] garante que isso só rode uma vez
+    setIsLoading(false);
+  }, []);
 
   const inventory = useInventory({ userId: currentUserId });
 
@@ -43,7 +41,6 @@ export default function InventorySystem() {
     setCurrentUserId(userId);
   };
 
-  // Enquanto verifica a sessão, exibe uma tela de carregamento
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -51,16 +48,16 @@ export default function InventorySystem() {
       </div>
     );
   }
-  // --- FIM DA CORREÇÃO DE HIDRATAÇÃO ---
 
-  // Se não houver userId após o carregamento, mostra o modal de login
   if (!currentUserId) {
     return <AuthModal onUnlock={handleUnlock} />;
   }
 
-  // Se houver, mostra a aplicação principal
   return (
     <>
+      {/* Navegação movida para cá, recebendo a função para abrir o modal */}
+      <Navigation setShowClearDataModal={inventory.setShowClearDataModal} />
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs
           value={activeTab}
@@ -91,7 +88,24 @@ export default function InventorySystem() {
           </div>
 
           <TabsContent value="scan" className="space-y-6">
-            <ConferenceTab {...inventory} />
+            <ConferenceTab
+              countingMode={inventory.countingMode}
+              setCountingMode={inventory.setCountingMode}
+              scanInput={inventory.scanInput}
+              setScanInput={inventory.setScanInput}
+              handleScan={inventory.handleScan}
+              isCameraViewActive={inventory.isCameraViewActive}
+              setIsCameraViewActive={inventory.setIsCameraViewActive}
+              handleBarcodeScanned={inventory.handleBarcodeScanned}
+              currentProduct={inventory.currentProduct}
+              quantityInput={inventory.quantityInput}
+              setQuantityInput={inventory.setQuantityInput}
+              handleQuantityKeyPress={inventory.handleQuantityKeyPress}
+              handleAddCount={inventory.handleAddCount}
+              productCounts={inventory.productCounts}
+              handleRemoveCount={inventory.handleRemoveCount}
+              handleSaveCount={inventory.handleSaveCount}
+            />
           </TabsContent>
 
           <TabsContent value="import" className="space-y-6">
@@ -112,23 +126,22 @@ export default function InventorySystem() {
               productCounts={inventory.productCounts}
               productCountsStats={inventory.productCountsStats}
               exportToCsv={inventory.exportToCsv}
-              selectedLocation={inventory.selectedLocation}
-              locations={inventory.locations}
+              handleSaveCount={inventory.handleSaveCount}
               setShowClearDataModal={inventory.setShowClearDataModal}
             />
           </TabsContent>
 
           <TabsContent value="history" className="space-y-6">
-            <HistoryTab />
+            <HistoryTab userId={currentUserId} />
           </TabsContent>
         </Tabs>
       </main>
 
       {inventory.showClearDataModal && (
         <ClearDataModal
+          isOpen={inventory.showClearDataModal}
           onClose={() => inventory.setShowClearDataModal(false)}
           onConfirm={inventory.handleClearAllData}
-          isOpen={inventory.showClearDataModal}
         />
       )}
     </>

@@ -9,16 +9,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CloudUpload } from "lucide-react";
+import {
+  CloudUpload,
+  Scan,
+  Store,
+  Package,
+  Camera,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Scan, Store, Package, Camera, Plus, Trash2 } from "lucide-react";
-import type { Product, TempProduct, ProductCount, Location } from "@/lib/types";
+import type { Product, TempProduct, ProductCount } from "@/lib/types";
 import { BarcodeScanner } from "@/components/features/barcode-scanner";
 
 interface ConferenceTabProps {
-  selectedLocation: string;
-  setSelectedLocation: (value: string) => void;
-  locations: Location[];
   countingMode: "loja" | "estoque";
   setCountingMode: (mode: "loja" | "estoque") => void;
   scanInput: string;
@@ -33,8 +37,8 @@ interface ConferenceTabProps {
   handleQuantityKeyPress: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   handleAddCount: () => void;
   productCounts: ProductCount[];
-  // --- CORREÇÃO APLICADA AQUI ---
-  handleRemoveCount: (id: number) => void; // Alterado de string para number
+  handleRemoveCount: (id: number) => void;
+  handleSaveCount: () => void;
 }
 
 const ProductCountItem = ({
@@ -42,8 +46,7 @@ const ProductCountItem = ({
   onRemove,
 }: {
   item: ProductCount;
-  // --- E AQUI TAMBÉM ---
-  onRemove: (id: number) => void; // Alterado de string para number
+  onRemove: (id: number) => void;
 }) => (
   <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
     <div className="flex-1">
@@ -81,9 +84,6 @@ const ProductCountItem = ({
 ProductCountItem.displayName = "ProductCountItem";
 
 export const ConferenceTab: React.FC<ConferenceTabProps> = ({
-  selectedLocation,
-  setSelectedLocation,
-  locations,
   countingMode,
   setCountingMode,
   scanInput,
@@ -99,6 +99,7 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
   handleAddCount,
   productCounts,
   handleRemoveCount,
+  handleSaveCount,
 }) => {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -109,27 +110,32 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
           </CardTitle>
           <CardDescription>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center space-x-2">
-                <Button variant="outline">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  onClick={handleSaveCount}
+                  variant="outline"
+                  className="flex-grow sm:flex-grow-0"
+                >
                   <CloudUpload className="mr-2 h-4 w-4" />
-                  Salvar
+                  Salvar Contagem
                 </Button>
-              </div>
-              <div className="flex flex-1 space-x-2">
-                <Button
-                  variant={countingMode === "loja" ? "default" : "outline"}
-                  className="mobile-button flex-1"
-                  onClick={() => setCountingMode("loja")}
-                >
-                  <Store className="h-4 w-4 mr-2" /> Loja
-                </Button>
-                <Button
-                  variant={countingMode === "estoque" ? "default" : "outline"}
-                  className="mobile-button flex-1"
-                  onClick={() => setCountingMode("estoque")}
-                >
-                  <Package className="h-4 w-4 mr-2" /> Estoque
-                </Button>
+
+                <div className="flex flex-1 space-x-2 min-w-[200px]">
+                  <Button
+                    variant={countingMode === "loja" ? "default" : "outline"}
+                    className="w-1/2"
+                    onClick={() => setCountingMode("loja")}
+                  >
+                    <Store className="h-4 w-4 mr-2" /> Loja
+                  </Button>
+                  <Button
+                    variant={countingMode === "estoque" ? "default" : "outline"}
+                    className="w-1/2"
+                    onClick={() => setCountingMode("estoque")}
+                  >
+                    <Package className="h-4 w-4 mr-2" /> Estoque
+                  </Button>
+                </div>
               </div>
             </div>
           </CardDescription>
