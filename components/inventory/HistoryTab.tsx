@@ -3,20 +3,25 @@
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, History as HistoryIcon, FileText } from "lucide-react";
+import {
+  Download,
+  History as HistoryIcon,
+  FileText,
+  Trash2, // Ícone da lixeira importado
+} from "lucide-react";
 import { useInventory } from "@/hooks/useInventory";
 
-// Define que o componente vai receber a propriedade userId
 interface HistoryTabProps {
   userId: number | null;
 }
 
 export function HistoryTab({ userId }: HistoryTabProps) {
-  // Passa a userId recebida para o hook
-  const { history, loadHistory } = useInventory({ userId });
+  // A prop handleDeleteHistoryItem é recebida do hook useInventory
+  const { history, loadHistory, handleDeleteHistoryItem } = useInventory({
+    userId,
+  });
 
   useEffect(() => {
-    // Carrega o histórico apenas quando a userId estiver disponível
     if (userId) {
       loadHistory();
     }
@@ -47,27 +52,43 @@ export function HistoryTab({ userId }: HistoryTabProps) {
             {history.map((item) => (
               <li
                 key={item.id}
-                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg gap-2"
               >
-                <div className="flex items-center">
-                  <FileText className="h-5 w-5 mr-3 text-gray-500" />
-                  <div>
-                    <p className="font-medium">{item.nome_arquivo}</p>
+                <div className="flex items-center flex-grow min-w-0">
+                  <FileText className="h-5 w-5 mr-3 text-gray-500 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p
+                      className="font-medium truncate"
+                      title={item.nome_arquivo}
+                    >
+                      {item.nome_arquivo}
+                    </p>
                     <p className="text-sm text-gray-500">
                       Salvo em: {new Date(item.created_at).toLocaleString()}
                     </p>
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    handleDownload(item.nome_arquivo, item.conteudo_csv)
-                  }
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Baixar
-                </Button>
+                <div className="flex items-center flex-shrink-0 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      handleDownload(item.nome_arquivo, item.conteudo_csv)
+                    }
+                  >
+                    <Download className="h-4 w-4 md:mr-2" />
+                    <span className="hidden md:inline">Baixar</span>
+                  </Button>
+                  {/* --- BOTÃO DE EXCLUIR ADICIONADO --- */}
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    onClick={() => handleDeleteHistoryItem(item.id)}
+                    aria-label="Excluir item do histórico"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>

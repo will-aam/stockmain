@@ -38,14 +38,11 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   const [csvErrors, setCsvErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [countingMode, setCountingMode] = useState<"loja" | "estoque">("loja");
-
   const [productCounts, setProductCounts] = useState<ProductCount[]>([]);
-
   const [showClearDataModal, setShowClearDataModal] = useState(false);
   const [isCameraViewActive, setIsCameraViewActive] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
 
-  // Carrega apenas o catálogo de produtos do servidor.
   const loadCatalogFromDb = useCallback(async () => {
     if (!userId) {
       setIsLoading(false);
@@ -75,7 +72,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     setProductCounts(loadCountsFromLocalStorage(userId));
   }, [userId, loadCatalogFromDb]);
 
-  // Salva a contagem no localStorage sempre que ela for alterada.
   useEffect(() => {
     if (userId) {
       localStorage.setItem(
@@ -128,7 +124,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       }
       finalQuantity = calculation.result;
     } else {
-      const parsed = Number.parseFloat(quantityInput);
+      const parsed = Number.parseFloat(quantityInput.replace(",", "."));
       if (isNaN(parsed) || parsed < 0) {
         toast({
           title: "Erro",
@@ -139,7 +135,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       }
       finalQuantity = parsed;
     }
-    const quantidade = Math.round(finalQuantity);
+    const quantidade = finalQuantity;
     setProductCounts((prevCounts) => {
       const existingIndex = prevCounts.findIndex(
         (item) => item.codigo_produto === currentProduct.codigo_produto
@@ -214,70 +210,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     }
   }, [userId]);
 
-  // Nova função para salvar a contagem no banco de dados
-  const handleSaveCount = useCallback(async () => {
-    if (!userId || productCounts.length === 0) {
-      toast({
-        title: "Nada para salvar",
-        description: "A contagem de produtos está vazia.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Reutiliza a lógica de geração de CSV da função de exportação
-    const csvContent = Papa.unparse(productCounts, {
-      header: true,
-      delimiter: ";",
-      quotes: true,
-    });
-
-    const fileName = `contagem_${new Date().toISOString().split("T")[0]}.csv`;
-
-    try {
-      const response = await fetch(`/api/inventory/${userId}/history`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileName, csvContent }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Falha ao salvar a contagem no servidor.");
-      }
-
-      toast({
-        title: "Sucesso!",
-        description: "Sua contagem foi salva no histórico.",
-      });
-      // Opcional: recarregar o histórico após salvar
-      // loadHistory();
-    } catch (error: any) {
-      toast({
-        title: "Erro ao salvar",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  }, [userId, productCounts]);
-
-  // Nova função para carregar o histórico do banco de dados
-  const loadHistory = useCallback(async () => {
-    if (!userId) return;
-    try {
-      const response = await fetch(`/api/inventory/${userId}/history`);
-      if (!response.ok) {
-        throw new Error("Falha ao carregar o histórico.");
-      }
-      const data = await response.json();
-      setHistory(data);
-    } catch (error: any) {
-      toast({
-        title: "Erro ao carregar histórico",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  }, [userId]);
   const handleRemoveCount = useCallback((id: number) => {
     setProductCounts((prev) => prev.filter((item) => item.id !== id));
     toast({ title: "Item removido da contagem" });
@@ -397,11 +329,11 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   );
 
   const exportToCsv = useCallback(() => {
-    if (products.length === 0 && productCounts.length === 0) {
+    if (productCounts.length === 0) {
       toast({ title: "Nenhum item para exportar", variant: "destructive" });
       return;
     }
-    const countedItemsData = productCounts.map((item) => ({
+    const dataToExport = productCounts.map((item) => ({
       codigo_de_barras: item.codigo_de_barras,
       codigo_produto: item.codigo_produto,
       descricao: item.descricao,
@@ -410,28 +342,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       quant_estoque: item.quant_estoque,
       total: item.total,
     }));
-    const countedProductCodes = new Set(
-      productCounts.map((pc) => pc.codigo_produto)
-    );
-    const uncountedItemsData = products
-      .filter((p) => !countedProductCodes.has(p.codigo_produto))
-      .map((product) => {
-        const barCode = barCodes.find((bc) => bc.produto_id === product.id);
-        return {
-          codigo_de_barras: barCode?.codigo_de_barras || "N/A",
-          codigo_produto: product.codigo_produto,
-          descricao: product.descricao,
-          saldo_estoque: product.saldo_estoque,
-          quant_loja: 0,
-          quant_estoque: 0,
-          total: -product.saldo_estoque,
-        };
-      });
-    const dataToExport = [...countedItemsData, ...uncountedItemsData];
-    if (dataToExport.length === 0) {
-      toast({ title: "Nenhum item para exportar", variant: "destructive" });
-      return;
-    }
     const csv = Papa.unparse(dataToExport, {
       header: true,
       delimiter: ";",
@@ -445,7 +355,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     link.download = `contagem_${new Date().toISOString().split("T")[0]}.csv`;
     link.click();
     URL.revokeObjectURL(link.href);
-  }, [products, barCodes, productCounts]);
+  }, [productCounts]);
 
   const downloadTemplateCSV = useCallback(() => {
     const templateData = [
@@ -494,6 +404,111 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     return { totalLoja, totalEstoque, totalSistema, consolidado };
   }, [productCounts]);
 
+  const handleSaveCount = useCallback(async () => {
+    if (!userId || productCounts.length === 0) {
+      toast({
+        title: "Nada para salvar",
+        description: "A contagem de produtos está vazia.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const dataToSave = productCounts.map((item) => ({
+      codigo_de_barras: item.codigo_de_barras,
+      codigo_produto: item.codigo_produto,
+      descricao: item.descricao,
+      saldo_estoque: item.saldo_estoque,
+      quant_loja: item.quant_loja,
+      quant_estoque: item.quant_estoque,
+      total: item.total,
+    }));
+    const csvContent = Papa.unparse(dataToSave, {
+      header: true,
+      delimiter: ";",
+      quotes: true,
+    });
+    const fileName = `contagem_${new Date().toISOString().split("T")[0]}.csv`;
+    try {
+      // --- CORREÇÃO APLICADA AQUI ---
+      // Removido o "/0" da rota para salvar um novo item no histórico
+      const response = await fetch(`/api/inventory/${userId}/history`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName, csvContent }),
+      });
+      if (!response.ok) {
+        throw new Error("Falha ao salvar a contagem no servidor.");
+      }
+      toast({
+        title: "Sucesso!",
+        description: "Sua contagem foi salva no histórico.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao salvar",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  }, [userId, productCounts]);
+
+  const loadHistory = useCallback(async () => {
+    if (!userId) return;
+    try {
+      // --- CORREÇÃO APLICADA AQUI ---
+      // Removido o "/0" da rota para carregar todo o histórico
+      const response = await fetch(`/api/inventory/${userId}/history`);
+      if (!response.ok) {
+        throw new Error("Falha ao carregar o histórico.");
+      }
+      const data = await response.json();
+      setHistory(data);
+    } catch (error: any) {
+      toast({
+        title: "Erro ao carregar histórico",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  }, [userId]);
+
+  // --- FUNÇÃO PARA DELETAR ITEM DO HISTÓRICO (sem alterações) ---
+  const handleDeleteHistoryItem = useCallback(
+    async (historyId: number) => {
+      if (!userId) return;
+
+      try {
+        const response = await fetch(
+          `/api/inventory/${userId}/history/${historyId}`,
+          {
+            method: "DELETE",
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Falha ao excluir o item do histórico.");
+        }
+
+        // Remove o item da lista local para atualizar a UI instantaneamente
+        setHistory((prevHistory) =>
+          prevHistory.filter((item) => item.id !== historyId)
+        );
+
+        toast({
+          title: "Sucesso!",
+          description: "O item foi removido do histórico.",
+        });
+      } catch (error: any) {
+        toast({
+          title: "Erro ao excluir",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    },
+    [userId]
+  );
+
   return {
     products,
     barCodes,
@@ -527,5 +542,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     history,
     loadHistory,
     handleSaveCount,
+    handleDeleteHistoryItem,
   };
 };

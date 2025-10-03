@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// Função GET: Busca o histórico de contagens salvas para um usuário
+// Função GET: Busca a lista de todo o histórico de um usuário
 export async function GET(
   request: Request,
   { params }: { params: { userId: string } }
@@ -14,28 +14,21 @@ export async function GET(
         { status: 400 }
       );
     }
-
-    // CORREÇÃO AQUI: de ContagemSalva para contagemSalva
     const savedCounts = await prisma.contagemSalva.findMany({
-      where: {
-        usuario_id: userId,
-      },
-      orderBy: {
-        created_at: "desc", // Ordena da mais recente para a mais antiga
-      },
+      where: { usuario_id: userId },
+      orderBy: { created_at: "desc" },
     });
-
     return NextResponse.json(savedCounts);
   } catch (error) {
-    console.error("Erro ao buscar histórico de contagens:", error);
+    console.error("Erro ao buscar histórico:", error);
     return NextResponse.json(
-      { error: "Erro interno do servidor ao buscar histórico" },
+      { error: "Erro interno do servidor" },
       { status: 500 }
     );
   }
 }
 
-// Função POST: Salva uma nova contagem no histórico
+// Função POST: Cria um novo item no histórico
 export async function POST(
   request: Request,
   { params }: { params: { userId: string } }
@@ -48,16 +41,10 @@ export async function POST(
         { status: 400 }
       );
     }
-
     const { fileName, csvContent } = await request.json();
     if (!fileName || !csvContent) {
-      return NextResponse.json(
-        { error: "Nome do arquivo e conteúdo são obrigatórios" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
     }
-
-    // CORREÇÃO AQUI: de ContagemSalva para contagemSalva
     const newSavedCount = await prisma.contagemSalva.create({
       data: {
         nome_arquivo: fileName,
@@ -65,12 +52,11 @@ export async function POST(
         usuario_id: userId,
       },
     });
-
-    return NextResponse.json(newSavedCount, { status: 201 }); // 201 Created
+    return NextResponse.json(newSavedCount, { status: 201 });
   } catch (error) {
-    console.error("Erro ao salvar contagem no histórico:", error);
+    console.error("Erro ao salvar contagem:", error);
     return NextResponse.json(
-      { error: "Erro interno do servidor ao salvar no histórico" },
+      { error: "Erro interno do servidor" },
       { status: 500 }
     );
   }
