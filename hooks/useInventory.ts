@@ -154,21 +154,31 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
         const existingItem = { ...updatedCounts[existingIndex] };
         if (countingMode === "loja") existingItem.quant_loja += quantidade;
         else existingItem.quant_estoque += quantidade;
+
+        // --- CORREÇÃO APLICADA AQUI ---
+        // Forçamos a conversão de todos os valores para Número antes de calcular
+        existingItem.total =
+          Number(existingItem.quant_loja) +
+          Number(existingItem.quant_estoque) -
+          Number(existingItem.saldo_estoque);
+
         updatedCounts[existingIndex] = existingItem;
         return updatedCounts;
       } else {
+        // --- E AQUI TAMBÉM, PARA GARANTIR ---
+        const saldoAsNumber = Number(currentProduct.saldo_estoque);
         const newCount: ProductCount = {
           id: Date.now(),
           codigo_de_barras: scanInput,
           codigo_produto: currentProduct.codigo_produto,
           descricao: currentProduct.descricao,
-          saldo_estoque: currentProduct.saldo_estoque,
+          saldo_estoque: saldoAsNumber, // Garante que seja salvo como número
           quant_loja: countingMode === "loja" ? quantidade : 0,
           quant_estoque: countingMode === "estoque" ? quantidade : 0,
           total:
             (countingMode === "loja" ? quantidade : 0) +
             (countingMode === "estoque" ? quantidade : 0) -
-            currentProduct.saldo_estoque,
+            saldoAsNumber,
           local_estoque: "",
           data_hora: new Date().toISOString(),
         };
@@ -186,7 +196,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     scanInput,
     calculateExpression,
   ]);
-
   const handleClearAllData = useCallback(async () => {
     if (!userId) return;
     try {

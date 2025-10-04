@@ -52,7 +52,7 @@ const ProductCountItem = ({
     <div className="flex-1">
       <p className="font-medium text-sm">{item.descricao}</p>
       <p className="text-xs text-gray-600 dark:text-gray-400">
-        Código: {item.codigo_produto} | Sistema: {item.saldo_estoque}
+        Cód. Barras: {item.codigo_de_barras}| Sistema: {item.saldo_estoque}
       </p>
       <div className="flex items-center space-x-2 mt-1">
         <Badge variant="outline" className="text-xs">
@@ -155,7 +155,7 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                     id="barcode"
                     value={scanInput}
                     onChange={(e) => setScanInput(e.target.value)}
-                    placeholder="Digite ou escaneie o código"
+                    placeholder="Digite ou escaneie"
                     className="flex-1 mobile-optimized"
                     onKeyPress={(e) => e.key === "Enter" && handleScan()}
                   />
@@ -212,7 +212,7 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                             : "text-green-600 dark:text-green-400"
                         }`}
                       >
-                        Código: {currentProduct.codigo_produto}
+                        Cód. Barras: {scanInput}
                       </p>
                     </div>
                     <Badge variant="secondary" className="ml-2">
@@ -232,7 +232,7 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                   value={quantityInput}
                   onChange={(e) => setQuantityInput(e.target.value)}
                   onKeyPress={handleQuantityKeyPress}
-                  placeholder="Digite quantidade ou expressão (24+24)"
+                  placeholder="Qtd ou expressão (ex: 24+24)"
                   min="0"
                   className="mobile-optimized font-mono"
                 />

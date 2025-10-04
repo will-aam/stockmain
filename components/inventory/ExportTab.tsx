@@ -29,8 +29,7 @@ interface ExportTabProps {
   };
   exportToCsv: () => void;
   handleSaveCount: () => void;
-  setShowClearDataModal: (show: boolean) => void;
-  setShowMissingItemsModal: (show: boolean) => void; // <-- Nova prop
+  setShowMissingItemsModal: (show: boolean) => void;
 }
 
 export const ExportTab: React.FC<ExportTabProps> = ({
@@ -40,8 +39,7 @@ export const ExportTab: React.FC<ExportTabProps> = ({
   productCountsStats,
   exportToCsv,
   handleSaveCount,
-  setShowClearDataModal,
-  setShowMissingItemsModal, // <-- Nova prop
+  setShowMissingItemsModal,
 }) => {
   const missingItemsCount = Math.max(
     0,
@@ -50,7 +48,7 @@ export const ExportTab: React.FC<ExportTabProps> = ({
   );
 
   return (
-    <>
+    <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
@@ -79,7 +77,6 @@ export const ExportTab: React.FC<ExportTabProps> = ({
                 Produtos Contados
               </p>
             </div>
-            {/* --- CARD DE ITENS FALTANTES CLICÁVEL --- */}
             <div
               className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-center cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
               onClick={() => setShowMissingItemsModal(true)}
@@ -103,24 +100,22 @@ export const ExportTab: React.FC<ExportTabProps> = ({
             <Download className="h-5 w-5 mr-2" />
             Ações de Contagem
           </CardTitle>
-          <CardDescription>
-            Exporte os dados da contagem ou salve no histórico.
-          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={exportToCsv} variant="outline">
+          {/* --- CORREÇÃO APLICADA AQUI --- */}
+          <div className="flex w-full items-center gap-2">
+            <Button onClick={exportToCsv} variant="outline" className="flex-1">
               <Download className="mr-2 h-4 w-4" />
-              Exportar para CSV
+              Exportar
             </Button>
-            <Button onClick={handleSaveCount}>
+            <Button onClick={handleSaveCount} className="flex-1">
               <CloudUpload className="mr-2 h-4 w-4" />
-              Salvar Contagem
+              Salvar
             </Button>
           </div>
         </CardContent>
       </Card>
-    </>
+    </div>
   );
 };
 

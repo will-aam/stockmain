@@ -66,10 +66,6 @@ const CsvInstructions = ({
   downloadTemplateCSV: () => void;
 }) => (
   <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-    <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2 flex items-center">
-      <AlertCircle className="h-4 w-4 mr-2" />
-      Instruções para o arquivo CSV
-    </h4>
     <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
       <li>
         • <strong>Separador:</strong> Use ponto e vírgula (;) entre as colunas
@@ -87,6 +83,10 @@ const CsvInstructions = ({
       <li>
         • <strong>Cabeçalho:</strong> Primeira linha deve conter os nomes das
         colunas
+      </li>
+      <li>
+        • <strong>Código do Produto:</strong> Se não possuir, insira um valor
+        numérico apenas para preenchimento do campo.
       </li>
     </ul>
     {/* A MUDANÇA ESTÁ NA LINHA ABAIXO */}
