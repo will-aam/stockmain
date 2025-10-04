@@ -196,6 +196,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     scanInput,
     calculateExpression,
   ]);
+
   const handleClearAllData = useCallback(async () => {
     if (!userId) return;
     try {
@@ -342,35 +343,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     [quantityInput, calculateExpression, currentProduct, handleAddCount]
   );
 
-  const exportToCsv = useCallback(() => {
-    if (productCounts.length === 0) {
-      toast({ title: "Nenhum item para exportar", variant: "destructive" });
-      return;
-    }
-    const dataToExport = productCounts.map((item) => ({
-      codigo_de_barras: item.codigo_de_barras,
-      codigo_produto: item.codigo_produto,
-      descricao: item.descricao,
-      saldo_estoque: item.saldo_estoque,
-      quant_loja: item.quant_loja,
-      quant_estoque: item.quant_estoque,
-      total: item.total,
-    }));
-    const csv = Papa.unparse(dataToExport, {
-      header: true,
-      delimiter: ";",
-      quotes: true,
-    });
-    const blob = new Blob([`\uFEFF${csv}`], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `contagem_${new Date().toISOString().split("T")[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-  }, [productCounts]);
-
   const downloadTemplateCSV = useCallback(() => {
     const templateData = [
       {
@@ -412,52 +384,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     );
     return { totalLoja, totalEstoque };
   }, [productCounts]);
-
-  const handleSaveCount = useCallback(async () => {
-    if (!userId || productCounts.length === 0) {
-      toast({
-        title: "Nada para salvar",
-        description: "A contagem de produtos está vazia.",
-        variant: "destructive",
-      });
-      return;
-    }
-    const dataToSave = productCounts.map((item) => ({
-      codigo_de_barras: item.codigo_de_barras,
-      codigo_produto: item.codigo_produto,
-      descricao: item.descricao,
-      saldo_estoque: item.saldo_estoque,
-      quant_loja: item.quant_loja,
-      quant_estoque: item.quant_estoque,
-      total: item.total,
-    }));
-    const csvContent = Papa.unparse(dataToSave, {
-      header: true,
-      delimiter: ";",
-      quotes: true,
-    });
-    const fileName = `contagem_${new Date().toISOString().split("T")[0]}.csv`;
-    try {
-      const response = await fetch(`/api/inventory/${userId}/history`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileName, csvContent }),
-      });
-      if (!response.ok) {
-        throw new Error("Falha ao salvar a contagem no servidor.");
-      }
-      toast({
-        title: "Sucesso!",
-        description: "Sua contagem foi salva no histórico.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Erro ao salvar",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  }, [userId, productCounts]);
 
   const loadHistory = useCallback(async () => {
     if (!userId) return;
@@ -511,6 +437,119 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     },
     [userId]
   );
+
+  // --- NOVA FUNÇÃO CENTRALIZADA PARA GERAR O RELATÓRIO COMPLETO ---
+  const generateCompleteReportData = useCallback(() => {
+    // Pega os itens que já foram contados
+    const countedItemsData = productCounts.map((item) => ({
+      codigo_de_barras: item.codigo_de_barras,
+      codigo_produto: item.codigo_produto,
+      descricao: item.descricao,
+      saldo_estoque: item.saldo_estoque,
+      quant_loja: item.quant_loja,
+      quant_estoque: item.quant_estoque,
+      total: item.total,
+    }));
+
+    // Cria um mapa para saber quais produtos já foram contados
+    const countedProductCodes = new Set(
+      productCounts.map((pc) => pc.codigo_produto)
+    );
+
+    // Pega os itens do catálogo que NÃO foram contados e os formata com quantidades zeradas
+    const uncountedItemsData = products
+      .filter((p) => !countedProductCodes.has(p.codigo_produto))
+      .map((product) => {
+        const barCode = barCodes.find((bc) => bc.produto_id === product.id);
+        const saldo = Number(product.saldo_estoque);
+        return {
+          codigo_de_barras: barCode?.codigo_de_barras || "N/A",
+          codigo_produto: product.codigo_produto,
+          descricao: product.descricao,
+          saldo_estoque: saldo,
+          quant_loja: 0,
+          quant_estoque: 0,
+          total: -saldo, // O total para itens não contados é o saldo negativo
+        };
+      });
+
+    // Combina as duas listas: os contados e os não contados (zerados)
+    return [...countedItemsData, ...uncountedItemsData];
+  }, [products, productCounts, barCodes]);
+
+  // --- FUNÇÕES DE EXPORTAR E SALVAR ATUALIZADAS ---
+  const exportToCsv = useCallback(() => {
+    if (products.length === 0) {
+      toast({
+        title: "Nenhum item para exportar",
+        description: "Importe um catálogo primeiro.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const dataToExport = generateCompleteReportData();
+
+    const csv = Papa.unparse(dataToExport, {
+      header: true,
+      delimiter: ";",
+      quotes: true,
+    });
+    const blob = new Blob([`\uFEFF${csv}`], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `contagem_completa_${
+      new Date().toISOString().split("T")[0]
+    }.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }, [products, generateCompleteReportData]);
+
+  const handleSaveCount = useCallback(async () => {
+    if (!userId || products.length === 0) {
+      toast({
+        title: "Nada para salvar",
+        description: "Não há um catálogo de produtos carregado.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const dataToExport = generateCompleteReportData();
+
+    const csvContent = Papa.unparse(dataToExport, {
+      header: true,
+      delimiter: ";",
+      quotes: true,
+    });
+
+    const fileName = `contagem_${new Date().toISOString().split("T")[0]}.csv`;
+
+    try {
+      const response = await fetch(`/api/inventory/${userId}/history`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName, csvContent }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Falha ao salvar a contagem no servidor.");
+      }
+
+      toast({
+        title: "Sucesso!",
+        description: "Sua contagem foi salva no histórico.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao salvar",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  }, [userId, products, generateCompleteReportData]);
 
   return {
     products,
