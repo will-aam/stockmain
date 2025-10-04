@@ -3,15 +3,8 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { toast } from "@/hooks/use-toast";
 import * as Papa from "papaparse";
-import type {
-  Product,
-  BarCode,
-  ProductCount,
-  TempProduct,
-  Location,
-} from "@/lib/types";
+import type { Product, BarCode, ProductCount, TempProduct } from "@/lib/types";
 
-// Função auxiliar para carregar os dados do localStorage
 const loadCountsFromLocalStorage = (userId: number | null): ProductCount[] => {
   if (typeof window === "undefined" || !userId) {
     return [];
@@ -42,6 +35,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   const [showClearDataModal, setShowClearDataModal] = useState(false);
   const [isCameraViewActive, setIsCameraViewActive] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
+  const [showMissingItemsModal, setShowMissingItemsModal] = useState(false);
 
   const loadCatalogFromDb = useCallback(async () => {
     if (!userId) {
@@ -81,12 +75,27 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     }
   }, [productCounts, userId]);
 
+  const missingItems = useMemo(() => {
+    const countedProductCodes = new Set(
+      productCounts.map((pc) => pc.codigo_produto)
+    );
+    return products
+      .filter((p) => !countedProductCodes.has(p.codigo_produto))
+      .map((product) => {
+        const barCode = barCodes.find((bc) => bc.produto_id === product.id);
+        return {
+          codigo_de_barras: barCode?.codigo_de_barras || "N/A",
+          descricao: product.descricao,
+        };
+      });
+  }, [products, productCounts, barCodes]);
+
   const calculateExpression = useCallback(
     (
       expression: string
     ): { result: number; isValid: boolean; error?: string } => {
       try {
-        const cleanExpression = expression.replace(/\s/g, "");
+        const cleanExpression = expression.replace(/\s/g, "").replace(",", ".");
         if (!/^[0-9+\-*/().]+$/.test(cleanExpression))
           return {
             result: 0,
@@ -145,10 +154,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
         const existingItem = { ...updatedCounts[existingIndex] };
         if (countingMode === "loja") existingItem.quant_loja += quantidade;
         else existingItem.quant_estoque += quantidade;
-        existingItem.total =
-          existingItem.quant_loja +
-          existingItem.quant_estoque -
-          existingItem.saldo_estoque;
         updatedCounts[existingIndex] = existingItem;
         return updatedCounts;
       } else {
@@ -396,12 +401,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       (sum, item) => sum + item.quant_estoque,
       0
     );
-    const totalSistema = productCounts.reduce(
-      (sum, item) => sum + item.saldo_estoque,
-      0
-    );
-    const consolidado = totalLoja + totalEstoque - totalSistema;
-    return { totalLoja, totalEstoque, totalSistema, consolidado };
+    return { totalLoja, totalEstoque };
   }, [productCounts]);
 
   const handleSaveCount = useCallback(async () => {
@@ -429,8 +429,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     });
     const fileName = `contagem_${new Date().toISOString().split("T")[0]}.csv`;
     try {
-      // --- CORREÇÃO APLICADA AQUI ---
-      // Removido o "/0" da rota para salvar um novo item no histórico
       const response = await fetch(`/api/inventory/${userId}/history`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -455,8 +453,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   const loadHistory = useCallback(async () => {
     if (!userId) return;
     try {
-      // --- CORREÇÃO APLICADA AQUI ---
-      // Removido o "/0" da rota para carregar todo o histórico
       const response = await fetch(`/api/inventory/${userId}/history`);
       if (!response.ok) {
         throw new Error("Falha ao carregar o histórico.");
@@ -472,7 +468,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     }
   }, [userId]);
 
-  // --- FUNÇÃO PARA DELETAR ITEM DO HISTÓRICO (sem alterações) ---
   const handleDeleteHistoryItem = useCallback(
     async (historyId: number) => {
       if (!userId) return;
@@ -489,7 +484,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
           throw new Error("Falha ao excluir o item do histórico.");
         }
 
-        // Remove o item da lista local para atualizar a UI instantaneamente
         setHistory((prevHistory) =>
           prevHistory.filter((item) => item.id !== historyId)
         );
@@ -543,5 +537,8 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     loadHistory,
     handleSaveCount,
     handleDeleteHistoryItem,
+    showMissingItemsModal,
+    setShowMissingItemsModal,
+    missingItems,
   };
 };

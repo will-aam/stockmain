@@ -9,7 +9,8 @@ import { ImportTab } from "@/components/inventory/ImportTab";
 import { ExportTab } from "@/components/inventory/ExportTab";
 import { HistoryTab } from "@/components/inventory/HistoryTab";
 import { ClearDataModal } from "@/components/shared/clear-data-modal";
-import { Navigation } from "@/components/shared/navigation"; // Importa a navegação
+import { Navigation } from "@/components/shared/navigation";
+import { MissingItemsModal } from "@/components/shared/missing-items-modal";
 import {
   Select,
   SelectContent,
@@ -55,13 +56,12 @@ export default function InventorySystem() {
 
   return (
     <>
-      {/* Navegação movida para cá, recebendo a função para abrir o modal */}
       <Navigation setShowClearDataModal={inventory.setShowClearDataModal} />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-16">
         <Tabs
           value={activeTab}
-          onValueChange={setActiveTab}
+          onValueChange={setActiveTab} // <-- CORREÇÃO APLICADA AQUI
           className="space-y-6"
         >
           <div className="hidden sm:block">
@@ -128,6 +128,7 @@ export default function InventorySystem() {
               exportToCsv={inventory.exportToCsv}
               handleSaveCount={inventory.handleSaveCount}
               setShowClearDataModal={inventory.setShowClearDataModal}
+              setShowMissingItemsModal={inventory.setShowMissingItemsModal}
             />
           </TabsContent>
 
@@ -142,6 +143,14 @@ export default function InventorySystem() {
           isOpen={inventory.showClearDataModal}
           onClose={() => inventory.setShowClearDataModal(false)}
           onConfirm={inventory.handleClearAllData}
+        />
+      )}
+
+      {inventory.showMissingItemsModal && (
+        <MissingItemsModal
+          isOpen={inventory.showMissingItemsModal}
+          onClose={() => inventory.setShowMissingItemsModal(false)}
+          items={inventory.missingItems}
         />
       )}
     </>
