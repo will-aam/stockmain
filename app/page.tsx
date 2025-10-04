@@ -61,7 +61,7 @@ export default function InventorySystem() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-16">
         <Tabs
           value={activeTab}
-          onValueChange={setActiveTab} // <-- CORREÇÃO APLICADA AQUI
+          onValueChange={setActiveTab}
           className="space-y-6"
         >
           <div className="hidden sm:block">
@@ -127,7 +127,6 @@ export default function InventorySystem() {
               productCountsStats={inventory.productCountsStats}
               exportToCsv={inventory.exportToCsv}
               handleSaveCount={inventory.handleSaveCount}
-              setShowClearDataModal={inventory.setShowClearDataModal}
               setShowMissingItemsModal={inventory.setShowMissingItemsModal}
             />
           </TabsContent>
