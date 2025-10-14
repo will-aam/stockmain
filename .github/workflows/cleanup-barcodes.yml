@@ -5,7 +5,6 @@ name: Limpeza Diaria de Codigos de Barras
 on:
   schedule:
     # Executa todos os dias às 5h da manhã no fuso horário UTC.
-    # Você pode ajustar o horário conforme sua necessidade.
     # '0 5 * * *' é a sintaxe "cron" para "às 5:00, todos os dias".
     - cron: "0 5 * * *"
   # Permite também rodar manualmente pela interface do GitHub
@@ -19,7 +18,10 @@ jobs:
     steps:
       - name: Chamar o endpoint de limpeza da API
         # Usamos a ferramenta 'curl' para fazer uma requisição web
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           curl --request GET \
-          --url '${{ secrets.SITE_URL }}/api/cron' \
-          --header 'Authorization: Bearer ${{ secrets.CRON_SECRET }}'
+            --url "$SITE_URL/api/cron" \
+            --header "Authorization: Bearer $CRON_SECRET"
