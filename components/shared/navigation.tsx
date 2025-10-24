@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { ThemeToggleButton } from "@/components/theme/theme-toggle-button";
-import { Trash2 } from "lucide-react";
+import { Scan, Trash2 } from "lucide-react";
 import { Button } from "../ui/button";
+import Link from "next/link";
 
 // 1. Define que o componente receberá a função como propriedade
 interface NavigationProps {
@@ -30,7 +31,15 @@ export function Navigation({ setShowClearDataModal }: NavigationProps) {
           </span>
 
           <div className="flex items-center space-x-2">
-            {/* 2. O botão agora usa a função recebida via props */}
+            <Link href="https://lucide.dev/icons/download" target="_blank">
+              <Button
+                variant="ghost" // Estilo mais sutil para o cabeçalho
+                size="icon" // Deixa o botão quadrado, só com o ícone
+                aria-label="Contagem"
+              >
+                <Scan className="h-5 w-5 text-blue-500" />
+              </Button>
+            </Link>
             <Button
               variant="ghost" // Estilo mais sutil para o cabeçalho
               size="icon" // Deixa o botão quadrado, só com o ícone

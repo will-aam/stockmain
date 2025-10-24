@@ -59,13 +59,15 @@ const ProductTableRow = ({
 );
 ProductTableRow.displayName = "ProductTableRow";
 
-// Componente reutilizável para as instruções
 const CsvInstructions = ({
   downloadTemplateCSV,
 }: {
   downloadTemplateCSV: () => void;
 }) => (
   <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+    <h3 className="text-base font-semibold text-blue-800 dark:text-blue-200 mb-3">
+      Instruções
+    </h3>
     <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
       <li>
         • <strong>Separador:</strong> Use ponto e vírgula (;) entre as colunas
@@ -89,17 +91,34 @@ const CsvInstructions = ({
         numérico apenas para preenchimento do campo.
       </li>
     </ul>
-    {/* A MUDANÇA ESTÁ NA LINHA ABAIXO */}
     <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="text-xs text-blue-600 dark:text-blue-400">
-        <strong>Exemplo:</strong>{" "}
-        <span className="block break-all">
-          codigo_de_barras;codigo_produto;descricao;saldo_estoque
-        </span>
-        <span className="block break-all">
-          7891234567890;PROD001;Produto Exemplo;100
-        </span>
+        <div className="relative bg-gray-950 text-gray-100 rounded-md p-3 font-mono text-xs border border-gray-800 mt-3">
+          <button
+            onClick={() => {
+              const textoVisual =
+                "codigo_de_barras;codigo_produto;descricao;saldo_estoque";
+              const textoCopiado =
+                "codigo_de_barras\tcodigo_produto\tdescricao\tsaldo_estoque";
+              navigator.clipboard.writeText(textoCopiado).then(() => {
+                const btn = document.getElementById("copy-btn");
+                if (btn) {
+                  btn.textContent = "Copiado!";
+                  setTimeout(() => (btn.textContent = "Copiar"), 2000);
+                }
+              });
+            }}
+            id="copy-btn"
+            className="absolute top-2 right-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] px-2 py-1 rounded transition-all"
+          >
+            Copiar
+          </button>
+          <pre className="overflow-x-auto whitespace-pre-wrap leading-relaxed">
+            {`codigo_de_barras;codigo_produto;descricao;saldo_estoque`}
+          </pre>
+        </div>
       </div>
+
       <Button
         variant="outline"
         size="sm"
@@ -132,12 +151,10 @@ export const ImportTab: React.FC<ImportTabProps> = ({
           </CardTitle>
           <CardDescription>Faça upload de um arquivo CSV</CardDescription>
 
-          {/* Instruções visíveis em telas grandes */}
           <div className="hidden sm:block mt-4">
             <CsvInstructions downloadTemplateCSV={downloadTemplateCSV} />
           </div>
 
-          {/* Botão para abrir modal em telas pequenas */}
           <div className="sm:hidden mt-4">
             <Dialog>
               <DialogTrigger asChild>

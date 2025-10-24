@@ -58,7 +58,8 @@ export default function InventorySystem() {
     <>
       <Navigation setShowClearDataModal={inventory.setShowClearDataModal} />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-16">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 sm:pt-16 sm:pb-8">
+        {" "}
         <Tabs
           value={activeTab}
           onValueChange={setActiveTab}
@@ -80,7 +81,6 @@ export default function InventorySystem() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="scan">Conferência</SelectItem>
-                <SelectItem value="import">Importar</SelectItem>
                 <SelectItem value="export">Exportar</SelectItem>
                 <SelectItem value="history">Histórico</SelectItem>
               </SelectContent>

@@ -105,8 +105,11 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
     <div className="grid gap-6 lg:grid-cols-2">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <Scan className="h-5 w-5 mr-2" /> Scanner de Código de Barras
+          {/* 1. Card Title shortened and margin-bottom added */}
+          <CardTitle className="flex items-center mb-4">
+            {" "}
+            {/* Added mb-4 */}
+            <Scan className="h-5 w-5 mr-2" /> Scanner {/* Shortened text */}
           </CardTitle>
           <CardDescription>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

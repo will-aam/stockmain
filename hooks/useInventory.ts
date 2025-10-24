@@ -300,7 +300,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       id: `TEMP-${scanInput}`,
       codigo_de_barras: scanInput,
       codigo_produto: `TEMP-${scanInput}`,
-      descricao: `Novo Produto (Cód: ${scanInput})`,
+      descricao: `Novo Produto`,
       saldo_estoque: 0,
       isTemporary: true,
     };
