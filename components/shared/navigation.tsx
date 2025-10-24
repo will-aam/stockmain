@@ -31,7 +31,10 @@ export function Navigation({ setShowClearDataModal }: NavigationProps) {
           </span>
 
           <div className="flex items-center space-x-2">
-            <Link href="https://lucide.dev/icons/download" target="_blank">
+            <Link
+              href="hhttps://stock-inventario-bd.netlify.app"
+              target="_blank"
+            >
               <Button
                 variant="ghost" // Estilo mais sutil para o cabeçalho
                 size="icon" // Deixa o botão quadrado, só com o ícone
