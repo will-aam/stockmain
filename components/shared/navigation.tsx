@@ -32,7 +32,7 @@ export function Navigation({ setShowClearDataModal }: NavigationProps) {
 
           <div className="flex items-center space-x-2">
             <Link
-              href="hhttps://stock-inventario-bd.netlify.app"
+              href="https://stock-inventario-bd.netlify.app"
               target="_blank"
             >
               <Button
