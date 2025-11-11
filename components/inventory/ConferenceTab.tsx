@@ -52,9 +52,17 @@ const ProductCountItem = ({
   onRemove: (id: number) => void;
 }) => (
   <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-    <div className="flex-1">
-      <p className="font-medium text-sm">{item.descricao}</p>
-      <p className="text-xs text-gray-600 dark:text-gray-400">
+    {/* 1. Adicionado 'min-w-0'
+      Isto é crucial. Diz ao flex container (flex-1) que ele PODE 
+      encolher para menos que seu conteúdo, permitindo o 'truncate' funcionar.
+    */}
+    <div className="flex-1 min-w-0">
+      {/* 2. Adicionado 'truncate' para cortar a descrição com "..." */}
+      <p className="font-medium text-sm truncate" title={item.descricao}>
+        {item.descricao}
+      </p>
+      {/* 3. Adicionado 'truncate' para cortar a linha do código de barras */}
+      <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
         Cód. Barras: {item.codigo_de_barras}| Sistema: {item.saldo_estoque}
       </p>
       <div className="flex items-center space-x-2 mt-1">
@@ -129,33 +137,39 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
             <Scan className="h-5 w-5 mr-2" /> Scanner
           </CardTitle>
           <CardDescription>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  onClick={handleSaveCount}
-                  variant="outline"
-                  className="flex-grow sm:flex-grow-0"
-                >
-                  <CloudUpload className="mr-2 h-4 w-4" />
-                  Salvar Contagem
-                </Button>
+            {/* Este 'div' agora é flex-col no mobile (padrão) e sm:flex-row em telas maiores.
+              O gap-2 dá espaço entre os botões quando eles empilham.
+            */}
+            <div className="flex flex-col sm:flex-row items-center gap-2">
+              <Button
+                onClick={handleSaveCount}
+                variant="outline"
+                // w-full (mobile) faz o botão ter 100% da largura
+                // sm:w-auto (desktop) faz ele ter largura automática
+                className="w-full sm:w-auto"
+              >
+                <CloudUpload className="mr-2 h-4 w-4" />
+                Salvar Contagem
+              </Button>
 
-                <div className="flex flex-1 space-x-2 min-w-[200px]">
-                  <Button
-                    variant={countingMode === "loja" ? "default" : "outline"}
-                    className="w-1/2"
-                    onClick={() => setCountingMode("loja")}
-                  >
-                    <Store className="h-4 w-4 mr-2" /> Loja
-                  </Button>
-                  <Button
-                    variant={countingMode === "estoque" ? "default" : "outline"}
-                    className="w-1/2"
-                    onClick={() => setCountingMode("estoque")}
-                  >
-                    <Package className="h-4 w-4 mr-2" /> Estoque
-                  </Button>
-                </div>
+              {/* Este 'div' também terá 100% de largura no mobile */}
+              <div className="flex space-x-2 w-full sm:w-auto">
+                <Button
+                  variant={countingMode === "loja" ? "default" : "outline"}
+                  // w-1/2 faz este botão ter 50% do container
+                  className="w-1/2"
+                  onClick={() => setCountingMode("loja")}
+                >
+                  <Store className="h-4 w-4 mr-2" /> Loja
+                </Button>
+                <Button
+                  variant={countingMode === "estoque" ? "default" : "outline"}
+                  // w-1/2 faz este botão ter 50% do container
+                  className="w-1/2"
+                  onClick={() => setCountingMode("estoque")}
+                >
+                  <Package className="h-4 w-4 mr-2" /> Estoque
+                </Button>
               </div>
             </div>
           </CardDescription>
