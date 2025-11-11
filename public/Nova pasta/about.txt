@@ -1,6 +1,0 @@
-This favicon was generated using the following font:
-
-- Font Title: Jost
-- Font Author: undefined
-- Font Source: https://fonts.gstatic.com/s/jost/v19/92zPtBhPNqw79Ij1E865zBUv7mwjIgVGPokMmuHL.ttf
-- Font License: undefined)
