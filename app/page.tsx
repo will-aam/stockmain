@@ -62,7 +62,7 @@ export default function InventorySystem() {
       <div ref={mainContainerRef} className="relative min-h-screen">
         <Navigation setShowClearDataModal={inventory.setShowClearDataModal} />
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-32 sm:pt-16 sm:pb-8">
+        <main className="max-w-7xl w-full px-4 sm:px-6 lg:px-8 pt-4 pb-32 sm:pt-16 sm:pb-8">
           {" "}
           {/* Aumentei o padding-bottom only para mobile para não cobrir o conteúdo com a barra flutuante */}
           <Tabs

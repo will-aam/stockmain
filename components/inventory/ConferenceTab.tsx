@@ -52,16 +52,13 @@ const ProductCountItem = ({
   onRemove: (id: number) => void;
 }) => (
   <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-    {/* 1. Adicionado 'min-w-0'
-      Isto é crucial. Diz ao flex container (flex-1) que ele PODE 
-      encolher para menos que seu conteúdo, permitindo o 'truncate' funcionar.
-    */}
+    {/* 1. Adicione min-w-0 aqui. Isso é VITAL para o truncate funcionar no flexbox */}
     <div className="flex-1 min-w-0">
-      {/* 2. Adicionado 'truncate' para cortar a descrição com "..." */}
+      {/* 2. Adicione truncate aqui */}
       <p className="font-medium text-sm truncate" title={item.descricao}>
         {item.descricao}
       </p>
-      {/* 3. Adicionado 'truncate' para cortar a linha do código de barras */}
+      {/* 3. Adicione truncate aqui também */}
       <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
         Cód. Barras: {item.codigo_de_barras}| Sistema: {item.saldo_estoque}
       </p>
