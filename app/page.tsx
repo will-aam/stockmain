@@ -12,18 +12,9 @@ import { HistoryTab } from "@/components/inventory/HistoryTab";
 import { ClearDataModal } from "@/components/shared/clear-data-modal";
 import { Navigation } from "@/components/shared/navigation";
 import { MissingItemsModal } from "@/components/shared/missing-items-modal";
-// Importe o novo modal
 import { SaveCountModal } from "@/components/shared/save-count-modal";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Loader2,
-  PackageMinus,
   Upload,
   Download,
   History as HistoryIcon,
@@ -46,24 +37,6 @@ export default function InventorySystem() {
     }
     setIsLoading(false);
   }, []);
-
-  // Adicione este useEffect para redirecionar para a aba "scan" se estiver na aba "import" em mobile
-  useEffect(() => {
-    const checkMobileView = () => {
-      if (window.innerWidth < 640 && activeTab === "import") {
-        setActiveTab("scan");
-      }
-    };
-
-    // Verifica na montagem
-    checkMobileView();
-
-    // Adiciona listener para redimensionamento
-    window.addEventListener("resize", checkMobileView);
-
-    // Limpa o listener
-    return () => window.removeEventListener("resize", checkMobileView);
-  }, [activeTab]);
 
   const inventory = useInventory({ userId: currentUserId });
 
@@ -89,7 +62,9 @@ export default function InventorySystem() {
       <div ref={mainContainerRef} className="relative min-h-screen">
         <Navigation setShowClearDataModal={inventory.setShowClearDataModal} />
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 sm:pt-16 sm:pb-8">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-24 sm:pt-16 sm:pb-8">
+          {" "}
+          {/* Aumentei o padding-bottom only para mobile para não cobrir o conteúdo com a barra flutuante */}
           <Tabs
             value={activeTab}
             onValueChange={setActiveTab}
@@ -97,7 +72,6 @@ export default function InventorySystem() {
           >
             <div className="hidden sm:block">
               <TabsList className="grid w-full grid-cols-4">
-                {/* Ícone adicionado à aba Conferência */}
                 <TabsTrigger value="scan" className="flex items-center gap-2">
                   <Scan className="h-4 w-4" />
                   Conferência
@@ -119,19 +93,7 @@ export default function InventorySystem() {
                 </TabsTrigger>
               </TabsList>
             </div>
-            <div className="sm:hidden">
-              <Select onValueChange={setActiveTab} value={activeTab}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Selecione uma aba" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="scan">Conferência</SelectItem>
-                  {/* Removido o item de importação para mobile */}
-                  <SelectItem value="export">Exportar</SelectItem>
-                  <SelectItem value="history">Histórico</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
             <TabsContent value="scan" className="space-y-6">
               <ConferenceTab
                 countingMode={inventory.countingMode}
@@ -198,7 +160,6 @@ export default function InventorySystem() {
           />
         )}
 
-        {/* --- Renderiza o novo modal de salvar --- */}
         {inventory.showSaveModal && (
           <SaveCountModal
             isOpen={inventory.showSaveModal}
@@ -215,6 +176,47 @@ export default function InventorySystem() {
             dragConstraintsRef={mainContainerRef}
           />
         )}
+
+        {/* --- NOVA BARRA DE NAVEGAÇÃO FLUTUANTE --- */}
+        <div className="sm:hidden fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="flex items-center gap-1 p-1.5 bg-background/60 backdrop-blur-xl rounded-full shadow-2xl border border-border/50">
+            <button
+              onClick={() => setActiveTab("scan")}
+              className={`flex flex-col items-center justify-center gap-1 py-2 px-5 rounded-full transition-all duration-200 ${
+                activeTab === "scan"
+                  ? "bg-primary text-primary-foreground shadow-md"
+                  : "text-muted-foreground"
+              }`}
+            >
+              <Scan className="h-5 w-5" />
+              <span className="text-xs font-medium">Conferir</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("export")}
+              className={`flex flex-col items-center justify-center gap-1 py-2 px-5 rounded-full transition-all duration-200 ${
+                activeTab === "export"
+                  ? "bg-primary text-primary-foreground shadow-md"
+                  : "text-muted-foreground"
+              }`}
+            >
+              <Download className="h-5 w-5" />
+              <span className="text-xs font-medium">Exportar</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("history")}
+              className={`flex flex-col items-center justify-center gap-1 py-2 px-5 rounded-full transition-all duration-200 ${
+                activeTab === "history"
+                  ? "bg-primary text-primary-foreground shadow-md"
+                  : "text-muted-foreground"
+              }`}
+            >
+              <HistoryIcon className="h-5 w-5" />
+              <span className="text-xs font-medium">Histórico</span>
+            </button>
+          </div>
+        </div>
       </div>
     </>
   );
