@@ -1,7 +1,6 @@
-// app/page.tsx
 "use client";
 
-import { useState, useEffect, useRef } from "react"; // Importe o useRef
+import { useState, useEffect, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInventory } from "@/hooks/useInventory";
 import { AuthModal } from "@/components/shared/AuthModal";
@@ -12,6 +11,7 @@ import { HistoryTab } from "@/components/inventory/HistoryTab";
 import { ClearDataModal } from "@/components/shared/clear-data-modal";
 import { Navigation } from "@/components/shared/navigation";
 import { MissingItemsModal } from "@/components/shared/missing-items-modal";
+import { SaveCountModal } from "@/components/shared/save-count-modal";
 import {
   Select,
   SelectContent,
@@ -19,16 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-// Importações de ícones atualizadas
 import {
   Loader2,
-  PackageMinus, // Ícone para itens faltantes
+  PackageMinus,
   Upload,
   Download,
-  History as HistoryIcon, // Renomeado para evitar conflito
-  Scan, // Ícone para a aba de conferência
+  History as HistoryIcon,
+  Scan,
 } from "lucide-react";
-// Importar o novo botão flutuante
 import { FloatingMissingItemsButton } from "@/components/shared/FloatingMissingItemsButton";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +35,7 @@ export default function InventorySystem() {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("scan");
   const [isLoading, setIsLoading] = useState(true);
-  const mainContainerRef = useRef<HTMLDivElement>(null); // 1. Crie a ref
+  const mainContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const savedUserId = sessionStorage.getItem("currentUserId");
@@ -68,12 +66,10 @@ export default function InventorySystem() {
 
   return (
     <>
-      {/* 2. Adicione a ref ao contêiner principal */}
       <div ref={mainContainerRef} className="relative min-h-screen">
         <Navigation setShowClearDataModal={inventory.setShowClearDataModal} />
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 sm:pt-16 sm:pb-8">
-          {" "}
           <Tabs
             value={activeTab}
             onValueChange={setActiveTab}
@@ -81,7 +77,6 @@ export default function InventorySystem() {
           >
             <div className="hidden sm:block">
               <TabsList className="grid w-full grid-cols-4">
-                {/* Ícone adicionado à aba Conferência */}
                 <TabsTrigger value="scan" className="flex items-center gap-2">
                   <Scan className="h-4 w-4" />
                   Conferência
@@ -174,7 +169,6 @@ export default function InventorySystem() {
           />
         )}
 
-        {/* O modal de itens faltantes continua aqui */}
         {inventory.showMissingItemsModal && (
           <MissingItemsModal
             isOpen={inventory.showMissingItemsModal}
@@ -183,12 +177,20 @@ export default function InventorySystem() {
           />
         )}
 
-        {/* O novo botão flutuante, que só aparece na aba 'scan' */}
+        {inventory.showSaveModal && (
+          <SaveCountModal
+            isOpen={inventory.showSaveModal}
+            onClose={() => inventory.setShowSaveModal(false)}
+            onConfirm={inventory.executeSaveCount}
+            isLoading={inventory.isSaving}
+          />
+        )}
+
         {activeTab === "scan" && (
           <FloatingMissingItemsButton
             itemCount={inventory.missingItems.length}
             onClick={() => inventory.setShowMissingItemsModal(true)}
-            dragConstraintsRef={mainContainerRef} // 3. Passe a ref para o componente
+            dragConstraintsRef={mainContainerRef}
           />
         )}
       </div>

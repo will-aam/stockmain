@@ -7,7 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CloudUpload, Download, Package } from "lucide-react";
+import { CloudUpload, Download } from "lucide-react";
 import type { Product, TempProduct, ProductCount } from "@/lib/types";
 
 interface ExportTabProps {
@@ -43,7 +43,6 @@ export const ExportTab: React.FC<ExportTabProps> = ({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
-            <Package className="h-5 w-5 mr-2" />
             Resumo da Contagem
           </CardTitle>
           <CardDescription>

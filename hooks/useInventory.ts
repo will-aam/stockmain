@@ -1,3 +1,5 @@
+// hooks/useInventory.ts
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -30,12 +32,14 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvErrors, setCsvErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [countingMode, setCountingMode] = useState<"loja" | "estoque">("loja");
   const [productCounts, setProductCounts] = useState<ProductCount[]>([]);
   const [showClearDataModal, setShowClearDataModal] = useState(false);
   const [isCameraViewActive, setIsCameraViewActive] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [showMissingItemsModal, setShowMissingItemsModal] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
 
   const loadCatalogFromDb = useCallback(async () => {
     if (!userId) {
@@ -155,8 +159,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
         if (countingMode === "loja") existingItem.quant_loja += quantidade;
         else existingItem.quant_estoque += quantidade;
 
-        // --- CORREÇÃO APLICADA AQUI ---
-        // Forçamos a conversão de todos os valores para Número antes de calcular
+        // Força conversão para Número antes de calcular
         existingItem.total =
           Number(existingItem.quant_loja) +
           Number(existingItem.quant_estoque) -
@@ -165,14 +168,13 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
         updatedCounts[existingIndex] = existingItem;
         return updatedCounts;
       } else {
-        // --- E AQUI TAMBÉM, PARA GARANTIR ---
         const saldoAsNumber = Number(currentProduct.saldo_estoque);
         const newCount: ProductCount = {
           id: Date.now(),
           codigo_de_barras: scanInput,
           codigo_produto: currentProduct.codigo_produto,
           descricao: currentProduct.descricao,
-          saldo_estoque: saldoAsNumber, // Garante que seja salvo como número
+          saldo_estoque: saldoAsNumber,
           quant_loja: countingMode === "loja" ? quantidade : 0,
           quant_estoque: countingMode === "estoque" ? quantidade : 0,
           total:
@@ -438,14 +440,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     [userId]
   );
 
-  // --- NOVA FUNÇÃO CENTRALIZADA PARA GERAR O RELATÓRIO COMPLETO ---
-  // hooks/useInventory.ts
-
-  // ... (outras funções do hook) ...
-
-  // --- NOVA FUNÇÃO CENTRALIZADA PARA GERAR O RELATÓRIO COMPLETO ---
   const generateCompleteReportData = useCallback(() => {
-    // Pega os itens que já foram contados
     const countedItemsData = productCounts.map((item) => ({
       codigo_de_barras: item.codigo_de_barras,
       codigo_produto: item.codigo_produto,
@@ -456,12 +451,10 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       total: item.total,
     }));
 
-    // Cria um mapa para saber quais produtos já foram contados
     const countedProductCodes = new Set(
       productCounts.map((pc) => pc.codigo_produto)
     );
 
-    // Pega os itens do catálogo que NÃO foram contados e os formata com quantidades zeradas
     const uncountedItemsData = products
       .filter((p) => !countedProductCodes.has(p.codigo_produto))
       .map((product) => {
@@ -474,22 +467,15 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
           saldo_estoque: saldo,
           quant_loja: 0,
           quant_estoque: 0,
-          total: -saldo, // O total para itens não contados é o saldo negativo
+          total: -saldo,
         };
       });
 
-    // Combina as duas listas: os contados e os não contados (zerados)
     const combinedData = [...countedItemsData, ...uncountedItemsData];
-
-    // --- ADICIONE ESTA LINHA ---
-    // Classifica a lista combinada alfabeticamente pela descrição
     combinedData.sort((a, b) => a.descricao.localeCompare(b.descricao));
-    // --------------------------
-
-    return combinedData; // Retorna os dados combinados E ORDENADOS
+    return combinedData;
   }, [products, productCounts, barCodes]);
 
-  // --- FUNÇÕES DE EXPORTAR E SALVAR ATUALIZADAS ---
   const exportToCsv = useCallback(() => {
     if (products.length === 0) {
       toast({
@@ -528,40 +514,72 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       });
       return;
     }
+    // Apenas abre o modal
+    setShowSaveModal(true);
+  }, [userId, products]);
 
-    const dataToExport = generateCompleteReportData();
-
-    const csvContent = Papa.unparse(dataToExport, {
-      header: true,
-      delimiter: ";",
-      quotes: true,
-    });
-
-    const fileName = `contagem_${new Date().toISOString().split("T")[0]}.csv`;
-
-    try {
-      const response = await fetch(`/api/inventory/${userId}/history`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileName, csvContent }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Falha ao salvar a contagem no servidor.");
+  const executeSaveCount = useCallback(
+    async (baseName: string) => {
+      if (!userId || products.length === 0) {
+        toast({
+          title: "Nada para salvar",
+          description: "Não há um catálogo de produtos carregado.",
+          variant: "destructive",
+        });
+        return;
       }
 
-      toast({
-        title: "Sucesso!",
-        description: "Sua contagem foi salva no histórico.",
+      // Validação simples do nome
+      if (!baseName || baseName.trim().length === 0) {
+        toast({
+          title: "Nome inválido",
+          description: "Por favor, forneça um nome para o arquivo.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setIsSaving(true); // Inicia o estado de "salvando"
+      const dataToExport = generateCompleteReportData();
+
+      const csvContent = Papa.unparse(dataToExport, {
+        header: true,
+        delimiter: ";",
+        quotes: true,
       });
-    } catch (error: any) {
-      toast({
-        title: "Erro ao salvar",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  }, [userId, products, generateCompleteReportData]);
+
+      // Constrói o nome do arquivo com o prefixo do usuário e o sufixo da data
+      const dateSuffix = new Date().toISOString().split("T")[0];
+      const fileName = `${baseName.trim()}_${dateSuffix}.csv`;
+
+      try {
+        const response = await fetch(`/api/inventory/${userId}/history`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileName, csvContent }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Falha ao salvar a contagem no servidor.");
+        }
+
+        toast({
+          title: "Sucesso!",
+          description: "Sua contagem foi salva no histórico.",
+        });
+        setShowSaveModal(false); // Fecha o modal
+      } catch (error: any) {
+        toast({
+          title: "Erro ao salvar",
+          description: error.message,
+          variant: "destructive",
+        });
+      } finally {
+        setIsSaving(false); // Finaliza o estado de "salvando"
+      }
+    },
+    [userId, products, generateCompleteReportData]
+  );
 
   return {
     products,
@@ -575,6 +593,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     csvFile,
     csvErrors,
     isLoading,
+    isSaving,
     countingMode,
     setCountingMode,
     productCounts,
@@ -600,5 +619,8 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     showMissingItemsModal,
     setShowMissingItemsModal,
     missingItems,
+    showSaveModal,
+    setShowSaveModal,
+    executeSaveCount,
   };
 };
