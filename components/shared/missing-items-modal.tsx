@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { X, PackageSearch } from "lucide-react";
+import { X, PackageMinus } from "lucide-react";
 
 interface MissingItem {
   codigo_de_barras: string;
@@ -35,7 +35,7 @@ export function MissingItemsModal({
         <CardHeader className="flex flex-row items-center justify-between pb-4">
           <div className="flex items-center space-x-2">
             <div className="p-2 bg-amber-100 dark:bg-amber-900/20 rounded-full">
-              <PackageSearch className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <PackageMinus className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
             <CardTitle className="text-lg">
               Itens Faltantes ({items.length})

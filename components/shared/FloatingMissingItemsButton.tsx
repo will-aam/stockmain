@@ -34,16 +34,16 @@ export function FloatingMissingItemsButton({
       <Button
         onClick={onClick}
         variant="outline"
-        size="icon"
         className={cn(
           "relative h-14 w-14 rounded-full shadow-lg",
-          "bg-amber-500 text-white", // Use a distinct color for visibility
-          "hover:bg-amber-600 focus:ring-2 focus:ring-amber-700",
-          "dark:bg-amber-600 dark:text-white dark:hover:bg-amber-700"
+          "bg-amber-500 text-white",
+          "hover:bg-amber-800 focus:ring-2 focus:ring-amber-800",
+          "dark:bg-amber-600 dark:text-white dark:hover:bg-amber-800",
+          "flex items-center justify-center"
         )}
         aria-label={`Mostrar ${itemCount} itens faltantes`}
       >
-        <PackageMinus className="h-6 w-6" />
+        <PackageMinus className="!h-8 !w-8" />{" "}
         <span className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">
           {itemCount}
         </span>

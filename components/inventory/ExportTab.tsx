@@ -7,16 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { CloudUpload, Download, FileSpreadsheet, Package } from "lucide-react";
+import { CloudUpload, Download, Package } from "lucide-react";
 import type { Product, TempProduct, ProductCount } from "@/lib/types";
 
 interface ExportTabProps {
