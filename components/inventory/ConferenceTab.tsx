@@ -178,7 +178,6 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                     pattern="[0-9]*"
                     value={scanInput}
                     onChange={(e) => {
-                      // Filtra para aceitar apenas dígitos
                       const numericValue = e.target.value.replace(/\D/g, "");
                       setScanInput(numericValue);
                     }}
@@ -249,25 +248,57 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                 </div>
               )}
               <div className="space-y-2">
-                <Label htmlFor="quantity">
-                  Quantidade{" "}
-                  {countingMode === "loja" ? "em Loja" : "em Estoque"}
-                </Label>
-                <Input
-                  id="quantity"
-                  type="text" // Mantém "text" para aceitar expressões como "2+2"
-                  inputMode="numeric" // Sugere teclado numérico, mas permite "+"
-                  value={quantityInput}
-                  onChange={(e) => setQuantityInput(e.target.value)}
-                  onKeyPress={handleQuantityKeyPress}
-                  placeholder="Qtd ou expressão (ex: 24+24)"
-                  min="0"
-                  className="mobile-optimized font-mono"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 bold">
-                  Pressione Enter para calcular
-                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="quantity">
+                    Quantidade{" "}
+                    {countingMode === "loja" ? "em Loja" : "em Estoque"}
+                  </Label>
+
+                  <div className="flex gap-2 items-stretch">
+                    {/* INPUT NUMÉRICO */}
+                    <Input
+                      id="quantity"
+                      type="text"
+                      inputMode="numeric" // força teclado numérico no celular
+                      value={quantityInput}
+                      onChange={(e) => {
+                        // só deixa números digitados
+                        const onlyNumbers = e.target.value.replace(/\D/g, "");
+                        setQuantityInput(onlyNumbers);
+                      }}
+                      onKeyPress={handleQuantityKeyPress}
+                      placeholder="Qtd"
+                      className="flex-1 mobile-optimized font-mono"
+                    />
+
+                    {/* BOTÕES DE OPERADOR */}
+                    <div className="flex gap-1 flex-wrap">
+                      {["+", "-", "*", "/"].map((op) => (
+                        <Button
+                          key={op}
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9"
+                          onClick={() => {
+                            // aqui usamos o valor atual vindo da prop
+                            const current = quantityInput || "";
+                            setQuantityInput(current + op);
+                          }}
+                        >
+                          {op}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Digite o número e use os botões pra montar o cálculo. Enter
+                    para calcular.
+                  </p>
+                </div>
               </div>
+
               <Button
                 onClick={handleAddCount}
                 className="w-full mobile-button"

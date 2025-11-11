@@ -10,15 +10,20 @@ interface BarcodeScannerProps {
   onClose: () => void;
 }
 
+const MIN_BARCODE_LENGTH = 8; // ajuste pro tamanho que você usa
+
 export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+
+  // guarda o último código lido pra não disparar sem parar
+  const lastScannedRef = useRef<string | null>(null);
+  const lastScanTimeRef = useRef<number>(0);
 
   const playBeep = () => {
     try {
       const audioContext = new (window.AudioContext ||
         (window as any).webkitAudioContext)();
-      // CORRIGIDO AQUI:
       const oscillator = audioContext.createOscillator();
       oscillator.type = "sine";
       oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
@@ -32,8 +37,26 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
 
   const handleScanResult = useCallback(
     (result: string) => {
+      // ignora códigos muito curtos (às vezes a câmera pega lixo)
+      if (!result || result.length < MIN_BARCODE_LENGTH) return;
+
+      const now = Date.now();
+
+      // se for o mesmo código e faz menos de 1s, ignora
+      if (
+        lastScannedRef.current === result &&
+        now - lastScanTimeRef.current < 1000
+      ) {
+        return;
+      }
+
+      lastScannedRef.current = result;
+      lastScanTimeRef.current = now;
+
       playBeep();
       onScan(result);
+      // se você quiser fechar a câmera logo após ler:
+      // onClose();
     },
     [onScan]
   );

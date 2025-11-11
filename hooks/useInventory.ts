@@ -5,6 +5,9 @@ import { toast } from "@/hooks/use-toast";
 import * as Papa from "papaparse";
 import type { Product, BarCode, ProductCount, TempProduct } from "@/lib/types";
 
+// ✅ define aqui fora pra não dar warning em useCallback/useEffect
+const MIN_BARCODE_LENGTH = 8; // ajuste pra 8, 10, 13...
+
 const loadCountsFromLocalStorage = (userId: number | null): ProductCount[] => {
   if (typeof window === "undefined" || !userId) {
     return [];
@@ -30,14 +33,14 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvErrors, setCsvErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false); // Para feedback no modal de salvar
+  const [isSaving, setIsSaving] = useState(false);
   const [countingMode, setCountingMode] = useState<"loja" | "estoque">("loja");
   const [productCounts, setProductCounts] = useState<ProductCount[]>([]);
   const [showClearDataModal, setShowClearDataModal] = useState(false);
   const [isCameraViewActive, setIsCameraViewActive] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [showMissingItemsModal, setShowMissingItemsModal] = useState(false);
-  const [showSaveModal, setShowSaveModal] = useState(false); // Estado para o novo modal
+  const [showSaveModal, setShowSaveModal] = useState(false);
 
   const loadCatalogFromDb = useCallback(async () => {
     if (!userId) {
@@ -157,8 +160,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
         if (countingMode === "loja") existingItem.quant_loja += quantidade;
         else existingItem.quant_estoque += quantidade;
 
-        // --- CORREÇÃO APLICADA AQUI ---
-        // Forçamos a conversão de todos os valores para Número antes de calcular
         existingItem.total =
           Number(existingItem.quant_loja) +
           Number(existingItem.quant_estoque) -
@@ -167,14 +168,13 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
         updatedCounts[existingIndex] = existingItem;
         return updatedCounts;
       } else {
-        // --- E AQUI TAMBÉM, PARA GARANTIR ---
         const saldoAsNumber = Number(currentProduct.saldo_estoque);
         const newCount: ProductCount = {
           id: Date.now(),
           codigo_de_barras: scanInput,
           codigo_produto: currentProduct.codigo_produto,
           descricao: currentProduct.descricao,
-          saldo_estoque: saldoAsNumber, // Garante que seja salvo como número
+          saldo_estoque: saldoAsNumber,
           quant_loja: countingMode === "loja" ? quantidade : 0,
           quant_estoque: countingMode === "estoque" ? quantidade : 0,
           total:
@@ -253,7 +253,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
         });
         const data = await response.json();
         if (!response.ok) {
-          // Captura erros de validação do backend
           if (data.details) {
             const errorMessages = data.details
               .map(
@@ -297,29 +296,34 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     [processCsvFile]
   );
 
+  // ✅ handleScan agora só age quando tiver tamanho suficiente
   const handleScan = useCallback(() => {
-    if (scanInput.trim() === "") return;
-    const barCode = barCodes.find((bc) => bc.codigo_de_barras === scanInput);
+    const code = scanInput.trim();
+    if (code === "" || code.length < MIN_BARCODE_LENGTH) {
+      return;
+    }
+
+    const barCode = barCodes.find((bc) => bc.codigo_de_barras === code);
     if (barCode?.produto) {
       setCurrentProduct(barCode.produto);
       return;
     }
-    const tempProduct = tempProducts.find(
-      (tp) => tp.codigo_de_barras === scanInput
-    );
+
+    const tempProduct = tempProducts.find((tp) => tp.codigo_de_barras === code);
     if (tempProduct) {
       setCurrentProduct(tempProduct);
       return;
     }
+
     const newTempProduct: TempProduct = {
-      id: `TEMP-${scanInput}`,
-      codigo_de_barras: scanInput,
-      codigo_produto: `TEMP-${scanInput}`,
+      id: `TEMP-${code}`,
+      codigo_de_barras: code,
+      codigo_produto: `TEMP-${code}`,
       descricao: `Novo Produto`,
       saldo_estoque: 0,
       isTemporary: true,
     };
-    setTempProducts((prev) => [...prev, newTempProduct]); // Adiciona o novo produto temporário à lista
+    setTempProducts((prev) => [...prev, newTempProduct]);
     setCurrentProduct(newTempProduct);
     toast({
       title: "Produto não cadastrado",
@@ -328,30 +332,30 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     });
   }, [scanInput, barCodes, tempProducts]);
 
-  const handleBarcodeScanned = useCallback(
-    (barcode: string) => {
-      setIsCameraViewActive(false);
-      setScanInput(barcode);
-      // Usamos um pequeno timeout para garantir que o estado de scanInput seja atualizado antes de chamar handleScan
-      setTimeout(() => {
-        // Seleciona o input de quantidade para digitação imediata
-        const quantityEl = document.getElementById("quantity");
-        if (quantityEl) {
-          quantityEl.focus();
-        }
-      }, 100);
-    },
-    [] // handleScan foi removido das dependências, pois ele usará o estado mais recente de scanInput
-  );
+  const handleBarcodeScanned = useCallback((barcode: string) => {
+    setIsCameraViewActive(false);
+    setScanInput(barcode);
+    setTimeout(() => {
+      const quantityEl = document.getElementById("quantity");
+      if (quantityEl) {
+        quantityEl.focus();
+      }
+    }, 100);
+  }, []);
 
-  // Atualiza o currentProduct quando o scanInput muda (após scan ou digitação)
+  // ✅ agora ele não dispara busca a cada dígito
   useEffect(() => {
-    if (scanInput) {
-      handleScan();
-    } else {
+    if (!scanInput) {
       setCurrentProduct(null);
+      return;
     }
-  }, [scanInput, barCodes, tempProducts, handleScan]);
+
+    if (scanInput.trim().length < MIN_BARCODE_LENGTH) {
+      return;
+    }
+
+    handleScan();
+  }, [scanInput, handleScan]);
 
   const handleQuantityKeyPress = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -371,7 +375,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
             });
         } else if (currentProduct) {
           handleAddCount();
-          // Foca no input do código de barras após adicionar
           const barcodeEl = document.getElementById("barcode");
           if (barcodeEl) {
             barcodeEl.focus();
@@ -477,9 +480,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     [userId]
   );
 
-  // --- FUNÇÃO DE RELATÓRIO COMPLETO (sem alterações) ---
   const generateCompleteReportData = useCallback(() => {
-    // Pega os itens que já foram contados (incluindo TEMP)
     const countedItemsData = productCounts.map((item) => ({
       codigo_de_barras: item.codigo_de_barras,
       codigo_produto: item.codigo_produto,
@@ -490,14 +491,12 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       total: item.total,
     }));
 
-    // Cria um mapa para saber quais produtos do *catálogo* já foram contados
     const countedProductCodes = new Set(
       productCounts
-        .filter((p) => !p.codigo_produto.startsWith("TEMP-")) // Ignora os temps aqui
+        .filter((p) => !p.codigo_produto.startsWith("TEMP-"))
         .map((pc) => pc.codigo_produto)
     );
 
-    // Pega os itens do catálogo que NÃO foram contados e os formata com quantidades zeradas
     const uncountedItemsData = products
       .filter((p) => !countedProductCodes.has(p.codigo_produto))
       .map((product) => {
@@ -510,22 +509,18 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
           saldo_estoque: saldo,
           quant_loja: 0,
           quant_estoque: 0,
-          total: -saldo, // O total para itens não contados é o saldo negativo
+          total: -saldo,
         };
       });
 
-    // Combina as duas listas: os contados (reais e temps) e os não contados (zerados do catálogo)
     const combinedData = [...countedItemsData, ...uncountedItemsData];
 
-    // Classifica a lista combinada alfabeticamente pela descrição
     combinedData.sort((a, b) => a.descricao.localeCompare(b.descricao));
 
-    return combinedData; // Retorna os dados combinados E ORDENADOS
+    return combinedData;
   }, [products, productCounts, barCodes]);
 
-  // --- FUNÇÃO DE EXPORTAR (sem alterações) ---
   const exportToCsv = useCallback(() => {
-    // Alterado: agora verifica se há *qualquer* dado para exportar
     if (products.length === 0 && productCounts.length === 0) {
       toast({
         title: "Nenhum item para exportar",
@@ -554,7 +549,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     URL.revokeObjectURL(link.href);
   }, [products, productCounts, generateCompleteReportData]);
 
-  // --- FUNÇÃO ATUALIZADA: AGORA SÓ ABRE O MODAL ---
   const handleSaveCount = useCallback(async () => {
     if (!userId) {
       toast({
@@ -565,9 +559,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       return;
     }
 
-    // Permite salvar mesmo se products.length for 0 (para salvar contagens só com itens TEMP)
-    // ou se productCounts.length for 0 (para salvar um relatório zerado)
-    // A única trava é não ter nem catálogo nem contagem.
     if (products.length === 0 && productCounts.length === 0) {
       toast({
         title: "Nada para salvar",
@@ -578,14 +569,12 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       return;
     }
 
-    // Abre o modal para o usuário inserir o nome
     setShowSaveModal(true);
   }, [userId, products.length, productCounts.length]);
 
-  // --- NOVA FUNÇÃO: EXECUTADA QUANDO O MODAL DÁ "OK" ---
   const executeSaveCount = useCallback(
     async (baseName: string) => {
-      if (!userId) return; // Checagem de segurança
+      if (!userId) return;
 
       setIsSaving(true);
       try {
@@ -597,7 +586,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
           quotes: true,
         });
 
-        // Formata o nome do arquivo
         const date = new Date();
         const dateSuffix = `${date.getFullYear()}-${(date.getMonth() + 1)
           .toString()
@@ -622,8 +610,8 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
           description: "Sua contagem foi salva no histórico.",
         });
 
-        await loadHistory(); // Atualiza a lista na aba Histórico
-        setShowSaveModal(false); // Fecha o modal
+        await loadHistory();
+        setShowSaveModal(false);
       } catch (error: any) {
         toast({
           title: "Erro ao salvar",
@@ -631,7 +619,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
           variant: "destructive",
         });
       } finally {
-        setIsSaving(false); // Para o spinner do botão
+        setIsSaving(false);
       }
     },
     [userId, generateCompleteReportData, loadHistory]
@@ -649,7 +637,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     csvFile,
     csvErrors,
     isLoading,
-    isSaving, // <- Exporta o novo estado
+    isSaving,
     countingMode,
     setCountingMode,
     productCounts,
@@ -670,13 +658,13 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     downloadTemplateCSV,
     history,
     loadHistory,
-    handleSaveCount, // <- Exporta a função que abre o modal
-    executeSaveCount, // <- Exporta a função que realmente salva
+    handleSaveCount,
+    executeSaveCount,
     handleDeleteHistoryItem,
     showMissingItemsModal,
     setShowMissingItemsModal,
     missingItems,
-    showSaveModal, // <- Exporta o estado do modal
-    setShowSaveModal, // <- Exporta o setter do modal
+    showSaveModal,
+    setShowSaveModal,
   };
 };
