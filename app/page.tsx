@@ -47,6 +47,24 @@ export default function InventorySystem() {
     setIsLoading(false);
   }, []);
 
+  // Adicione este useEffect para redirecionar para a aba "scan" se estiver na aba "import" em mobile
+  useEffect(() => {
+    const checkMobileView = () => {
+      if (window.innerWidth < 640 && activeTab === "import") {
+        setActiveTab("scan");
+      }
+    };
+
+    // Verifica na montagem
+    checkMobileView();
+
+    // Adiciona listener para redimensionamento
+    window.addEventListener("resize", checkMobileView);
+
+    // Limpa o listener
+    return () => window.removeEventListener("resize", checkMobileView);
+  }, [activeTab]);
+
   const inventory = useInventory({ userId: currentUserId });
 
   const handleUnlock = (userId: number) => {
@@ -72,7 +90,6 @@ export default function InventorySystem() {
         <Navigation setShowClearDataModal={inventory.setShowClearDataModal} />
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 sm:pt-16 sm:pb-8">
-          {" "}
           <Tabs
             value={activeTab}
             onValueChange={setActiveTab}
@@ -109,7 +126,7 @@ export default function InventorySystem() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="scan">Conferência</SelectItem>
-                  <SelectItem value="import">Importar</SelectItem>
+                  {/* Removido o item de importação para mobile */}
                   <SelectItem value="export">Exportar</SelectItem>
                   <SelectItem value="history">Histórico</SelectItem>
                 </SelectContent>
