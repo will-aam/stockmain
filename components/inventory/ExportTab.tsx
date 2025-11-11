@@ -57,7 +57,7 @@ export const ExportTab: React.FC<ExportTabProps> = ({
                 {products.length}
               </p>
               <p className="text-sm text-blue-800 dark:text-blue-200">
-                Produtos no Catálogo
+                Itens no Catálogo
               </p>
             </div>
             <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-center">
@@ -65,7 +65,7 @@ export const ExportTab: React.FC<ExportTabProps> = ({
                 {productCounts.length}
               </p>
               <p className="text-sm text-green-800 dark:text-green-200">
-                Produtos Contados
+                Itens Contados
               </p>
             </div>
             <div

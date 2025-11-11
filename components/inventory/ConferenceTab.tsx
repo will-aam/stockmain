@@ -259,7 +259,7 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Produtos Contados ({productCounts.length})</CardTitle>
+          <CardTitle>Itens Contados ({productCounts.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2 max-h-96 overflow-y-auto">
