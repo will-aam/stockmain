@@ -2,8 +2,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// Objeto hardcodedPasswords foi removido
-
 export async function POST(request: Request) {
   try {
     // O valor recebido aqui será o email que o usuário digitou no campo senha
