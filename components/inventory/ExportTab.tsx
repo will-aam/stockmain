@@ -39,13 +39,13 @@ export const ExportTab: React.FC<ExportTabProps> = ({
   productCountsStats,
   exportToCsv,
   handleSaveCount,
-  setShowMissingItemsModal, // Prop é mantida por consistência do hook, mas não é usada aqui
+  setShowMissingItemsModal,
 }) => {
-  // const missingItemsCount = Math.max(
-  //   0,
-  //   products.length -
-  //     productCounts.filter((p) => !p.codigo_produto.startsWith("TEMP-")).length
-  // ); // Esta lógica agora está no useInventory e é usada pelo FloatingButton
+  const missingItemsCount = Math.max(
+    0,
+    products.length -
+      productCounts.filter((p) => !p.codigo_produto.startsWith("TEMP-")).length
+  );
 
   return (
     <div className="space-y-6">
@@ -60,8 +60,7 @@ export const ExportTab: React.FC<ExportTabProps> = ({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* A grid agora tem 2 colunas em telas médias */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-center">
               <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                 {products.length}
@@ -78,7 +77,20 @@ export const ExportTab: React.FC<ExportTabProps> = ({
                 Produtos Contados
               </p>
             </div>
-            {/* O card de itens faltantes foi removido daqui */}
+            <div
+              className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-center cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+              onClick={() => setShowMissingItemsModal(true)}
+            >
+              <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                {missingItemsCount}
+              </p>
+              <p className="text-sm text-amber-800 dark:text-amber-200">
+                Itens Faltantes
+              </p>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                Clique para ver a lista
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
