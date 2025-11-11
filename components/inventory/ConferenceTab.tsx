@@ -1,5 +1,5 @@
 // src/components/inventory/ConferenceTab.tsx
-import type React from "react";
+import React from "react";
 import {
   Card,
   CardContent,
@@ -18,10 +18,12 @@ import {
   Camera,
   Plus,
   Trash2,
+  Search,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { Product, TempProduct, ProductCount } from "@/lib/types";
 import { BarcodeScanner } from "@/components/features/barcode-scanner";
+import { useMemo } from "react";
 
 interface ConferenceTabProps {
   countingMode: "loja" | "estoque";
@@ -102,15 +104,25 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
   handleRemoveCount,
   handleSaveCount,
 }) => {
+  const [searchQuery, setSearchQuery] = React.useState("");
+
+  const filteredProductCounts = useMemo(() => {
+    if (!searchQuery) {
+      return productCounts;
+    }
+    return productCounts.filter(
+      (item) =>
+        item.descricao.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.codigo_de_barras.includes(searchQuery)
+    );
+  }, [productCounts, searchQuery]);
+
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <Card>
         <CardHeader>
-          {/* 1. Card Title shortened and margin-bottom added */}
           <CardTitle className="flex items-center mb-4">
-            {" "}
-            {/* Added mb-4 */}
-            <Scan className="h-5 w-5 mr-2" /> Scanner {/* Shortened text */}
+            <Scan className="h-5 w-5 mr-2" /> Scanner
           </CardTitle>
           <CardDescription>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -258,21 +270,39 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
         </CardContent>
       </Card>
       <Card>
-        <CardHeader>
-          <CardTitle>Itens Contados ({productCounts.length})</CardTitle>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col gap-3">
+            <CardTitle className="text-lg">
+              Itens Contados ({productCounts.length})
+            </CardTitle>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar por descrição ou código..."
+                className="pl-10 pr-4 h-10 text-sm bg-background border-input shadow-sm transition-all duration-200 focus-within:ring-2 focus-within:ring-ring focus-within:border-ring"
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-2 max-h-96 overflow-y-auto">
-            {productCounts.length === 0 ? (
+            {filteredProductCounts.length === 0 ? (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="font-medium">Nenhum produto contado ainda</p>
+                <p className="font-medium">
+                  {searchQuery
+                    ? `Nenhum produto encontrado para "${searchQuery}"`
+                    : "Nenhum produto contado ainda"}
+                </p>
                 <p className="text-sm">
-                  Escaneie um código de barras para começar
+                  {!searchQuery && "Escaneie um código de barras para começar"}
                 </p>
               </div>
             ) : (
-              productCounts.map((item) => (
+              filteredProductCounts.map((item) => (
                 <ProductCountItem
                   key={item.id}
                   item={item}
