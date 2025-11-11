@@ -173,8 +173,15 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                 <div className="flex space-x-2">
                   <Input
                     id="barcode"
+                    type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={scanInput}
-                    onChange={(e) => setScanInput(e.target.value)}
+                    onChange={(e) => {
+                      // Filtra para aceitar apenas dígitos
+                      const numericValue = e.target.value.replace(/\D/g, "");
+                      setScanInput(numericValue);
+                    }}
                     placeholder="Digite ou escaneie"
                     className="flex-1 mobile-optimized"
                     onKeyPress={(e) => e.key === "Enter" && handleScan()}
@@ -248,7 +255,8 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                 </Label>
                 <Input
                   id="quantity"
-                  type="text"
+                  type="text" // Mantém "text" para aceitar expressões como "2+2"
+                  inputMode="numeric" // Sugere teclado numérico, mas permite "+"
                   value={quantityInput}
                   onChange={(e) => setQuantityInput(e.target.value)}
                   onKeyPress={handleQuantityKeyPress}
