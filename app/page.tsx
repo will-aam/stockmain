@@ -1,3 +1,4 @@
+// app/page.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -11,6 +12,7 @@ import { HistoryTab } from "@/components/inventory/HistoryTab";
 import { ClearDataModal } from "@/components/shared/clear-data-modal";
 import { Navigation } from "@/components/shared/navigation";
 import { MissingItemsModal } from "@/components/shared/missing-items-modal";
+// Importe o novo modal
 import { SaveCountModal } from "@/components/shared/save-count-modal";
 import {
   Select,
@@ -70,6 +72,7 @@ export default function InventorySystem() {
         <Navigation setShowClearDataModal={inventory.setShowClearDataModal} />
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 sm:pt-16 sm:pb-8">
+          {" "}
           <Tabs
             value={activeTab}
             onValueChange={setActiveTab}
@@ -77,6 +80,7 @@ export default function InventorySystem() {
           >
             <div className="hidden sm:block">
               <TabsList className="grid w-full grid-cols-4">
+                {/* Ícone adicionado à aba Conferência */}
                 <TabsTrigger value="scan" className="flex items-center gap-2">
                   <Scan className="h-4 w-4" />
                   Conferência
@@ -177,6 +181,7 @@ export default function InventorySystem() {
           />
         )}
 
+        {/* --- Renderiza o novo modal de salvar --- */}
         {inventory.showSaveModal && (
           <SaveCountModal
             isOpen={inventory.showSaveModal}

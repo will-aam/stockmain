@@ -1,4 +1,3 @@
-// components/shared/save-count-modal.tsx
 "use client";
 
 import { useState } from "react";
@@ -29,6 +28,7 @@ export function SaveCountModal({
   onConfirm,
   isLoading,
 }: SaveCountModalProps) {
+  // O nome padrão é "contagem", como solicitado
   const [fileName, setFileName] = useState("contagem");
 
   const handleSave = () => {
@@ -40,15 +40,14 @@ export function SaveCountModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[95vw] max-w-[425px] rounded-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-center sm:justify-start">
+        <DialogHeader className="text-left">
+          <DialogTitle className="flex items-center">
             <Save className="mr-2 h-5 w-5" />
             Salvar Contagem
           </DialogTitle>
           <DialogDescription>
-            Digite um nome para este relatório de contagem. A data será
-            adicionada automaticamente ao final do nome (ex:
-            nome_AAAA-MM-DD.csv).
+            Digite um nome para este relatório. A data será adicionada
+            automaticamente (ex: nome_AAAA-MM-DD.csv).
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -63,6 +62,7 @@ export function SaveCountModal({
               className="sm:col-span-3"
               placeholder="Ex: inventario_loja_a"
               disabled={isLoading}
+              onKeyPress={(e) => e.key === "Enter" && handleSave()}
             />
           </div>
         </div>

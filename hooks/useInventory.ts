@@ -1,5 +1,3 @@
-// hooks/useInventory.ts
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -32,14 +30,14 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvErrors, setCsvErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // Para feedback no modal de salvar
   const [countingMode, setCountingMode] = useState<"loja" | "estoque">("loja");
   const [productCounts, setProductCounts] = useState<ProductCount[]>([]);
   const [showClearDataModal, setShowClearDataModal] = useState(false);
   const [isCameraViewActive, setIsCameraViewActive] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [showMissingItemsModal, setShowMissingItemsModal] = useState(false);
-  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false); // Estado para o novo modal
 
   const loadCatalogFromDb = useCallback(async () => {
     if (!userId) {
@@ -159,7 +157,8 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
         if (countingMode === "loja") existingItem.quant_loja += quantidade;
         else existingItem.quant_estoque += quantidade;
 
-        // Força conversão para Número antes de calcular
+        // --- CORREÇÃO APLICADA AQUI ---
+        // Forçamos a conversão de todos os valores para Número antes de calcular
         existingItem.total =
           Number(existingItem.quant_loja) +
           Number(existingItem.quant_estoque) -
@@ -168,13 +167,14 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
         updatedCounts[existingIndex] = existingItem;
         return updatedCounts;
       } else {
+        // --- E AQUI TAMBÉM, PARA GARANTIR ---
         const saldoAsNumber = Number(currentProduct.saldo_estoque);
         const newCount: ProductCount = {
           id: Date.now(),
           codigo_de_barras: scanInput,
           codigo_produto: currentProduct.codigo_produto,
           descricao: currentProduct.descricao,
-          saldo_estoque: saldoAsNumber,
+          saldo_estoque: saldoAsNumber, // Garante que seja salvo como número
           quant_loja: countingMode === "loja" ? quantidade : 0,
           quant_estoque: countingMode === "estoque" ? quantidade : 0,
           total:
@@ -252,8 +252,21 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
           body: formData,
         });
         const data = await response.json();
-        if (!response.ok)
+        if (!response.ok) {
+          // Captura erros de validação do backend
+          if (data.details) {
+            const errorMessages = data.details
+              .map(
+                (d: { codigo_de_barras: string; linhas: number[] }) =>
+                  `Barra: ${d.codigo_de_barras} (Linhas: ${d.linhas.join(
+                    ", "
+                  )})`
+              )
+              .join("; ");
+            throw new Error(`${data.error} ${errorMessages}`);
+          }
           throw new Error(data.error || "Falha ao importar o arquivo CSV.");
+        }
         toast({
           title: "Sucesso!",
           description: `${data.importedCount} produtos foram importados.`,
@@ -306,6 +319,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       saldo_estoque: 0,
       isTemporary: true,
     };
+    setTempProducts((prev) => [...prev, newTempProduct]); // Adiciona o novo produto temporário à lista
     setCurrentProduct(newTempProduct);
     toast({
       title: "Produto não cadastrado",
@@ -318,10 +332,26 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     (barcode: string) => {
       setIsCameraViewActive(false);
       setScanInput(barcode);
-      setTimeout(() => handleScan(), 100);
+      // Usamos um pequeno timeout para garantir que o estado de scanInput seja atualizado antes de chamar handleScan
+      setTimeout(() => {
+        // Seleciona o input de quantidade para digitação imediata
+        const quantityEl = document.getElementById("quantity");
+        if (quantityEl) {
+          quantityEl.focus();
+        }
+      }, 100);
     },
-    [handleScan]
+    [] // handleScan foi removido das dependências, pois ele usará o estado mais recente de scanInput
   );
+
+  // Atualiza o currentProduct quando o scanInput muda (após scan ou digitação)
+  useEffect(() => {
+    if (scanInput) {
+      handleScan();
+    } else {
+      setCurrentProduct(null);
+    }
+  }, [scanInput, barCodes, tempProducts, handleScan]);
 
   const handleQuantityKeyPress = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -339,7 +369,14 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
               description: calculation.error,
               variant: "destructive",
             });
-        } else if (currentProduct) handleAddCount();
+        } else if (currentProduct) {
+          handleAddCount();
+          // Foca no input do código de barras após adicionar
+          const barcodeEl = document.getElementById("barcode");
+          if (barcodeEl) {
+            barcodeEl.focus();
+          }
+        }
       }
     },
     [quantityInput, calculateExpression, currentProduct, handleAddCount]
@@ -440,7 +477,9 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     [userId]
   );
 
+  // --- FUNÇÃO DE RELATÓRIO COMPLETO (sem alterações) ---
   const generateCompleteReportData = useCallback(() => {
+    // Pega os itens que já foram contados (incluindo TEMP)
     const countedItemsData = productCounts.map((item) => ({
       codigo_de_barras: item.codigo_de_barras,
       codigo_produto: item.codigo_produto,
@@ -451,10 +490,14 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       total: item.total,
     }));
 
+    // Cria um mapa para saber quais produtos do *catálogo* já foram contados
     const countedProductCodes = new Set(
-      productCounts.map((pc) => pc.codigo_produto)
+      productCounts
+        .filter((p) => !p.codigo_produto.startsWith("TEMP-")) // Ignora os temps aqui
+        .map((pc) => pc.codigo_produto)
     );
 
+    // Pega os itens do catálogo que NÃO foram contados e os formata com quantidades zeradas
     const uncountedItemsData = products
       .filter((p) => !countedProductCodes.has(p.codigo_produto))
       .map((product) => {
@@ -467,20 +510,26 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
           saldo_estoque: saldo,
           quant_loja: 0,
           quant_estoque: 0,
-          total: -saldo,
+          total: -saldo, // O total para itens não contados é o saldo negativo
         };
       });
 
+    // Combina as duas listas: os contados (reais e temps) e os não contados (zerados do catálogo)
     const combinedData = [...countedItemsData, ...uncountedItemsData];
+
+    // Classifica a lista combinada alfabeticamente pela descrição
     combinedData.sort((a, b) => a.descricao.localeCompare(b.descricao));
-    return combinedData;
+
+    return combinedData; // Retorna os dados combinados E ORDENADOS
   }, [products, productCounts, barCodes]);
 
+  // --- FUNÇÃO DE EXPORTAR (sem alterações) ---
   const exportToCsv = useCallback(() => {
-    if (products.length === 0) {
+    // Alterado: agora verifica se há *qualquer* dado para exportar
+    if (products.length === 0 && productCounts.length === 0) {
       toast({
         title: "Nenhum item para exportar",
-        description: "Importe um catálogo primeiro.",
+        description: "Importe um catálogo ou conte um item primeiro.",
         variant: "destructive",
       });
       return;
@@ -503,56 +552,58 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     }.csv`;
     link.click();
     URL.revokeObjectURL(link.href);
-  }, [products, generateCompleteReportData]);
+  }, [products, productCounts, generateCompleteReportData]);
 
+  // --- FUNÇÃO ATUALIZADA: AGORA SÓ ABRE O MODAL ---
   const handleSaveCount = useCallback(async () => {
-    if (!userId || products.length === 0) {
+    if (!userId) {
       toast({
-        title: "Nada para salvar",
-        description: "Não há um catálogo de produtos carregado.",
+        title: "Erro de Usuário",
+        description: "Sessão inválida. Faça login novamente.",
         variant: "destructive",
       });
       return;
     }
-    // Apenas abre o modal
-    setShowSaveModal(true);
-  }, [userId, products]);
 
+    // Permite salvar mesmo se products.length for 0 (para salvar contagens só com itens TEMP)
+    // ou se productCounts.length for 0 (para salvar um relatório zerado)
+    // A única trava é não ter nem catálogo nem contagem.
+    if (products.length === 0 && productCounts.length === 0) {
+      toast({
+        title: "Nada para salvar",
+        description:
+          "Não há catálogo carregado nem itens contados para salvar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Abre o modal para o usuário inserir o nome
+    setShowSaveModal(true);
+  }, [userId, products.length, productCounts.length]);
+
+  // --- NOVA FUNÇÃO: EXECUTADA QUANDO O MODAL DÁ "OK" ---
   const executeSaveCount = useCallback(
     async (baseName: string) => {
-      if (!userId || products.length === 0) {
-        toast({
-          title: "Nada para salvar",
-          description: "Não há um catálogo de produtos carregado.",
-          variant: "destructive",
-        });
-        return;
-      }
+      if (!userId) return; // Checagem de segurança
 
-      // Validação simples do nome
-      if (!baseName || baseName.trim().length === 0) {
-        toast({
-          title: "Nome inválido",
-          description: "Por favor, forneça um nome para o arquivo.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setIsSaving(true); // Inicia o estado de "salvando"
-      const dataToExport = generateCompleteReportData();
-
-      const csvContent = Papa.unparse(dataToExport, {
-        header: true,
-        delimiter: ";",
-        quotes: true,
-      });
-
-      // Constrói o nome do arquivo com o prefixo do usuário e o sufixo da data
-      const dateSuffix = new Date().toISOString().split("T")[0];
-      const fileName = `${baseName.trim()}_${dateSuffix}.csv`;
-
+      setIsSaving(true);
       try {
+        const dataToExport = generateCompleteReportData();
+
+        const csvContent = Papa.unparse(dataToExport, {
+          header: true,
+          delimiter: ";",
+          quotes: true,
+        });
+
+        // Formata o nome do arquivo
+        const date = new Date();
+        const dateSuffix = `${date.getFullYear()}-${(date.getMonth() + 1)
+          .toString()
+          .padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`;
+        const fileName = `${baseName.trim()}_${dateSuffix}.csv`;
+
         const response = await fetch(`/api/inventory/${userId}/history`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -560,13 +611,18 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
         });
 
         if (!response.ok) {
-          throw new Error("Falha ao salvar a contagem no servidor.");
+          const errorData = await response.json();
+          throw new Error(
+            errorData.error || "Falha ao salvar a contagem no servidor."
+          );
         }
 
         toast({
           title: "Sucesso!",
           description: "Sua contagem foi salva no histórico.",
         });
+
+        await loadHistory(); // Atualiza a lista na aba Histórico
         setShowSaveModal(false); // Fecha o modal
       } catch (error: any) {
         toast({
@@ -575,10 +631,10 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
           variant: "destructive",
         });
       } finally {
-        setIsSaving(false); // Finaliza o estado de "salvando"
+        setIsSaving(false); // Para o spinner do botão
       }
     },
-    [userId, products, generateCompleteReportData]
+    [userId, generateCompleteReportData, loadHistory]
   );
 
   return {
@@ -593,7 +649,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     csvFile,
     csvErrors,
     isLoading,
-    isSaving,
+    isSaving, // <- Exporta o novo estado
     countingMode,
     setCountingMode,
     productCounts,
@@ -614,13 +670,13 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     downloadTemplateCSV,
     history,
     loadHistory,
-    handleSaveCount,
+    handleSaveCount, // <- Exporta a função que abre o modal
+    executeSaveCount, // <- Exporta a função que realmente salva
     handleDeleteHistoryItem,
     showMissingItemsModal,
     setShowMissingItemsModal,
     missingItems,
-    showSaveModal,
-    setShowSaveModal,
-    executeSaveCount,
+    showSaveModal, // <- Exporta o estado do modal
+    setShowSaveModal, // <- Exporta o setter do modal
   };
 };
