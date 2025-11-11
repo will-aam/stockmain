@@ -1,4 +1,3 @@
-// src/components/shared/FloatingMissingItemsButton.tsx
 "use client";
 
 import * as React from "react";
@@ -10,11 +9,14 @@ import { cn } from "@/lib/utils";
 interface FloatingMissingItemsButtonProps {
   onClick: () => void;
   itemCount: number;
+  // 1. Defina o tipo da nova prop
+  dragConstraintsRef: React.RefObject<HTMLDivElement>;
 }
 
 export function FloatingMissingItemsButton({
   onClick,
   itemCount,
+  dragConstraintsRef, // 2. Receba a prop
 }: FloatingMissingItemsButtonProps) {
   // Do not render the button if there are no missing items
   if (itemCount === 0) {
@@ -24,12 +26,7 @@ export function FloatingMissingItemsButton({
   return (
     <motion.div
       drag
-      dragConstraints={{
-        top: -200,
-        left: -400,
-        right: 400,
-        bottom: 200,
-      }} // Constrain dragging to within a reasonable area
+      dragConstraints={dragConstraintsRef} // 3. Use a ref aqui
       dragMomentum={false} // Prevents the button from "sliding" after drag
       className="fixed bottom-6 right-6 z-50 cursor-grab active:cursor-grabbing"
       style={{ touchAction: "none" }} // Prevents page scroll on mobile when dragging

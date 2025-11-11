@@ -1,6 +1,7 @@
+// app/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react"; // Importe o useRef
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInventory } from "@/hooks/useInventory";
 import { AuthModal } from "@/components/shared/AuthModal";
@@ -36,6 +37,7 @@ export default function InventorySystem() {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("scan");
   const [isLoading, setIsLoading] = useState(true);
+  const mainContainerRef = useRef<HTMLDivElement>(null); // 1. Crie a ref
 
   useEffect(() => {
     const savedUserId = sessionStorage.getItem("currentUserId");
@@ -66,123 +68,130 @@ export default function InventorySystem() {
 
   return (
     <>
-      <Navigation setShowClearDataModal={inventory.setShowClearDataModal} />
+      {/* 2. Adicione a ref ao contêiner principal */}
+      <div ref={mainContainerRef} className="relative min-h-screen">
+        <Navigation setShowClearDataModal={inventory.setShowClearDataModal} />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 sm:pt-16 sm:pb-8">
-        {" "}
-        <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="space-y-6"
-        >
-          <div className="hidden sm:block">
-            <TabsList className="grid w-full grid-cols-4">
-              {/* Ícone adicionado à aba Conferência */}
-              <TabsTrigger value="scan" className="flex items-center gap-2">
-                <Scan className="h-4 w-4" />
-                Conferência
-              </TabsTrigger>
-              <TabsTrigger value="import" className="flex items-center gap-2">
-                <Upload className="h-4 w-4" />
-                Importar
-              </TabsTrigger>
-              <TabsTrigger value="export" className="flex items-center gap-2">
-                <Download className="h-4 w-4" />
-                Exportar
-              </TabsTrigger>
-              <TabsTrigger value="history" className="flex items-center gap-2">
-                <HistoryIcon className="h-4 w-4" />
-                Histórico
-              </TabsTrigger>
-            </TabsList>
-          </div>
-          <div className="sm:hidden">
-            <Select onValueChange={setActiveTab} value={activeTab}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Selecione uma aba" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="scan">Conferência</SelectItem>
-                <SelectItem value="import">Importar</SelectItem>
-                <SelectItem value="export">Exportar</SelectItem>
-                <SelectItem value="history">Histórico</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <TabsContent value="scan" className="space-y-6">
-            <ConferenceTab
-              countingMode={inventory.countingMode}
-              setCountingMode={inventory.setCountingMode}
-              scanInput={inventory.scanInput}
-              setScanInput={inventory.setScanInput}
-              handleScan={inventory.handleScan}
-              isCameraViewActive={inventory.isCameraViewActive}
-              setIsCameraViewActive={inventory.setIsCameraViewActive}
-              handleBarcodeScanned={inventory.handleBarcodeScanned}
-              currentProduct={inventory.currentProduct}
-              quantityInput={inventory.quantityInput}
-              setQuantityInput={inventory.setQuantityInput}
-              handleQuantityKeyPress={inventory.handleQuantityKeyPress}
-              handleAddCount={inventory.handleAddCount}
-              productCounts={inventory.productCounts}
-              handleRemoveCount={inventory.handleRemoveCount}
-              handleSaveCount={inventory.handleSaveCount}
-            />
-          </TabsContent>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 sm:pt-16 sm:pb-8">
+          {" "}
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="space-y-6"
+          >
+            <div className="hidden sm:block">
+              <TabsList className="grid w-full grid-cols-4">
+                {/* Ícone adicionado à aba Conferência */}
+                <TabsTrigger value="scan" className="flex items-center gap-2">
+                  <Scan className="h-4 w-4" />
+                  Conferência
+                </TabsTrigger>
+                <TabsTrigger value="import" className="flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  Importar
+                </TabsTrigger>
+                <TabsTrigger value="export" className="flex items-center gap-2">
+                  <Download className="h-4 w-4" />
+                  Exportar
+                </TabsTrigger>
+                <TabsTrigger
+                  value="history"
+                  className="flex items-center gap-2"
+                >
+                  <HistoryIcon className="h-4 w-4" />
+                  Histórico
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            <div className="sm:hidden">
+              <Select onValueChange={setActiveTab} value={activeTab}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecione uma aba" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="scan">Conferência</SelectItem>
+                  <SelectItem value="import">Importar</SelectItem>
+                  <SelectItem value="export">Exportar</SelectItem>
+                  <SelectItem value="history">Histórico</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <TabsContent value="scan" className="space-y-6">
+              <ConferenceTab
+                countingMode={inventory.countingMode}
+                setCountingMode={inventory.setCountingMode}
+                scanInput={inventory.scanInput}
+                setScanInput={inventory.setScanInput}
+                handleScan={inventory.handleScan}
+                isCameraViewActive={inventory.isCameraViewActive}
+                setIsCameraViewActive={inventory.setIsCameraViewActive}
+                handleBarcodeScanned={inventory.handleBarcodeScanned}
+                currentProduct={inventory.currentProduct}
+                quantityInput={inventory.quantityInput}
+                setQuantityInput={inventory.setQuantityInput}
+                handleQuantityKeyPress={inventory.handleQuantityKeyPress}
+                handleAddCount={inventory.handleAddCount}
+                productCounts={inventory.productCounts}
+                handleRemoveCount={inventory.handleRemoveCount}
+                handleSaveCount={inventory.handleSaveCount}
+              />
+            </TabsContent>
 
-          <TabsContent value="import" className="space-y-6">
-            <ImportTab
-              handleCsvUpload={inventory.handleCsvUpload}
-              isLoading={inventory.isLoading}
-              csvErrors={inventory.csvErrors}
-              products={inventory.products}
-              barCodes={inventory.barCodes}
-              downloadTemplateCSV={inventory.downloadTemplateCSV}
-            />
-          </TabsContent>
+            <TabsContent value="import" className="space-y-6">
+              <ImportTab
+                handleCsvUpload={inventory.handleCsvUpload}
+                isLoading={inventory.isLoading}
+                csvErrors={inventory.csvErrors}
+                products={inventory.products}
+                barCodes={inventory.barCodes}
+                downloadTemplateCSV={inventory.downloadTemplateCSV}
+              />
+            </TabsContent>
 
-          <TabsContent value="export" className="space-y-6">
-            <ExportTab
-              products={inventory.products}
-              tempProducts={inventory.tempProducts}
-              productCounts={inventory.productCounts}
-              productCountsStats={inventory.productCountsStats}
-              exportToCsv={inventory.exportToCsv}
-              handleSaveCount={inventory.handleSaveCount}
-              setShowMissingItemsModal={inventory.setShowMissingItemsModal}
-            />
-          </TabsContent>
+            <TabsContent value="export" className="space-y-6">
+              <ExportTab
+                products={inventory.products}
+                tempProducts={inventory.tempProducts}
+                productCounts={inventory.productCounts}
+                productCountsStats={inventory.productCountsStats}
+                exportToCsv={inventory.exportToCsv}
+                handleSaveCount={inventory.handleSaveCount}
+                setShowMissingItemsModal={inventory.setShowMissingItemsModal}
+              />
+            </TabsContent>
 
-          <TabsContent value="history" className="space-y-6">
-            <HistoryTab userId={currentUserId} />
-          </TabsContent>
-        </Tabs>
-      </main>
+            <TabsContent value="history" className="space-y-6">
+              <HistoryTab userId={currentUserId} />
+            </TabsContent>
+          </Tabs>
+        </main>
 
-      {inventory.showClearDataModal && (
-        <ClearDataModal
-          isOpen={inventory.showClearDataModal}
-          onClose={() => inventory.setShowClearDataModal(false)}
-          onConfirm={inventory.handleClearAllData}
-        />
-      )}
+        {inventory.showClearDataModal && (
+          <ClearDataModal
+            isOpen={inventory.showClearDataModal}
+            onClose={() => inventory.setShowClearDataModal(false)}
+            onConfirm={inventory.handleClearAllData}
+          />
+        )}
 
-      {/* O modal de itens faltantes continua aqui */}
-      {inventory.showMissingItemsModal && (
-        <MissingItemsModal
-          isOpen={inventory.showMissingItemsModal}
-          onClose={() => inventory.setShowMissingItemsModal(false)}
-          items={inventory.missingItems}
-        />
-      )}
+        {/* O modal de itens faltantes continua aqui */}
+        {inventory.showMissingItemsModal && (
+          <MissingItemsModal
+            isOpen={inventory.showMissingItemsModal}
+            onClose={() => inventory.setShowMissingItemsModal(false)}
+            items={inventory.missingItems}
+          />
+        )}
 
-      {/* O novo botão flutuante, que só aparece na aba 'scan' */}
-      {activeTab === "scan" && (
-        <FloatingMissingItemsButton
-          itemCount={inventory.missingItems.length}
-          onClick={() => inventory.setShowMissingItemsModal(true)}
-        />
-      )}
+        {/* O novo botão flutuante, que só aparece na aba 'scan' */}
+        {activeTab === "scan" && (
+          <FloatingMissingItemsButton
+            itemCount={inventory.missingItems.length}
+            onClick={() => inventory.setShowMissingItemsModal(true)}
+            dragConstraintsRef={mainContainerRef} // 3. Passe a ref para o componente
+          />
+        )}
+      </div>
     </>
   );
 }
