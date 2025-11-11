@@ -1,4 +1,3 @@
-// src/app/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -19,7 +18,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, PackageMinus, Upload, Download, History } from "lucide-react";
+// Importações de ícones atualizadas
+import {
+  Loader2,
+  PackageMinus, // Ícone para itens faltantes
+  Upload,
+  Download,
+  History as HistoryIcon, // Renomeado para evitar conflito
+  Scan, // Ícone para a aba de conferência
+} from "lucide-react";
+// Importar o novo botão flutuante
 import { FloatingMissingItemsButton } from "@/components/shared/FloatingMissingItemsButton";
 
 export const dynamic = "force-dynamic";
@@ -69,25 +77,25 @@ export default function InventorySystem() {
         >
           <div className="hidden sm:block">
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="scan">
-                <PackageMinus className="mr-2 h-4 w-4" />
+              {/* Ícone adicionado à aba Conferência */}
+              <TabsTrigger value="scan" className="flex items-center gap-2">
+                <Scan className="h-4 w-4" />
                 Conferência
               </TabsTrigger>
-              <TabsTrigger value="import">
-                <Upload className="mr-2 h-4 w-4" />
+              <TabsTrigger value="import" className="flex items-center gap-2">
+                <Upload className="h-4 w-4" />
                 Importar
               </TabsTrigger>
-              <TabsTrigger value="export">
-                <Download className="mr-2 h-4 w-4" />
+              <TabsTrigger value="export" className="flex items-center gap-2">
+                <Download className="h-4 w-4" />
                 Exportar
               </TabsTrigger>
-              <TabsTrigger value="history">
-                <History className="mr-2 h-4 w-4" />
+              <TabsTrigger value="history" className="flex items-center gap-2">
+                <HistoryIcon className="h-4 w-4" />
                 Histórico
               </TabsTrigger>
             </TabsList>
           </div>
-
           <div className="sm:hidden">
             <Select onValueChange={setActiveTab} value={activeTab}>
               <SelectTrigger className="w-full">
@@ -101,7 +109,6 @@ export default function InventorySystem() {
               </SelectContent>
             </Select>
           </div>
-
           <TabsContent value="scan" className="space-y-6">
             <ConferenceTab
               countingMode={inventory.countingMode}
@@ -160,6 +167,7 @@ export default function InventorySystem() {
         />
       )}
 
+      {/* O modal de itens faltantes continua aqui */}
       {inventory.showMissingItemsModal && (
         <MissingItemsModal
           isOpen={inventory.showMissingItemsModal}
@@ -168,6 +176,7 @@ export default function InventorySystem() {
         />
       )}
 
+      {/* O novo botão flutuante, que só aparece na aba 'scan' */}
       {activeTab === "scan" && (
         <FloatingMissingItemsButton
           itemCount={inventory.missingItems.length}

@@ -24,6 +24,7 @@
     "bcryptjs": "latest",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "framer-motion": "^12.23.24",
     "geist": "^1.4.2",
     "jsonwebtoken": "latest",
     "lucide-react": "^0.454.0",
@@ -33,7 +34,6 @@
     "prisma": "latest",
     "react": "19.0.0-rc-f994737d14-20240522",
     "react-dom": "19.0.0-rc-f994737d14-20240522",
-    "react-draggable": "^4.5.0",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7"
   },

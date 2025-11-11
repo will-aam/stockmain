@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import Draggable from "react-draggable";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { PackageMinus } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -15,40 +15,41 @@ export function FloatingMissingItemsButton({
   onClick,
   itemCount,
 }: FloatingMissingItemsButtonProps) {
-  // Only render if there are items missing
+  // Do not render the button if there are no missing items
   if (itemCount === 0) {
     return null;
   }
 
   return (
-    <Draggable
-      bounds="parent"
-      handle=".handle"
-      defaultPosition={{ x: 0, y: 0 }}
-      grid={[25, 25]}
-      scale={1}
+    <motion.div
+      drag
+      dragConstraints={{
+        top: -200,
+        left: -400,
+        right: 400,
+        bottom: 200,
+      }} // Constrain dragging to within a reasonable area
+      dragMomentum={false} // Prevents the button from "sliding" after drag
+      className="fixed bottom-6 right-6 z-50 cursor-grab active:cursor-grabbing"
+      style={{ touchAction: "none" }} // Prevents page scroll on mobile when dragging
     >
-      <div
-        className="fixed bottom-4 right-4 z-50 cursor-move"
-        style={{ touchAction: "none" }} // Prevents page scroll on mobile when dragging
+      <Button
+        onClick={onClick}
+        variant="outline"
+        size="icon"
+        className={cn(
+          "relative h-14 w-14 rounded-full shadow-lg",
+          "bg-amber-500 text-white", // Use a distinct color for visibility
+          "hover:bg-amber-600 focus:ring-2 focus:ring-amber-700",
+          "dark:bg-amber-600 dark:text-white dark:hover:bg-amber-700"
+        )}
+        aria-label={`Mostrar ${itemCount} itens faltantes`}
       >
-        <Button
-          onClick={onClick}
-          className={cn(
-            "handle flex items-center justify-center rounded-full shadow-lg p-3",
-            "bg-primary text-primary-foreground hover:bg-primary/90",
-            "transition-transform transform hover:scale-110"
-          )}
-          aria-label="Ver itens em falta"
-        >
-          <PackageMinus className="h-6 w-6" />
-          {itemCount > 0 && (
-            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
-              {itemCount}
-            </span>
-          )}
-        </Button>
-      </div>
-    </Draggable>
+        <PackageMinus className="h-6 w-6" />
+        <span className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">
+          {itemCount}
+        </span>
+      </Button>
+    </motion.div>
   );
 }
