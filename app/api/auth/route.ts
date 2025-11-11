@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     // Procura o usuário pelo email no banco de dados
     const user = await prisma.usuario.findUnique({
       where: {
-        email: userEmail, // Busca na coluna 'email'
+        email: userEmail,
       },
     });
 
