@@ -439,6 +439,11 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   );
 
   // --- NOVA FUNÇÃO CENTRALIZADA PARA GERAR O RELATÓRIO COMPLETO ---
+  // hooks/useInventory.ts
+
+  // ... (outras funções do hook) ...
+
+  // --- NOVA FUNÇÃO CENTRALIZADA PARA GERAR O RELATÓRIO COMPLETO ---
   const generateCompleteReportData = useCallback(() => {
     // Pega os itens que já foram contados
     const countedItemsData = productCounts.map((item) => ({
@@ -474,7 +479,14 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       });
 
     // Combina as duas listas: os contados e os não contados (zerados)
-    return [...countedItemsData, ...uncountedItemsData];
+    const combinedData = [...countedItemsData, ...uncountedItemsData];
+
+    // --- ADICIONE ESTA LINHA ---
+    // Classifica a lista combinada alfabeticamente pela descrição
+    combinedData.sort((a, b) => a.descricao.localeCompare(b.descricao));
+    // --------------------------
+
+    return combinedData; // Retorna os dados combinados E ORDENADOS
   }, [products, productCounts, barCodes]);
 
   // --- FUNÇÕES DE EXPORTAR E SALVAR ATUALIZADAS ---

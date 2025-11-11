@@ -107,10 +107,14 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
   const [searchQuery, setSearchQuery] = React.useState("");
 
   const filteredProductCounts = useMemo(() => {
+    const sortedCounts = [...productCounts].sort((a, b) =>
+      a.descricao.localeCompare(b.descricao)
+    );
+
     if (!searchQuery) {
-      return productCounts;
+      return sortedCounts;
     }
-    return productCounts.filter(
+    return sortedCounts.filter(
       (item) =>
         item.descricao.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.codigo_de_barras.includes(searchQuery)
