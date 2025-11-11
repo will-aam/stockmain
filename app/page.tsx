@@ -19,7 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, PackageMinus, Upload, Download, History } from "lucide-react";
+import { FloatingMissingItemsButton } from "@/components/shared/FloatingMissingItemsButton";
 
 export const dynamic = "force-dynamic";
 
@@ -68,10 +69,22 @@ export default function InventorySystem() {
         >
           <div className="hidden sm:block">
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="scan">Conferência</TabsTrigger>
-              <TabsTrigger value="import">Importar</TabsTrigger>
-              <TabsTrigger value="export">Exportar</TabsTrigger>
-              <TabsTrigger value="history">Histórico</TabsTrigger>
+              <TabsTrigger value="scan">
+                <PackageMinus className="mr-2 h-4 w-4" />
+                Conferência
+              </TabsTrigger>
+              <TabsTrigger value="import">
+                <Upload className="mr-2 h-4 w-4" />
+                Importar
+              </TabsTrigger>
+              <TabsTrigger value="export">
+                <Download className="mr-2 h-4 w-4" />
+                Exportar
+              </TabsTrigger>
+              <TabsTrigger value="history">
+                <History className="mr-2 h-4 w-4" />
+                Histórico
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -82,6 +95,7 @@ export default function InventorySystem() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="scan">Conferência</SelectItem>
+                <SelectItem value="import">Importar</SelectItem>
                 <SelectItem value="export">Exportar</SelectItem>
                 <SelectItem value="history">Histórico</SelectItem>
               </SelectContent>
@@ -151,6 +165,13 @@ export default function InventorySystem() {
           isOpen={inventory.showMissingItemsModal}
           onClose={() => inventory.setShowMissingItemsModal(false)}
           items={inventory.missingItems}
+        />
+      )}
+
+      {activeTab === "scan" && (
+        <FloatingMissingItemsButton
+          itemCount={inventory.missingItems.length}
+          onClick={() => inventory.setShowMissingItemsModal(true)}
         />
       )}
     </>
