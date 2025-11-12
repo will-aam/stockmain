@@ -1,8 +1,8 @@
 // src/app/page.tsx
 /**
  * Descrição: Página principal do Sistema de Inventário.
- * Responsabilidade: Gerencia o estado principal da aplicação, incluindo autenticação do usuário,
- * navegação entre abas (Conferência, Importar, Exportar, Histórico) e orquestra os componentes
+ * Responsabilidade: Gerenciar o estado principal da aplicação, incluindo a autenticação do usuário,
+ * a navegação entre abas (Conferência, Importar, Exportar, Histórico) e orquestra os componentes
  * modais e a lógica de contagem de estoque.
  */
 
@@ -63,11 +63,11 @@ export default function InventorySystem() {
   }, []);
 
   // --- Hook Personalizado de Inventário ---
-  // Centraliza toda a lógica relacionada ao inventário (contagem, importação, exportação, etc.).
+  // Centraliza toda a lógica e o estado relacionado ao inventário.
   const inventory = useInventory({ userId: currentUserId });
 
   // --- Manipuladores de Eventos ---
-  // Called after successful authentication to set the user ID in the state and session storage.
+  // Called after successful authentication to set the user ID in state and session storage.
   const handleUnlock = (userId: number) => {
     sessionStorage.setItem("currentUserId", userId.toString());
     setCurrentUserId(userId);
@@ -152,7 +152,10 @@ export default function InventorySystem() {
             {/* Conteúdo da aba de Importação. */}
             <TabsContent value="import" className="space-y-6">
               <ImportTab
-                handleCsvUpload={inventory.handleCsvUpload}
+                userId={currentUserId}
+                setIsLoading={inventory.setIsLoading}
+                setCsvErrors={inventory.setCsvErrors}
+                loadCatalogFromDb={inventory.loadCatalogFromDb}
                 isLoading={inventory.isLoading}
                 csvErrors={inventory.csvErrors}
                 products={inventory.products}
@@ -216,47 +219,47 @@ export default function InventorySystem() {
             dragConstraintsRef={mainContainerRef}
           />
         )}
+      </div>
 
-        {/* --- Navegação por Abas (Mobile) --- */}
-        {/* Barra de navegação inferior fixa, visível apenas em telas pequenas. */}
-        <div className="sm:hidden fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
-          <div className="flex items-center gap-1 p-1.5 bg-background/60 backdrop-blur-xl rounded-full shadow-2xl border border-border/50">
-            <button
-              onClick={() => setActiveTab("scan")}
-              className={`flex flex-1 min-w-0 flex-col items-center justify-center gap-1 py-2 px-4 rounded-full transition-all duration-200 ${
-                activeTab === "scan"
-                  ? "bg-primary text-primary-foreground shadow-md"
-                  : "text-muted-foreground"
-              }`}
-            >
-              <Scan className="h-5 w-5" />
-              <span className="text-xs font-medium">Conferir</span>
-            </button>
+      {/* --- Navegação por Abas (Mobile) --- */}
+      {/* Barra de navegação inferior fixa, visível apenas em telas pequenas. */}
+      <div className="sm:hidden fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+        <div className="flex items-center gap-1 p-1.5 bg-background/60 backdrop-blur-xl rounded-full shadow-2xl border border-border/50">
+          <button
+            onClick={() => setActiveTab("scan")}
+            className={`flex flex-1 min-w-0 flex-col items-center justify-center gap-1 py-2 px-4 rounded-full transition-all duration-200 ${
+              activeTab === "scan"
+                ? "bg-primary text-primary-foreground shadow-md"
+                : "text-muted-foreground"
+            }`}
+          >
+            <Scan className="h-5 w-5" />
+            <span className="text-xs font-medium">Conferir</span>
+          </button>
 
-            <button
-              onClick={() => setActiveTab("export")}
-              className={`flex flex-1 min-w-0 flex-col items-center justify-center gap-1 py-2 px-4 rounded-full transition-all duration-200 ${
-                activeTab === "export"
-                  ? "bg-primary text-primary-foreground shadow-md"
-                  : "text-muted-foreground"
-              }`}
-            >
-              <Download className="h-5 w-5" />
-              <span className="text-xs font-medium">Exportar</span>
-            </button>
+          <button
+            onClick={() => setActiveTab("export")}
+            className={`flex flex-1 min-w-0 flex-col items-center justify-center gap-1 py-2 px-4 rounded-full transition-all duration-200 ${
+              activeTab === "export"
+                ? "bg-primary text-primary-foreground shadow-md"
+                : "text-muted-foreground"
+            }`}
+          >
+            <Download className="h-5 w-5" />
+            <span className="text-xs font-medium">Exportar</span>
+          </button>
 
-            <button
-              onClick={() => setActiveTab("history")}
-              className={`flex flex-1 min-w-0 flex-col items-center justify-center gap-1 py-2 px-4 rounded-full transition-all duration-200 ${
-                activeTab === "history"
-                  ? "bg-primary text-primary-foreground shadow-md"
-                  : "text-muted-foreground"
-              }`}
-            >
-              <HistoryIcon className="h-5 w-5" />
-              <span className="text-xs font-medium">Histórico</span>
-            </button>
-          </div>
+          <button
+            onClick={() => setActiveTab("history")}
+            className={`flex flex-1 min-w-0 flex-col items-center justify-center gap-1 py-2 px-4 rounded-full transition-all duration-200 ${
+              activeTab === "history"
+                ? "bg-primary text-primary-foreground shadow-md"
+                : "text-muted-foreground"
+            }`}
+          >
+            <HistoryIcon className="h-5 w-5" />
+            <span className="text-xs font-medium">Histórico</span>
+          </button>
         </div>
       </div>
     </>

@@ -1,15 +1,15 @@
 // src/app/api/inventory/[userId]/import/route.ts
 /**
- * Rota de API para importação de produtos via arquivo CSV.
- * Processa o upload, valida os dados (incluindo duplicatas) e insere no banco de dados.
+ * Rota de API para importação de produtos com progresso real via Server-Sent Events (SSE).
+ * Processa o upload, valida os dados e insere no banco, enviando atualizações de progresso
+ * para o cliente em tempo real.
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import * as Papa from "papaparse";
 import { Prisma } from "@prisma/client";
 
-/** Estrutura esperada para uma linha do arquivo CSV de importação. */
 interface CsvRow {
   codigo_de_barras: string;
   codigo_produto: string;
@@ -18,165 +18,186 @@ interface CsvRow {
 }
 
 /**
- * Manipula o upload e a importação de um arquivo CSV.
+ * Manipula a requisição POST para importar um arquivo CSV com SSE.
  * @param request - Requisição contendo o arquivo CSV em FormData.
  * @param params - Parâmetros da rota, incluindo o userId.
- * @returns JSON com sucesso e a contagem de itens importados, ou detalhes do erro.
+ * @returns Um objeto Response com streaming para os eventos de progresso.
  */
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { userId: string } }
 ) {
-  try {
-    const userId = parseInt(params.userId, 10);
-    if (isNaN(userId)) {
-      return NextResponse.json(
-        { error: "ID de usuário inválido." },
-        { status: 400 }
-      );
-    }
-
-    const formData = await request.formData();
-    const file = formData.get("file") as File;
-    if (!file) {
-      return NextResponse.json(
-        { error: "Nenhum arquivo enviado." },
-        { status: 400 }
-      );
-    }
-
-    const csvText = await file.text();
-    const parseResult = Papa.parse<CsvRow>(csvText, {
-      header: true,
-      delimiter: ";",
-      skipEmptyLines: true,
-    });
-
-    if (parseResult.errors.length > 0) {
-      return NextResponse.json(
-        { error: "Erro ao analisar o CSV.", details: parseResult.errors },
-        { status: 400 }
-      );
-    }
-
-    // Verifica duplicatas de códigos de barras dentro do próprio arquivo.
-    const barcodes = new Map<string, number[]>();
-    parseResult.data.forEach((row, index) => {
-      const lineNumber = index + 2; // +2 para compensar header e index 0-based
-      const barcode = row.codigo_de_barras;
-      if (barcode) {
-        if (!barcodes.has(barcode)) {
-          barcodes.set(barcode, []);
-        }
-        barcodes.get(barcode)?.push(lineNumber);
-      }
-    });
-
-    const duplicates = Array.from(barcodes.entries())
-      .filter(([_, lines]) => lines.length > 1)
-      .map(([barcode, lines]) => ({
-        codigo_de_barras: barcode,
-        linhas: lines,
-      }));
-
-    if (duplicates.length > 0) {
-      return NextResponse.json(
-        {
-          error: "Códigos de barras duplicados encontrados no arquivo.",
-          details: duplicates,
+  const userId = parseInt(params.userId, 10);
+  if (isNaN(userId)) {
+    // Em SSE, enviamos um evento de erro
+    return new Response(
+      `data: ${JSON.stringify({ error: "ID de usuário inválido." })}\n\n`,
+      {
+        status: 400,
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
         },
-        { status: 400 }
-      );
-    }
-
-    let importedCount = 0;
-    // Itera sobre as linhas válidas e as insere no banco em uma transação.
-    for (const row of parseResult.data) {
-      const saldoNumerico = parseFloat(row.saldo_estoque.replace(",", "."));
-      if (
-        isNaN(saldoNumerico) ||
-        !row.codigo_produto ||
-        !row.codigo_de_barras
-      ) {
-        continue;
       }
-
-      try {
-        // Transação para garantir a atomicidade da operação (produto + código de barras).
-        await prisma.$transaction(async (tx) => {
-          // Upsert do produto (cria ou atualiza).
-          const product = await tx.produto.upsert({
-            where: {
-              codigo_produto_usuario_id: {
-                codigo_produto: row.codigo_produto,
-                usuario_id: userId,
-              },
-            },
-            update: {
-              descricao: row.descricao,
-              saldo_estoque: saldoNumerico,
-            },
-            create: {
-              codigo_produto: row.codigo_produto,
-              descricao: row.descricao,
-              saldo_estoque: saldoNumerico,
-              usuario_id: userId,
-            },
-          });
-
-          // Remove códigos de barras antigos para este produto antes de inserir o novo.
-          await tx.codigoBarras.deleteMany({
-            where: { produto_id: product.id },
-          });
-
-          // Insere o novo código de barras.
-          await tx.codigoBarras.create({
-            data: {
-              codigo_de_barras: row.codigo_de_barras,
-              produto_id: product.id,
-              usuario_id: userId,
-            },
-          });
-        });
-
-        importedCount++;
-      } catch (error) {
-        // Trata erro de duplicidade de chave única no banco (ex: código de barras já existe para outro produto).
-        if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === "P2002"
-        ) {
-          console.log(
-            `Código de barras duplicado no banco, ignorando: ${row.codigo_de_barras}`
-          );
-        } else {
-          console.error("Erro inesperado na transação:", error);
-          throw error;
-        }
-      }
-    }
-
-    return NextResponse.json({ success: true, importedCount });
-  } catch (error) {
-    console.error("Erro na importação de CSV:", error);
-
-    // Trata erros conhecidos do Prisma (como duplicidade no banco).
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === "P2002") {
-        const target = (error.meta?.target as string[])?.join(", ");
-        return NextResponse.json(
-          {
-            error: `Erro de duplicidade no banco.`,
-            details: `Já existe um registro com o mesmo valor no campo: ${target}.`,
-          },
-          { status: 409 }
-        );
-      }
-    }
-
-    return NextResponse.json(
-      { error: "Erro interno do servidor ao importar." },
-      { status: 500 }
     );
   }
+
+  // Cria um stream de resposta writable para enviar eventos
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        const formData = await request.formData();
+        const file = formData.get("file") as File;
+        if (!file) {
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({
+                error: "Nenhum arquivo enviado.",
+              })}\n\n`
+            )
+          );
+          controller.close();
+          return;
+        }
+
+        const csvText = await file.text();
+        const parseResult = Papa.parse<CsvRow>(csvText, {
+          header: true,
+          delimiter: ";",
+          skipEmptyLines: true,
+        });
+
+        if (parseResult.errors.length > 0) {
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({
+                error: "Erro ao analisar o CSV.",
+                details: parseResult.errors,
+              })}\n\n`
+            )
+          );
+          controller.close();
+          return;
+        }
+
+        const totalRows = parseResult.data.length;
+        let importedCount = 0;
+        let errorCount = 0;
+
+        // Envia o total de linhas para o cliente calcular a porcentagem
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({ type: "start", total: totalRows })}\n\n`
+          )
+        );
+
+        for (const [index, row] of parseResult.data.entries()) {
+          const saldoNumerico = parseFloat(row.saldo_estoque.replace(",", "."));
+          if (
+            isNaN(saldoNumerico) ||
+            !row.codigo_produto ||
+            !row.codigo_de_barras
+          ) {
+            errorCount++;
+            continue;
+          }
+
+          try {
+            await prisma.$transaction(async (tx) => {
+              const product = await tx.produto.upsert({
+                where: {
+                  codigo_produto_usuario_id: {
+                    codigo_produto: row.codigo_produto,
+                    usuario_id: userId,
+                  },
+                },
+                update: {
+                  descricao: row.descricao,
+                  saldo_estoque: saldoNumerico,
+                },
+                create: {
+                  codigo_produto: row.codigo_produto,
+                  descricao: row.descricao,
+                  saldo_estoque: saldoNumerico,
+                  usuario_id: userId,
+                },
+              });
+
+              await tx.codigoBarras.deleteMany({
+                where: { produto_id: product.id },
+              });
+
+              await tx.codigoBarras.create({
+                data: {
+                  codigo_de_barras: row.codigo_de_barras,
+                  produto_id: product.id,
+                  usuario_id: userId,
+                },
+              });
+            });
+
+            importedCount++;
+          } catch (error: any) {
+            if (
+              error instanceof Prisma.PrismaClientKnownRequestError &&
+              error.code === "P2002"
+            ) {
+              console.log(
+                `Código de barras duplicado no banco, ignorando linha: ${row.codigo_de_barras}`
+              );
+              errorCount++;
+            } else {
+              console.error("Erro inesperado na transação:", error);
+              throw error;
+            }
+          }
+
+          // Envia o progresso atual para o cliente
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({
+                type: "progress",
+                current: index + 1,
+                total: totalRows,
+                imported: importedCount,
+                errors: errorCount,
+              })}\n\n`
+            )
+          );
+        }
+
+        // Envia o evento final de sucesso
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({
+              type: "complete",
+              importedCount,
+              errorCount,
+            })}\n\n`
+          )
+        );
+      } catch (error: any) {
+        console.error("Erro na importação de CSV:", error);
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({
+              error: "Erro interno do servidor.",
+            })}\n\n`
+          )
+        );
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }

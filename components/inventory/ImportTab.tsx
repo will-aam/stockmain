@@ -1,13 +1,16 @@
 // src/components/inventory/ImportTab.tsx
 /**
- * Descrição: Aba para importação de produtos via arquivo CSV.
- * Responsabilidade: Fornecer a interface para o upload de arquivos CSV, exibir instruções detalhadas
- * sobre o formato correto do arquivo, mostrar erros de validação e listar os produtos
- * que foram importados com sucesso. Inclui funcionalidades para baixar um template
- * e para visualizar os dados em uma tabela responsiva.
+ * Descrição: Aba para importação de produtos via arquivo CSV com progresso real.
+ * Responsabilidade: Fornecer a interface para o upload de arquivos CSV, exibir instruções detalhadas,
+ * mostrar o progresso de importação em tempo real via Server-Sent Events (SSE),
+ * exibir erros de validação e listar os produtos que foram importados com sucesso.
+ * Inclui funcionalidades para baixar um template e para visualizar os dados em uma tabela responsiva.
  */
 
+"use client";
+
 import type React from "react";
+import { useState } from "react";
 
 // --- Componentes de UI ---
 import {
@@ -20,6 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import {
   Table,
   TableBody,
@@ -50,7 +54,13 @@ import type { Product, BarCode } from "@/lib/types";
  * Props para o componente ImportTab.
  */
 interface ImportTabProps {
-  handleCsvUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  // Props necessárias para a lógica de upload com progresso (SSE)
+  userId: number | null;
+  setIsLoading: (loading: boolean) => void;
+  setCsvErrors: (errors: string[]) => void;
+  loadCatalogFromDb: () => Promise<void>;
+
+  // Props de estado para exibição na UI
   isLoading: boolean;
   csvErrors: string[];
   products: Product[];
@@ -69,7 +79,6 @@ interface ProductTableRowProps {
 
 /**
  * Subcomponente que renderiza uma única linha na tabela de produtos.
- * Exibe o código, descrição, saldo e o código de barras do produto.
  * @param product - O objeto Product a ser exibido.
  * @param barCode - O objeto BarCode associado ao produto (opcional).
  */
@@ -99,8 +108,6 @@ interface CsvInstructionsProps {
 
 /**
  * Subcomponente que exibe as instruções para formatar o arquivo CSV.
- * Inclui uma lista de regras, um snippet de código com o cabeçalho correto
- * (com funcionalidade de copiar para a área de transferência) e um botão para baixar um template.
  * @param downloadTemplateCSV - Função para baixar o arquivo template.
  */
 const CsvInstructions: React.FC<CsvInstructionsProps> = ({
@@ -115,8 +122,7 @@ const CsvInstructions: React.FC<CsvInstructionsProps> = ({
         • <strong>Separador:</strong> Use ponto e vírgula (;) entre as colunas
       </li>
       <li>
-        • <strong>Código de barras:</strong> Formate a coluna como NÚMERO (não
-        texto)
+        • <strong>Código de barras:</strong> Formate a coluna como NÚMERO
       </li>
       <li>
         • <strong>Saldo estoque:</strong> Use apenas números inteiros
@@ -128,22 +134,15 @@ const CsvInstructions: React.FC<CsvInstructionsProps> = ({
         • <strong>Cabeçalho:</strong> Primeira linha deve conter os nomes das
         colunas
       </li>
-      <li>
-        • <strong>Código do Produto:</strong> Se não possuir, insira um valor
-        numérico apenas para preenchimento do campo.
-      </li>
     </ul>
     <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="text-xs text-blue-600 dark:text-blue-400">
         <div className="relative bg-gray-950 text-gray-100 rounded-md p-3 font-mono text-xs border border-gray-800 mt-3">
-          {/* Botão para copiar o cabeçalho do CSV para a área de transferência. */}
           <button
             onClick={() => {
               const textoVisual =
                 "codigo_de_barras;codigo_produto;descricao;saldo_estoque";
-              const textoCopiado =
-                "codigo_de_barras\tcodigo_produto\tdescricao\tsaldo_estoque";
-              navigator.clipboard.writeText(textoCopiado).then(() => {
+              navigator.clipboard.writeText(textoVisual).then(() => {
                 const btn = document.getElementById("copy-btn");
                 if (btn) {
                   btn.textContent = "Copiado!";
@@ -179,17 +178,129 @@ CsvInstructions.displayName = "CsvInstructions";
 // --- Componente Principal ---
 /**
  * Componente ImportTab.
- * Orquestra a interface de importação, gerenciando o upload, exibição de erros,
- * instruções e a tabela de produtos importados.
+ * Orquestra a interface de importação com progresso real.
  */
 export const ImportTab: React.FC<ImportTabProps> = ({
-  handleCsvUpload,
+  // Props para a lógica de upload com progresso (SSE)
+  userId,
+  setIsLoading,
+  setCsvErrors,
+  loadCatalogFromDb,
+  // Props de estado para exibição na UI
   isLoading,
   csvErrors,
   products,
   barCodes,
   downloadTemplateCSV,
 }) => {
+  // --- Estado Local para o Progresso da Importação ---
+  const [importProgress, setImportProgress] = useState<{
+    current: number;
+    total: number;
+    imported: number;
+    errors: number;
+  }>({
+    current: 0,
+    total: 0,
+    imported: 0,
+    errors: 0,
+  });
+
+  const [isImporting, setIsImporting] = useState(false);
+
+  /**
+   * Função para lidar com o upload do arquivo usando Server-Sent Events (SSE).
+   * @param e - Evento de mudança do input de arquivo.
+   */
+  const handleCsvUploadWithProgress = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file || !userId) return;
+
+    setIsImporting(true);
+    setCsvErrors([]);
+    setImportProgress({
+      current: 0,
+      total: 0,
+      imported: 0,
+      errors: 0,
+    });
+    setIsLoading(true);
+
+    const eventSource = new EventSource(`/api/inventory/${userId}/import`);
+
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.error) {
+        let errorMessage = data.error;
+        if (
+          data.details &&
+          Array.isArray(data.details) &&
+          data.details.length > 0
+        ) {
+          const detailsString = data.details
+            .map(
+              (d: { codigo_de_barras: string; linhas: number[] }) =>
+                `Código: ${d.codigo_de_barras} (Linhas: ${d.linhas.join(", ")})`
+            )
+            .join("; ");
+          errorMessage = `${data.error} Detalhes: ${detailsString}`;
+        }
+        setCsvErrors([errorMessage]);
+        setIsImporting(false);
+        setIsLoading(false);
+        eventSource.close();
+        return;
+      }
+
+      if (data.type === "start") {
+        setImportProgress({
+          current: 0,
+          total: data.total,
+          imported: 0,
+          errors: 0,
+        });
+      } else if (data.type === "progress") {
+        setImportProgress({
+          current: data.current,
+          total: data.total,
+          imported: data.imported,
+          errors: data.errors,
+        });
+      } else if (data.type === "complete") {
+        console.log(
+          `Importação concluída! ${data.importedCount} itens importados.`
+        );
+        eventSource.close();
+        setIsImporting(false);
+        setIsLoading(false);
+        loadCatalogFromDb();
+      }
+    };
+
+    eventSource.onerror = () => {
+      setCsvErrors(["Ocorreu um erro durante a importação."]);
+      setIsImporting(false);
+      setIsLoading(false);
+      eventSource.close();
+    };
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    fetch(`/api/inventory/${userId}/import`, {
+      method: "POST",
+      body: formData,
+    }).catch(() => {
+      setCsvErrors(["Falha ao enviar o arquivo."]);
+      setIsImporting(false);
+      setIsLoading(false);
+      eventSource.close();
+    });
+  };
+
   return (
     <>
       {/* Card principal para o upload de arquivos e instruções. */}
@@ -233,11 +344,24 @@ export const ImportTab: React.FC<ImportTabProps> = ({
               id="csv-file"
               type="file"
               accept=".csv"
-              onChange={handleCsvUpload}
-              disabled={isLoading}
+              onChange={handleCsvUploadWithProgress}
+              disabled={isLoading || isImporting}
             />
+            {/* Renderizar a barra de progresso se existir e o upload estiver ativo. */}
+            {isImporting && importProgress && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Importando...</span>
+                  <span>{`${importProgress.current} / ${importProgress.total}`}</span>
+                </div>
+                <Progress
+                  value={(importProgress.current / importProgress.total) * 100}
+                  className="w-full"
+                />
+              </div>
+            )}
             {/* Skeleton exibido durante o processamento do arquivo. */}
-            {isLoading && <Skeleton className="h-4 w-full" />}
+            {isLoading && !isImporting && <Skeleton className="h-4 w-full" />}
           </div>
 
           {/* Seção de alerta para exibir erros de validação do CSV. */}

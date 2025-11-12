@@ -59,7 +59,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   const [currentProduct, setCurrentProduct] = useState<
     Product | TempProduct | null
   >(null);
-  const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvErrors, setCsvErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -117,9 +116,8 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
 
   // --- Lógica de Cálculo e Processamento ---
   /**
-   * Memoiza a lista de itens faltantes.
-   * Compara o saldo do sistema com a quantidade contada para determinar o que falta.
-   * O useMemo evita recálculos desnecessários a cada renderização.
+   * Memoiza a lista de itens que NÃO FORAM CONTADOS.
+   * A lógica foi corrigida para identificar produtos com quantidade contada igual a zero.
    */
   const missingItems = useMemo(() => {
     const productCountMap = new Map(
@@ -133,12 +131,15 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
           Number(countedItem?.quant_loja ?? 0) +
           Number(countedItem?.quant_estoque ?? 0);
 
+        // Um item é considerado "faltante" se NENHUMA unidade foi contada.
         if (countedQuantity > 0) {
-          return null;
+          return null; // Se foi contado, não pertence a esta lista.
         }
 
         const barCode = barCodes.find((bc) => bc.produto_id === product.id);
         const saldoEstoque = Number(product.saldo_estoque) || 0;
+
+        // Se não foi contado, a quantidade "faltante" a ser exibida é o saldo total do sistema.
         return {
           codigo_de_barras: barCode?.codigo_de_barras || "N/A",
           descricao: product.descricao,
@@ -173,8 +174,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
             isValid: false,
             error: "Caracteres inválidos na expressão",
           };
-        // Cuidado: O uso de Function com string dinâmica pode ser um risco de segurança se a entrada não for sanitizada.
-        // Neste caso, a regex acima mitiga o risco, permitindo apenas caracteres numéricos e operadores.
         const result = new Function("return " + cleanExpression)();
         if (typeof result !== "number" || isNaN(result) || !isFinite(result))
           return { result: 0, isValid: false, error: "Resultado inválido" };
@@ -193,7 +192,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   // --- Manipuladores de Eventos (Callbacks) ---
   /**
    * Adiciona ou atualiza a contagem de um produto.
-   * Processa a entrada de quantidade (número ou expressão), valida e atualiza o estado `productCounts`.
    */
   const handleAddCount = useCallback(() => {
     if (!currentProduct || !quantityInput) return;
@@ -312,79 +310,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   }, []);
 
   /**
-   * Processa o upload de um arquivo CSV, enviando-o para o servidor para importação.
-   */
-  const processCsvFile = useCallback(
-    async (file: File) => {
-      if (!userId) {
-        toast({
-          title: "Erro",
-          description: "Sessão de usuário não encontrada.",
-          variant: "destructive",
-        });
-        return;
-      }
-      setIsLoading(true);
-      setCsvErrors([]);
-      const formData = new FormData();
-      formData.append("file", file);
-      try {
-        const response = await fetch(`/api/inventory/${userId}/import`, {
-          method: "POST",
-          body: formData,
-        });
-        const data = await response.json();
-        if (!response.ok) {
-          if (data.details) {
-            const errorMessages = data.details
-              .map(
-                (d: { codigo_de_barras: string; linhas: number[] }) =>
-                  `Barra: ${d.codigo_de_barras} (Linhas: ${d.linhas.join(
-                    ", "
-                  )})`
-              )
-              .join("; ");
-            throw new Error(`${data.error} ${errorMessages}`);
-          }
-          throw new Error(data.error || "Falha ao importar o arquivo CSV.");
-        }
-        toast({
-          title: "Sucesso!",
-          description: `${data.importedCount} produtos foram importados.`,
-        });
-        await loadCatalogFromDb();
-      } catch (error: any) {
-        setCsvErrors([error.message]);
-        toast({
-          title: "Erro na importação",
-          description: error.message,
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [userId, loadCatalogFromDb]
-  );
-
-  /**
-   * Manipulador para o evento de mudança do input de arquivo CSV.
-   */
-  const handleCsvUpload = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        setCsvFile(file);
-        processCsvFile(file);
-      }
-    },
-    [processCsvFile]
-  );
-
-  /**
    * Processa o código de barras escaneado ou digitado.
-   * Busca o produto correspondente nos catáquivos ou cria um produto temporário se não encontrado.
-   * A busca só é acionada quando o código atinge o tamanho mínimo definido.
    */
   const handleScan = useCallback(() => {
     const code = scanInput.trim();
@@ -423,7 +349,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
 
   /**
    * Manipula o resultado do escaneamento via câmera.
-   * Fecha a visualização da câmera, preenche o input de código de barras e foca no campo de quantidade.
    */
   const handleBarcodeScanned = useCallback((barcode: string) => {
     setIsCameraViewActive(false);
@@ -436,8 +361,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     }, 100);
   }, []);
 
-  // useEffect que dispara a busca de produtos sempre que o input de código de barras muda e atinge o tamanho mínimo.
-  // Isso evita buscas desnecessárias a cada digitação.
   useEffect(() => {
     if (!scanInput) {
       setCurrentProduct(null);
@@ -453,7 +376,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
 
   /**
    * Manipula o evento de tecla no campo de quantidade.
-   * Permite calcular expressões com "Enter" ou adicionar a contagem se for um número simples.
    */
   const handleQuantityKeyPress = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -758,7 +680,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     quantityInput,
     setQuantityInput,
     currentProduct,
-    csvFile,
     csvErrors,
     isLoading,
     isSaving,
@@ -771,8 +692,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     setIsCameraViewActive,
     productCountsStats,
     handleClearAllData,
-    handleCsvUpload,
-    processCsvFile,
     handleScan,
     handleBarcodeScanned,
     handleAddCount,
@@ -790,5 +709,8 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     missingItems,
     showSaveModal,
     setShowSaveModal,
+    setCsvErrors,
+    setIsLoading,
+    loadCatalogFromDb,
   };
 };
