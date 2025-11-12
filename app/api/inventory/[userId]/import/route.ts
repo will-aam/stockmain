@@ -105,12 +105,6 @@ export async function POST(
           }
 
           try {
-            // =================================================================
-            // INÍCIO DA MUDANÇA: Transação removida
-            // Não usamos mais `prisma.$transaction` aqui para evitar o P2028
-            // =================================================================
-
-            // 1. Cria ou atualiza o produto
             const product = await prisma.produto.upsert({
               where: {
                 codigo_produto_usuario_id: {
@@ -130,7 +124,6 @@ export async function POST(
               },
             });
 
-            // 2. Garante que o NOVO barcode exista e esteja linkado ao produto
             // Isso previne que o barcode já exista (P2002) e atualiza seu produto_id
             await prisma.codigoBarras.upsert({
               where: {
@@ -149,7 +142,6 @@ export async function POST(
               },
             });
 
-            // 3. Remove barcodes ANTIGOS que ainda possam estar
             // linkados a este produto, mas NÃO são o barcode atual.
             await prisma.codigoBarras.deleteMany({
               where: {
@@ -161,17 +153,12 @@ export async function POST(
               },
             });
 
-            // =================================================================
-            // FIM DA MUDANÇA
-            // =================================================================
-
             importedCount++;
           } catch (error: any) {
             if (
               error instanceof Prisma.PrismaClientKnownRequestError &&
               error.code === "P2002"
             ) {
-              // Este erro P2002 (Unique constraint failed) é esperado
               // se o barcode já existir e estiver sendo usado por OUTRO produto.
               console.log(
                 `Código de barras duplicado no banco (P2002), ignorando linha: ${row.codigo_de_barras}`
