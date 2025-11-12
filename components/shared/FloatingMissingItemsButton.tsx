@@ -28,7 +28,12 @@ export function FloatingMissingItemsButton({
       drag
       dragConstraints={dragConstraintsRef} // 3. Use a ref aqui
       dragMomentum={false} // Prevents the button from "sliding" after drag
-      className="fixed bottom-6 right-6 z-50 cursor-grab active:cursor-grabbing"
+      // --- ALTERAÇÃO PRINCIPAL AQUI ---
+      // 1. Removemos 'right-6'
+      // 2. Adicionamos 'left-1/2 transform -translate-x-1/2' para centralizar
+      // 3. Mudamos 'bottom-6' para 'bottom-24' para ficar acima da barra de navegação
+      // 4. Mudamos 'z-50' para 'z-[60]' para ficar na frente da barra (que é z-50)
+      className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-[60] cursor-grab active:cursor-grabbing"
       style={{ touchAction: "none" }} // Prevents page scroll on mobile when dragging
     >
       <Button
