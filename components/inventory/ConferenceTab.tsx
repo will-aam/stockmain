@@ -19,6 +19,7 @@ import {
   Plus,
   Trash2,
   Search,
+  Calculator,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { Product, TempProduct, ProductCount } from "@/lib/types";
@@ -52,13 +53,10 @@ const ProductCountItem = ({
   onRemove: (id: number) => void;
 }) => (
   <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-    {/* 1. Adicione min-w-0 aqui. Isso é VITAL para o truncate funcionar no flexbox */}
     <div className="flex-1 min-w-0">
-      {/* 2. Adicione truncate aqui */}
       <p className="font-medium text-sm truncate" title={item.descricao}>
         {item.descricao}
       </p>
-      {/* 3. Adicione truncate aqui também */}
       <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
         Cód. Barras: {item.codigo_de_barras}| Sistema: {item.saldo_estoque}
       </p>
@@ -126,6 +124,14 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
     );
   }, [productCounts, searchQuery]);
 
+  // Função para validar e filtrar a entrada do campo de quantidade
+  const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Permitir apenas números, operadores básicos e espaços
+    const validValue = value.replace(/[^0-9+\-*/\s.]/g, "");
+    setQuantityInput(validValue);
+  };
+
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <Card>
@@ -134,22 +140,16 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
             <Scan className="h-5 w-5 mr-2" /> Scanner
           </CardTitle>
           <CardDescription>
-            {/* Este 'div' agora é flex-col no mobile (padrão) e sm:flex-row em telas maiores.
-              O gap-2 dá espaço entre os botões quando eles empilham.
-            */}
             <div className="flex flex-col sm:flex-row items-center gap-2">
               <Button
                 onClick={handleSaveCount}
                 variant="outline"
-                // w-full (mobile) faz o botão ter 100% da largura
-                // sm:w-auto (desktop) faz ele ter largura automática
                 className="w-full sm:w-auto"
               >
                 <CloudUpload className="mr-2 h-4 w-4" />
                 Salvar Contagem
               </Button>
 
-              {/* Este 'div' também terá 100% de largura no mobile */}
               <div className="flex w-full sm:w-auto gap-2">
                 <Button
                   variant={countingMode === "loja" ? "default" : "outline"}
@@ -258,52 +258,28 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
               )}
               <div className="space-y-2">
                 <div className="space-y-2">
-                  <Label htmlFor="quantity">
-                    Quantidade{" "}
-                    {countingMode === "loja" ? "em Loja" : "em Estoque"}
-                  </Label>
-
-                  <div className="flex gap-2 items-stretch">
-                    {/* INPUT NUMÉRICO */}
-                    <Input
-                      id="quantity"
-                      type="text"
-                      inputMode="numeric" // força teclado numérico no celular
-                      value={quantityInput}
-                      onChange={(e) => {
-                        // só deixa números digitados
-                        const onlyNumbers = e.target.value.replace(/\D/g, "");
-                        setQuantityInput(onlyNumbers);
-                      }}
-                      onKeyPress={handleQuantityKeyPress}
-                      placeholder="Qtd"
-                      className="flex-1 mobile-optimized font-mono"
-                    />
-
-                    {/* BOTÕES DE OPERADOR */}
-                    <div className="flex gap-1 flex-wrap">
-                      {["+", "-", "*", "/"].map((op) => (
-                        <Button
-                          key={op}
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="h-9 w-9"
-                          onClick={() => {
-                            // aqui usamos o valor atual vindo da prop
-                            const current = quantityInput || "";
-                            setQuantityInput(current + op);
-                          }}
-                        >
-                          {op}
-                        </Button>
-                      ))}
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="quantity">
+                      Quantidade{" "}
+                      {countingMode === "loja" ? "em Loja" : "em Estoque"}
+                    </Label>
+                    <Calculator className="h-4 w-4 text-gray-500" />
                   </div>
 
+                  <Input
+                    id="quantity"
+                    type="text"
+                    inputMode="text" // Alterado para text para permitir símbolos
+                    value={quantityInput}
+                    onChange={handleQuantityChange}
+                    onKeyPress={handleQuantityKeyPress}
+                    placeholder="Ex: 10, 5+3, 20-2, 5*4, 20/5"
+                    className="flex-1 mobile-optimized font-mono"
+                  />
+
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Digite o número e use os botões pra montar o cálculo. Enter
-                    para calcular.
+                    Digite o número ou expressão matemática (ex: 10, 5+3, 20-2,
+                    5*4, 20/5). Pressione Enter para calcular.
                   </p>
                 </div>
               </div>
