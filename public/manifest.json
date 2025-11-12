@@ -1,6 +1,6 @@
 {
-  "name": "Stock - Sistema de Estoque",
-  "short_name": "Stock",
+  "name": "Countifly - Sistema de Estoque",
+  "short_name": "Countifly",
   "description": "Sistema web responsivo para conferência de estoque com leitor de código de barras",
   "start_url": "/",
   "display": "standalone",
@@ -55,7 +55,7 @@
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Stock - Sistema de Estoque"
+      "label": "Countifly - Sistema de Estoque"
     }
   ]
 }

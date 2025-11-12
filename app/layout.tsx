@@ -17,7 +17,7 @@ const inter = Inter({ subsets: ["latin"] });
 // --- Metadados da Aplicação ---
 // Configurações de SEO e PWA visíveis para o navegador e motores de busca.
 export const metadata: Metadata = {
-  title: "Stock - Sistema de Inventário",
+  title: "Countifly - Sistema de Inventário",
   description: "Sistema de contagem de estoque",
   manifest: "/manifest.json?v=2",
 };

@@ -57,7 +57,7 @@ export function Navigation({ setShowClearDataModal }: NavigationProps) {
         <div className="flex justify-between items-center h-16">
           {/* Logo da Aplicação */}
           <span className="text-xl font-bold text-gray-800 dark:text-gray-200">
-            Stock
+            Countifly
           </span>
 
           {/* Container para os botões de ação e controle */}
