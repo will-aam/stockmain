@@ -385,7 +385,7 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                     : "Nenhum produto contado ainda"}
                 </p>
                 <p className="text-sm">
-                  {!searchQuery && "Escaneie um código de barras para começar"}
+                  {!searchQuery && "Escaneie um código para começar"}
                 </p>
               </div>
             ) : (
