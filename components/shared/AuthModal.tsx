@@ -1,6 +1,17 @@
+// src/components/shared/AuthModal.tsx
+/**
+ * Descrição: Modal de Autenticação da Aplicação.
+ * Responsabilidade: Exibir uma interface para que o usuário insira uma senha e desbloqueie o acesso
+ * ao sistema. Gerencia o estado do formulário, a validação, a comunicação com a API de autenticação
+ * e fornece feedback visual (carregamento, erros) para o usuário.
+ */
+
 "use client";
 
+// --- React Hooks ---
 import { useState } from "react";
+
+// --- Componentes de UI ---
 import {
   Card,
   CardContent,
@@ -12,20 +23,38 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+// --- Ícones e Utilitários ---
 import { LockKeyhole, Loader2, Shield, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// --- Interfaces e Tipos ---
+/**
+ * Props para o componente AuthModal.
+ * @param onUnlock - Função de callback chamada após a autenticação bem-sucedida, recebendo o ID do usuário.
+ */
 interface AuthModalProps {
   onUnlock: (userId: number) => void;
 }
 
+/**
+ * Componente AuthModal.
+ * Renderiza um modal em tela cheia para autenticação, com animações de fundo e
+ * um formulário de senha com validação e feedback visual.
+ */
 export function AuthModal({ onUnlock }: AuthModalProps) {
+  // --- Estado do Componente ---
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
 
+  /**
+   * Função para processar o desbloqueio.
+   * Envia a senha para a API de autenticação, gerencia os estados de carregamento e erro,
+   * e chama a função `onUnlock` em caso de sucesso.
+   */
   const handleUnlock = async () => {
     if (!password.trim()) {
       setError("Por favor, insira a senha");
@@ -61,6 +90,10 @@ export function AuthModal({ onUnlock }: AuthModalProps) {
     }
   };
 
+  /**
+   * Manipulador de evento de teclado.
+   * Permite que o usuário envie o formulário pressionando a tecla "Enter".
+   */
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !isLoading) {
       handleUnlock();
@@ -69,26 +102,29 @@ export function AuthModal({ onUnlock }: AuthModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Background with system colors */}
+      {/* --- Fundo Animado --- */}
+      {/* Container principal com fundo semitransparante e desfoque. */}
       <div className="absolute inset-0 bg-background">
         <div className="absolute inset-0 bg-black/60 backdrop-blur-md" />
-        {/* Animated background elements with system colors */}
+        {/* Elementos de fundo animados com cores do tema para um visual dinâmico. */}
         <div className="absolute top-0 -left-4 w-72 h-72 bg-primary/20 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse" />
         <div className="absolute bottom-0 -right-4 w-72 h-72 bg-primary/20 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse animation-delay-2000" />
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-primary/20 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse animation-delay-4000" />
       </div>
 
-      {/* Modal Container with responsive adjustments */}
+      {/* --- Container do Modal --- */}
+      {/* Container do modal com animação de entrada e ajustes responsivos. */}
       <div className="relative z-10 w-full max-w-md animate-in fade-in-0 zoom-in-95 duration-300">
         <Card className="relative overflow-hidden border shadow-2xl bg-card/95 backdrop-blur-xl">
-          {/* Decorative gradient border using system primary color */}
+          {/* Borda decorativa com gradiente usando a cor primária do tema. */}
           <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-primary/30 to-primary/20 opacity-10" />
 
-          {/* Content */}
+          {/* Conteúdo do Modal */}
           <div className="relative">
-            {/* Header with animated icon */}
+            {/* Cabeçalho com ícone animado */}
             <CardHeader className="text-center pb-2 px-4 sm:px-6">
               <div className="mx-auto mb-4 relative">
+                {/* Efeito de brilho animado no ícone, ativado pelo foco no input. */}
                 <div
                   className={cn(
                     "absolute inset-0 bg-primary/50 rounded-full blur-lg opacity-50 transition-all duration-300",
@@ -109,6 +145,7 @@ export function AuthModal({ onUnlock }: AuthModalProps) {
               </CardDescription>
             </CardHeader>
 
+            {/* Corpo do Modal com o formulário */}
             <CardContent className="space-y-6 px-4 sm:px-8">
               <div className="space-y-3">
                 <Label
@@ -118,6 +155,7 @@ export function AuthModal({ onUnlock }: AuthModalProps) {
                   Senha da Sessão
                 </Label>
 
+                {/* Campo de input de senha com botão para mostrar/ocultar o texto. */}
                 <div className="relative">
                   <Input
                     id="password"
@@ -150,7 +188,7 @@ export function AuthModal({ onUnlock }: AuthModalProps) {
                 </div>
               </div>
 
-              {/* Error message with animation */}
+              {/* Mensagem de erro, exibida com animação slide-in quando presente. */}
               {error && (
                 <div className="animate-in slide-in-from-top-2 duration-200">
                   <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
@@ -163,6 +201,7 @@ export function AuthModal({ onUnlock }: AuthModalProps) {
               )}
             </CardContent>
 
+            {/* Rodapé com o botão de envio */}
             <CardFooter className="px-4 sm:px-8 pb-8 pt-2">
               <Button
                 onClick={handleUnlock}
@@ -189,16 +228,17 @@ export function AuthModal({ onUnlock }: AuthModalProps) {
             </CardFooter>
           </div>
 
-          {/* Bottom decorative line with system primary color */}
+          {/* Linha decorativa inferior com a cor primária do tema. */}
           <div className="h-1 bg-gradient-to-r from-primary/80 via-primary to-primary/80" />
         </Card>
 
-        {/* Additional info */}
+        {/* Texto informativo adicional abaixo do modal. */}
         <p className="text-center text-xs text-muted-foreground mt-4 px-4">
           Área restrita • Acesso autorizado somente
         </p>
       </div>
 
+      {/* Estilos CSS-in-JS para animações e ajustes responsivos específicos deste componente. */}
       <style jsx>{`
         @keyframes pulse {
           0%,
@@ -216,7 +256,7 @@ export function AuthModal({ onUnlock }: AuthModalProps) {
           animation-delay: 4s;
         }
 
-        /* Responsive adjustments for small screens */
+        /* Ajustes responsivos para telas muito pequenas. */
         @media (max-width: 360px) {
           .fixed {
             padding: 12px;

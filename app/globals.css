@@ -1,25 +1,43 @@
-html,
-body {
-  height: 100%;
-  width: 100%;
-  /* overflow-x: hidden; */
-}
+/* src/app/globals.css */
+/**
+ * Descrição: Folha de estilo global da aplicação.
+ * Responsabilidade: Define os estilos base, variáveis de tema (claro/escuro),
+ * e estilos utilitários específicos para componentes, mobile, PWA e animações.
+ * Este arquivo é importado em todos os componentes da aplicação através do layout raiz.
+ */
+
+/* ==========================================================================
+   IMPORTAÇÕES E ESTILOS BASE
+   ==========================================================================
+*/
+
+/* Importação das diretivas base do Tailwind CSS */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Reset básico para garantir que html e body ocupem 100% da altura e largura da viewport */
+html,
+body {
+  height: 100%;
+  width: 100%;
+}
+
 /* ==========================================================================
-   DEFINIÇÃO DAS VARIÁVEIS DE COR (TEMA CLARO E ESCURO)
-  ==========================================================================
+   DEFINIÇÃO DE VARIÁVEIS CSS (TEMA CLARO E ESCURO)
+   ==========================================================================
 */
 @layer base {
-  /* TEMA CLARO (LIGHT MODE) */
+  /* Variáveis definidas dentro da camada 'base' do Tailwind CSS.
+     Elas servem como a fonte da verdade para cores, espaçamentos e outros tokens de design. */
+
+  /* TEMA CLARO (LIGHT MODE) - Variáveis aplicadas ao elemento raiz (:root) */
   :root {
-    --background: 210 20% 98%; /* Ajustado para um branco mais suave */
+    --background: 210 20% 98%;
     --foreground: 222.2 84% 4.9%;
-    --card: 210 20% 98%; /* Ajustado para um branco mais suave */
+    --card: 210 20% 98%;
     --card-foreground: 222.2 84% 4.9%;
-    --popover: 210 20% 98%; /* Ajustado para um branco mais suave */
+    --popover: 210 20% 98%;
     --popover-foreground: 222.2 84% 4.9%;
     --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
@@ -31,8 +49,8 @@ body {
     --accent-foreground: 222.2 84% 4.9%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 85.4%; /* Bordas mais escuras */
-    --input: 214.3 31.8% 85.4%; /* Bordas mais escuras */
+    --border: 214.3 31.8% 85.4%;
+    --input: 214.3 31.8% 85.4%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.5rem;
     --chart-1: 12 76% 61%;
@@ -42,26 +60,26 @@ body {
     --chart-5: 27 87% 67%;
   }
 
-  /* TEMA ESCURO (DARK MODE) */
+  /* TEMA ESCURO (DARK MODE) - Variáveis aplicadas quando a classe .dark está presente */
   .dark {
-    --background: 224 70% 5%; /* Fundo azul mais escuro e profundo */
+    --background: 224 70% 5%;
     --foreground: 210 40% 98%;
-    --card: 224 70% 3.9%; /* Fundo azul mais escuro e profundo */
+    --card: 224 70% 3.9%;
     --card-foreground: 210 40% 98%;
-    --popover: 224 70% 3.9%; /* Fundo azul mais escuro e profundo */
+    --popover: 224 70% 3.9%;
     --popover-foreground: 210 40% 98%;
     --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222.2 84% 4.9%;
-    --secondary: 220 30% 15%; /* Ajustado para o novo tom de azul*/
+    --secondary: 220 30% 15%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 220 30% 15%; /* Ajustado para o novo tom de azul */
+    --muted: 220 30% 15%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 220 30% 15%; /* Ajustado para o novo tom de azul */
+    --accent: 220 30% 15%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 20%; /* Borda com mais contraste */
-    --input: 217.2 32.6% 20%; /* Borda com mais contraste */
+    --border: 217.2 32.6% 20%;
+    --input: 217.2 32.6% 20%;
     --ring: 224.3 76.3% 94.1%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
@@ -72,10 +90,12 @@ body {
 }
 
 /* ==========================================================================
-   ESTILOS BASE E APLICAÇÃO DAS VARIÁVEIS
-  ==========================================================================
+   APLICAÇÃO DOS ESTILOS BASE
+   ==========================================================================
 */
 @layer base {
+  /* Aplica as variáveis de tema definidas acima a elementos globais.
+     O @apply border-border garante que todos os elementos usem a cor de borda do tema atual. */
   * {
     @apply border-border;
   }
@@ -85,18 +105,20 @@ body {
 }
 
 /* ==========================================================================
-   ESTILOS ESPECÍFICOS (MOBILE, PWA, ANIMAÇÕES, ETC.)
-  ==========================================================================
+   ESTILOS UTILITÁRIOS E ESPECÍFICOS
+   ==========================================================================
 */
 
-/* Estilos específicos para mobile e leitores de código de barras */
+/* --- Otimizações para Dispositivos Móveis e Leitores de Código de Barras --- */
 @media (max-width: 768px) {
+  /* Classe para otimizar a exibição em dispositivos móveis, evitando o zoom automático */
   .mobile-optimized {
-    font-size: 16px !important; /* Evita zoom automático no iOS */
+    font-size: 16px !important; /* Evita zoom automático no iOS ao focar em inputs */
     -webkit-appearance: none;
     border-radius: 0;
   }
 
+  /* Garante que inputs comuns tenham um tamanho de fonte legível em mobile */
   input[type="number"],
   input[type="text"],
   input[type="email"],
@@ -106,7 +128,7 @@ body {
     border-radius: 0.375rem;
   }
 
-  /* Otimizações para leitores de código de barras */
+  /* Estilos para campos de input de código de barras, melhorando a legibilidade e feedback visual */
   .barcode-input {
     font-family: "Courier New", monospace;
     letter-spacing: 1px;
@@ -121,7 +143,7 @@ body {
   }
 }
 
-/* Estilos para PWA */
+/* --- Estilos para Progressive Web App (PWA) --- */
 @media (display-mode: standalone) {
   body {
     padding-top: env(safe-area-inset-top);
@@ -135,7 +157,7 @@ body {
   }
 }
 
-/* Animações para feedback visual */
+/* --- Animações de Feedback Visual --- */
 .scan-success {
   animation: scanPulse 0.6s ease-in-out;
 }
@@ -172,10 +194,10 @@ body {
   }
 }
 
-/* Estilos para tabelas responsivas */
+/* --- Tabelas Responsivas --- */
 @media (max-width: 640px) {
   .responsive-table {
-    font-size: 0.875rem; /* 14px */
+    font-size: 0.875rem;
     width: 100%;
     display: block;
     overflow-x: auto;
@@ -184,11 +206,11 @@ body {
 
   .responsive-table th,
   .responsive-table td {
-    padding: 0.5rem 0.25rem; /* 8px 4px */
+    padding: 0.5rem 0.25rem;
   }
 }
 
-/* Estilos para botões grandes em mobile */
+/* --- Botões Otimizados para Mobile --- */
 @media (max-width: 768px) {
   .mobile-button {
     min-height: 48px;
@@ -197,7 +219,7 @@ body {
   }
 }
 
-/* Indicador de status offline/online */
+/* --- Indicador de Status de Conexão --- */
 .offline-indicator {
   position: fixed;
   top: 1rem;
@@ -206,7 +228,7 @@ body {
   transition: all 0.3s ease;
 }
 
-/* Estilos para campos de diferença/variação */
+/* --- Indicadores de Variação (Estoque) --- */
 .variance-positive {
   color: #059669;
   background-color: #d1fae5;
@@ -222,6 +244,7 @@ body {
   background-color: #f3f4f6;
 }
 
+/* Sobrescritas para o tema escuro, usando cores com opacidade para melhor contraste */
 .dark .variance-positive {
   color: #34d399;
   background-color: rgba(16, 185, 129, 0.1);
@@ -237,7 +260,7 @@ body {
   background-color: rgba(107, 114, 128, 0.1);
 }
 
-/* Estilos para abas em mobile */
+/* --- Abas (Tabs) em Mobile --- */
 @media (max-width: 640px) {
   .mobile-tabs-list > button {
     padding-top: 0.75rem;

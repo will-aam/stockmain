@@ -1,39 +1,59 @@
+// src/components/shared/FloatingMissingItemsButton.tsx
+/**
+ * Descrição: Botão flutuante e arrastável para itens faltantes.
+ * Responsabilidade: Exibir um botão em uma posição fixa na tela, que pode ser arrastado pelo usuário.
+ * Mostra a contagem de itens faltantes e, ao ser clicado, aciona uma função para exibir mais detalhes.
+ * Sua posição e camada de exibição (z-index) são ajustadas para não ser oculto por outros elementos da UI.
+ */
+
 "use client";
 
+// --- Bibliotecas Externas ---
 import * as React from "react";
 import { motion } from "framer-motion";
+
+// --- Componentes de UI ---
 import { Button } from "@/components/ui/button";
+
+// --- Ícones e Utilitários ---
 import { PackageMinus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// --- Interfaces e Tipos ---
+/**
+ * Props para o componente FloatingMissingItemsButton.
+ */
 interface FloatingMissingItemsButtonProps {
-  onClick: () => void;
-  itemCount: number;
-  // 1. Defina o tipo da nova prop
-  dragConstraintsRef: React.RefObject<HTMLDivElement>;
+  onClick: () => void; // Função de callback chamada quando o botão é clicado.
+  itemCount: number; // O número de itens faltantes a ser exibido no selo do botão.
+  dragConstraintsRef: React.RefObject<HTMLDivElement>; // Referência ao elemento que define os limites da área de arrastar.
 }
 
+/**
+ * Componente FloatingMissingItemsButton.
+ * Renderiza um botão flutuante com base na contagem de itens faltantes.
+ * O botão é arrastável dentro dos limites definidos por `dragConstraintsRef`.
+ */
 export function FloatingMissingItemsButton({
   onClick,
   itemCount,
-  dragConstraintsRef, // 2. Receba a prop
+  dragConstraintsRef,
 }: FloatingMissingItemsButtonProps) {
-  // Do not render the button if there are no missing items
   if (itemCount === 0) {
     return null;
   }
 
   return (
     <motion.div
+      // Habilita a funcionalidade de arrastar no elemento.
       drag
-      dragConstraints={dragConstraintsRef} // 3. Use a ref aqui
-      dragMomentum={false} // Prevents the button from "sliding" after drag
-      // --- ALTERAÇÃO AQUI ---
-      // 1. Mantido 'right-6' para ficar no lado.
-      // 2. 'bottom-6' mudei para 'bottom-24' (para ficar acima da barra de navegação).
-      // 3. 'z-50' mudei para 'z-[60]' (para ficar na FRENTE da barra de navegação).
+      // Define o elemento pai como limite para o arraste.
+      dragConstraints={dragConstraintsRef}
+      // Desabilita a inércia após o arraste, fazendo o botão parar assim que o usuário o solta.
+      dragMomentum={false}
+      // Posicionamento e estilo do botão flutuante.
       className="fixed bottom-24 right-6 z-[60] cursor-grab active:cursor-grabbing"
-      style={{ touchAction: "none" }} // Prevents page scroll on mobile when dragging
+      style={{ touchAction: "none" }}
     >
       <Button
         onClick={onClick}
@@ -47,7 +67,7 @@ export function FloatingMissingItemsButton({
         )}
         aria-label={`Mostrar ${itemCount} itens faltantes`}
       >
-        <PackageMinus className="!h-8 !w-8" />{" "}
+        <PackageMinus className="!h-8 !w-8" />
         <span className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">
           {itemCount}
         </span>

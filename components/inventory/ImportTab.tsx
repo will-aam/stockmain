@@ -1,4 +1,15 @@
+// src/components/inventory/ImportTab.tsx
+/**
+ * Descrição: Aba para importação de produtos via arquivo CSV.
+ * Responsabilidade: Fornecer a interface para o upload de arquivos CSV, exibir instruções detalhadas
+ * sobre o formato correto do arquivo, mostrar erros de validação e listar os produtos
+ * que foram importados com sucesso. Inclui funcionalidades para baixar um template
+ * e para visualizar os dados em uma tabela responsiva.
+ */
+
 import type React from "react";
+
+// --- Componentes de UI ---
 import {
   Card,
   CardContent,
@@ -26,10 +37,18 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Upload, Download, AlertCircle, Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+
+// --- Ícones ---
+import { Upload, Download, AlertCircle, Info } from "lucide-react";
+
+// --- Tipos ---
 import type { Product, BarCode } from "@/lib/types";
 
+// --- Interfaces e Tipos ---
+/**
+ * Props para o componente ImportTab.
+ */
 interface ImportTabProps {
   handleCsvUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   isLoading: boolean;
@@ -39,12 +58,24 @@ interface ImportTabProps {
   downloadTemplateCSV: () => void;
 }
 
-const ProductTableRow = ({
-  product,
-  barCode,
-}: {
+// --- Subcomponentes ---
+/**
+ * Props para o subcomponente ProductTableRow.
+ */
+interface ProductTableRowProps {
   product: Product;
   barCode?: BarCode;
+}
+
+/**
+ * Subcomponente que renderiza uma única linha na tabela de produtos.
+ * Exibe o código, descrição, saldo e o código de barras do produto.
+ * @param product - O objeto Product a ser exibido.
+ * @param barCode - O objeto BarCode associado ao produto (opcional).
+ */
+const ProductTableRow: React.FC<ProductTableRowProps> = ({
+  product,
+  barCode,
 }) => (
   <TableRow>
     <TableCell className="font-medium">{product.codigo_produto}</TableCell>
@@ -59,10 +90,21 @@ const ProductTableRow = ({
 );
 ProductTableRow.displayName = "ProductTableRow";
 
-const CsvInstructions = ({
-  downloadTemplateCSV,
-}: {
+/**
+ * Props para o subcomponente CsvInstructions.
+ */
+interface CsvInstructionsProps {
   downloadTemplateCSV: () => void;
+}
+
+/**
+ * Subcomponente que exibe as instruções para formatar o arquivo CSV.
+ * Inclui uma lista de regras, um snippet de código com o cabeçalho correto
+ * (com funcionalidade de copiar para a área de transferência) e um botão para baixar um template.
+ * @param downloadTemplateCSV - Função para baixar o arquivo template.
+ */
+const CsvInstructions: React.FC<CsvInstructionsProps> = ({
+  downloadTemplateCSV,
 }) => (
   <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
     <h3 className="text-base font-semibold text-blue-800 dark:text-blue-200 mb-3">
@@ -94,6 +136,7 @@ const CsvInstructions = ({
     <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="text-xs text-blue-600 dark:text-blue-400">
         <div className="relative bg-gray-950 text-gray-100 rounded-md p-3 font-mono text-xs border border-gray-800 mt-3">
+          {/* Botão para copiar o cabeçalho do CSV para a área de transferência. */}
           <button
             onClick={() => {
               const textoVisual =
@@ -133,6 +176,12 @@ const CsvInstructions = ({
 );
 CsvInstructions.displayName = "CsvInstructions";
 
+// --- Componente Principal ---
+/**
+ * Componente ImportTab.
+ * Orquestra a interface de importação, gerenciando o upload, exibição de erros,
+ * instruções e a tabela de produtos importados.
+ */
 export const ImportTab: React.FC<ImportTabProps> = ({
   handleCsvUpload,
   isLoading,
@@ -143,6 +192,7 @@ export const ImportTab: React.FC<ImportTabProps> = ({
 }) => {
   return (
     <>
+      {/* Card principal para o upload de arquivos e instruções. */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
@@ -151,6 +201,7 @@ export const ImportTab: React.FC<ImportTabProps> = ({
           </CardTitle>
           <CardDescription>Faça upload de um arquivo CSV</CardDescription>
 
+          {/* Seção de instruções: exibida diretamente em desktop ou dentro de um Dialog em mobile. */}
           <div className="hidden sm:block mt-4">
             <CsvInstructions downloadTemplateCSV={downloadTemplateCSV} />
           </div>
@@ -175,6 +226,7 @@ export const ImportTab: React.FC<ImportTabProps> = ({
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Campo de input para o upload do arquivo CSV. */}
           <div className="space-y-2">
             <Label htmlFor="csv-file">Arquivo CSV</Label>
             <Input
@@ -184,8 +236,11 @@ export const ImportTab: React.FC<ImportTabProps> = ({
               onChange={handleCsvUpload}
               disabled={isLoading}
             />
+            {/* Skeleton exibido durante o processamento do arquivo. */}
             {isLoading && <Skeleton className="h-4 w-full" />}
           </div>
+
+          {/* Seção de alerta para exibir erros de validação do CSV. */}
           {csvErrors.length > 0 && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
@@ -201,6 +256,8 @@ export const ImportTab: React.FC<ImportTabProps> = ({
               </AlertDescription>
             </Alert>
           )}
+
+          {/* Resumo da quantidade de produtos cadastrados com sucesso. */}
           <div className="grid grid-cols-1 gap-4 text-sm">
             <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
               <p className="font-semibold text-blue-800 dark:text-blue-200">
@@ -213,12 +270,15 @@ export const ImportTab: React.FC<ImportTabProps> = ({
           </div>
         </CardContent>
       </Card>
+
+      {/* Renderização condicional: exibe a tabela de produtos ou uma mensagem de estado vazio. */}
       {products.length > 0 ? (
         <Card>
           <CardHeader>
             <CardTitle>Produtos Cadastrados</CardTitle>
           </CardHeader>
           <CardContent>
+            {/* Tabela responsiva com a lista de produtos importados. */}
             <div className="max-h-96 overflow-y-auto">
               <Table className="responsive-table">
                 <TableHeader>
@@ -233,6 +293,7 @@ export const ImportTab: React.FC<ImportTabProps> = ({
                 </TableHeader>
                 <TableBody>
                   {products.map((product) => {
+                    // Encontra o código de barras correspondente para exibir na tabela.
                     const barCode = barCodes.find(
                       (bc) => bc.produto_id === product.id
                     );

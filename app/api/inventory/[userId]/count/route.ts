@@ -1,3 +1,10 @@
+// src/app/api/inventory/[userId]/count/route.ts
+/**
+ * Rota de API para registrar uma contagem de item.
+ * Processa a contagem de um produto, garantindo a existência do produto e do código de barras,
+ * e atualizando ou criando o registro de contagem na sessão ativa.
+ */
+
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -9,7 +16,7 @@ export async function POST(
     const userId = parseInt(params.userId, 10);
     if (isNaN(userId)) {
       return NextResponse.json(
-        { error: "ID de usuário inválido" },
+        { error: "ID de usuário inválido." },
         { status: 400 }
       );
     }
@@ -19,12 +26,12 @@ export async function POST(
 
     if (!product || typeof quantity !== "number" || !countingMode) {
       return NextResponse.json(
-        { error: "Dados da requisição incompletos" },
+        { error: "Dados da requisição incompletos." },
         { status: 400 }
       );
     }
 
-    // --- LÓGICA ROBUSTA E SIMPLIFICADA ---
+    // --- LÓGICA ---
 
     // 1. Encontra ou cria a sessão de contagem ativa
     let contagem = await prisma.contagem.findFirst({
@@ -44,7 +51,7 @@ export async function POST(
           usuario_id: userId,
         },
       },
-      update: { descricao: product.descricao }, // Atualiza a descrição caso tenha mudado
+      update: { descricao: product.descricao },
       create: {
         codigo_produto: product.codigo_produto,
         descricao: product.descricao,
@@ -54,7 +61,12 @@ export async function POST(
     });
 
     await prisma.codigoBarras.upsert({
-      where: { codigo_de_barras: product.codigo_de_barras },
+      where: {
+        codigo_de_barras_usuario_id: {
+          codigo_de_barras: product.codigo_de_barras,
+          usuario_id: userId,
+        },
+      },
       update: { produto_id: produtoNoBanco.id },
       create: {
         codigo_de_barras: product.codigo_de_barras,
@@ -104,8 +116,8 @@ export async function POST(
           codigo_de_barras: product.codigo_de_barras,
           quant_loja: countingMode === "loja" ? quantity : 0,
           quant_estoque: countingMode === "estoque" ? quantity : 0,
-          saldo_estoque_inicial: produtoNoBanco.saldo_estoque,
-          total: quantity - produtoNoBanco.saldo_estoque,
+          saldo_estoque_inicial: produtoNoBanco.saldo_estoque.toNumber(),
+          total: quantity - produtoNoBanco.saldo_estoque.toNumber(),
         },
       });
     }

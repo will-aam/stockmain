@@ -1,12 +1,30 @@
+// src/scripts/seed-database.js
+/**
+ * Descrição: Script de População do Banco de Dados (Seed).
+ * Responsabilidade: Criar dados iniciais no banco de dados para fins de desenvolvimento e teste.
+ * Este script gera usuários de exemplo e um catálogo de produtos para um usuário específico.
+ * É idempotente, ou seja, pode ser executado várias vezes sem causar erros ou duplicatas,
+ * graças ao uso da função `upsert` do Prisma.
+ *
+ * Como usar:
+ * 1. Certifique-se de que seu banco de dados está rodando e as migrations foram aplicadas.
+ * 2. Execute o script a partir do terminal na raiz do projeto:
+ *    node src/scripts/seed-database.js
+ */
+
 const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcrypt");
 
 const prisma = new PrismaClient();
 
+/**
+ * Função principal que orquestra a criação dos dados no banco.
+ */
 async function seedDatabase() {
   console.log("🌱 Iniciando população do banco de dados...");
   try {
-    // --- Criação de Usuários ---
+    // --- 1. Criação de Usuários de Exemplo ---
+    // Define uma lista de usuários com senhas hasheadas para segurança.
     const usersData = [
       {
         id: 1,
@@ -35,17 +53,19 @@ async function seedDatabase() {
       },
     ];
 
+    // Usa `upsert` para criar o usuário se ele não existir, ou não fazer nada se já existir.
     for (const userData of usersData) {
       await prisma.usuario.upsert({
         where: { id: userData.id },
-        update: {},
+        update: {}, // Não atualiza nada se já existir.
         create: userData,
       });
       console.log(`👤 Usuário ${userData.id} criado/atualizado.`);
     }
 
-    // --- Criação de Produtos e Códigos de Barras (APENAS PARA O USUÁRIO 1) ---
-    // Dados de exemplo
+    // --- 2. Criação de Produtos e Códigos de Barras (APENAS PARA O USUÁRIO 1) ---
+    // Para simplificar, vamos popular o catálogo apenas para o primeiro usuário.
+    const userIdForSeed = 1;
     const produtos = [
       {
         codigo_produto: "113639",
@@ -61,13 +81,10 @@ async function seedDatabase() {
       },
     ];
 
-    const userIdForSeed = 1; // Vamos popular dados apenas para o usuário 1
-
     for (const p of produtos) {
-      // **CORREÇÃO AQUI**
+      // Cria o produto usando a chave única composta (codigo_produto + usuario_id).
       const produto = await prisma.produto.upsert({
         where: {
-          // Usando a nova chave composta
           codigo_produto_usuario_id: {
             codigo_produto: p.codigo_produto,
             usuario_id: userIdForSeed,
@@ -78,14 +95,13 @@ async function seedDatabase() {
           codigo_produto: p.codigo_produto,
           descricao: p.descricao,
           saldo_estoque: p.saldo_estoque,
-          usuario_id: userIdForSeed, // Associando ao usuário
+          usuario_id: userIdForSeed,
         },
       });
 
-      // **CORREÇÃO AQUI**
+      // Cria o código de barras associado ao produto, também usando sua chave composta.
       await prisma.codigoBarras.upsert({
         where: {
-          // Usando a nova chave composta
           codigo_de_barras_usuario_id: {
             codigo_de_barras: p.codigo_de_barras,
             usuario_id: userIdForSeed,
@@ -95,7 +111,7 @@ async function seedDatabase() {
         create: {
           codigo_de_barras: p.codigo_de_barras,
           produto_id: produto.id,
-          usuario_id: userIdForSeed, // Associando ao usuário
+          usuario_id: userIdForSeed,
         },
       });
     }
@@ -104,11 +120,12 @@ async function seedDatabase() {
     );
   } catch (error) {
     console.error("❌ Erro ao popular banco de dados:", error);
-    process.exit(1);
+    process.exit(1); // Encerra o processo com erro
   } finally {
-    await prisma.$disconnect();
+    await prisma.$disconnect(); // Garante que a conexão com o banco seja fechada.
     console.log("✅ População do banco de dados finalizada.");
   }
 }
 
+// Executa a função principal.
 seedDatabase();

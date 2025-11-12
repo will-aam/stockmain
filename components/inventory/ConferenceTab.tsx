@@ -1,5 +1,15 @@
 // src/components/inventory/ConferenceTab.tsx
+/**
+ * Descrição: Aba principal para a conferência de produtos.
+ * Responsabilidade: Gerencia a interface de contagem de itens, incluindo o escaneamento de códigos de barras
+ * (via câmera ou input manual), a adição de quantidades (com suporte a expressões matemáticas),
+ * a seleção do local de contagem (loja/estoque) e a exibição da lista de itens já contados.
+ * Também oferece funcionalidades de busca e remoção de itens da lista.
+ */
+
 import React from "react";
+
+// --- Componentes de UI ---
 import {
   Card,
   CardContent,
@@ -10,6 +20,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+
+// --- Componentes de Funcionalidades ---
+import { BarcodeScanner } from "@/components/features/barcode-scanner";
+
+// --- Ícones ---
 import {
   CloudUpload,
   Scan,
@@ -21,11 +37,15 @@ import {
   Search,
   Calculator,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+
+// --- Tipos e Hooks ---
 import type { Product, TempProduct, ProductCount } from "@/lib/types";
-import { BarcodeScanner } from "@/components/features/barcode-scanner";
 import { useMemo } from "react";
 
+// --- Interfaces e Tipos ---
+/**
+ * Props para o componente ConferenceTab.
+ */
 interface ConferenceTabProps {
   countingMode: "loja" | "estoque";
   setCountingMode: (mode: "loja" | "estoque") => void;
@@ -45,12 +65,24 @@ interface ConferenceTabProps {
   handleSaveCount: () => void;
 }
 
-const ProductCountItem = ({
-  item,
-  onRemove,
-}: {
+/**
+ * Props para o subcomponente ProductCountItem.
+ */
+interface ProductCountItemProps {
   item: ProductCount;
   onRemove: (id: number) => void;
+}
+
+// --- Subcomponentes ---
+/**
+ * Componente que renderiza um único item da lista de contagem.
+ * Exibe as informações do produto, as quantidades contadas e um botão para removê-lo.
+ * @param item - O objeto ProductCount a ser exibido.
+ * @param onRemove - Função para remover o item da lista.
+ */
+const ProductCountItem: React.FC<ProductCountItemProps> = ({
+  item,
+  onRemove,
 }) => (
   <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
     <div className="flex-1 min-w-0">
@@ -89,6 +121,11 @@ const ProductCountItem = ({
 );
 ProductCountItem.displayName = "ProductCountItem";
 
+// --- Componente Principal ---
+/**
+ * Componente ConferenceTab.
+ * Orquestra toda a lógica e a interface da aba de conferência.
+ */
 export const ConferenceTab: React.FC<ConferenceTabProps> = ({
   countingMode,
   setCountingMode,
@@ -107,8 +144,11 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
   handleRemoveCount,
   handleSaveCount,
 }) => {
+  // --- Estado Local ---
+  // Armazena o termo de busca para filtrar a lista de produtos contados.
   const [searchQuery, setSearchQuery] = React.useState("");
 
+  // --- Lógica de Filtragem e Ordenação ---
   const filteredProductCounts = useMemo(() => {
     const sortedCounts = [...productCounts].sort((a, b) =>
       a.descricao.localeCompare(b.descricao)
@@ -124,7 +164,13 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
     );
   }, [productCounts, searchQuery]);
 
-  // Função para validar e filtrar a entrada do campo de quantidade
+  // --- Funções de Manipulação ---
+  /**
+   * Manipula a mudança no campo de quantidade.
+   * Filtra a entrada para permitir apenas números, operadores matemáticos básicos e pontos,
+   * possibilitando que o usuário digite expressões como "10+5".
+   * @param e - O evento de mudança do input.
+   */
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     // Permitir apenas números, operadores básicos e espaços
@@ -134,12 +180,14 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
 
   return (
     <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
+      {/* Seção de Escaneamento e Entrada de Dados */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center mb-4">
             <Scan className="h-5 w-5 mr-2" /> Scanner
           </CardTitle>
           <CardDescription>
+            {/* Botões de Ação e Seleção de Modo */}
             <div className="flex flex-col sm:flex-row items-center gap-2">
               <Button
                 onClick={handleSaveCount}
@@ -170,6 +218,7 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Renderização Condicional: Scanner de Câmera ou Input Manual */}
           {isCameraViewActive ? (
             <BarcodeScanner
               onScan={handleBarcodeScanned}
@@ -177,6 +226,7 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
             />
           ) : (
             <>
+              {/* Campo de Entrada para Código de Barras */}
               <div className="space-y-2">
                 <Label htmlFor="barcode">Código de Barras</Label>
                 <div className="flex space-x-2">
@@ -205,6 +255,8 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                   </Button>
                 </div>
               </div>
+
+              {/* Exibição do Produto Encontrado ou Temporário */}
               {currentProduct && (
                 <div
                   className={`p-4 border rounded-lg ${
@@ -256,6 +308,8 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                   </div>
                 </div>
               )}
+
+              {/* Campo de Entrada para Quantidade com Suporte a Expressões */}
               <div className="space-y-2">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
@@ -269,7 +323,7 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                   <Input
                     id="quantity"
                     type="text"
-                    inputMode="text" // Alterado para text para permitir símbolos
+                    inputMode="text"
                     value={quantityInput}
                     onChange={handleQuantityChange}
                     onKeyPress={handleQuantityKeyPress}
@@ -284,6 +338,7 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                 </div>
               </div>
 
+              {/* Botão para Adicionar a Contagem */}
               <Button
                 onClick={handleAddCount}
                 className="w-full mobile-button"
@@ -297,12 +352,15 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
           )}
         </CardContent>
       </Card>
+
+      {/* Seção de Lista de Itens Contados */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-3">
             <CardTitle className="text-lg">
               Itens Contados ({productCounts.length})
             </CardTitle>
+            {/* Campo de Busca na Lista de Itens */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
@@ -316,6 +374,7 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
           </div>
         </CardHeader>
         <CardContent>
+          {/* Renderização da Lista Filtrada ou Mensagem de Estado Vazio */}
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {filteredProductCounts.length === 0 ? (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">

@@ -1,4 +1,14 @@
+// src/components/inventory/ExportTab.tsx
+/**
+ * Descrição: Aba para exportação e salvamento da contagem de inventário.
+ * Responsabilidade: Exibir um resumo do progresso da contagem, incluindo o total de itens no catálogo,
+ * os itens já contados e os faltantes. Oferece ações para exportar os dados atuais
+ * como um arquivo CSV e para salvar a contagem no histórico.
+ */
+
 import type React from "react";
+
+// --- Componentes de UI ---
 import {
   Card,
   CardContent,
@@ -7,9 +17,16 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+
+// --- Ícones ---
 import { CloudUpload, Download } from "lucide-react";
+
+// --- Tipos ---
 import type { Product, TempProduct, ProductCount } from "@/lib/types";
 
+/**
+ * Props para o componente ExportTab.
+ */
 interface ExportTabProps {
   products: Product[];
   tempProducts: TempProduct[];
@@ -23,6 +40,10 @@ interface ExportTabProps {
   setShowMissingItemsModal: (show: boolean) => void;
 }
 
+/**
+ * Componente ExportTab.
+ * Orquestra a exibição do resumo e os botões de ação para a contagem.
+ */
 export const ExportTab: React.FC<ExportTabProps> = ({
   products,
   tempProducts,
@@ -32,6 +53,11 @@ export const ExportTab: React.FC<ExportTabProps> = ({
   handleSaveCount,
   setShowMissingItemsModal,
 }) => {
+  /**
+   * Calcula o número de itens que ainda não foram contados.
+   * A lógica subtrai o total de itens contados (excluindo os temporários, que começam com "TEMP-")
+   * do total de produtos no catálogo principal. O Math.max garante que o resultado não seja negativo.
+   */
   const missingItemsCount = Math.max(
     0,
     products.length -
@@ -40,6 +66,7 @@ export const ExportTab: React.FC<ExportTabProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Card de Resumo da Contagem */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
@@ -50,7 +77,9 @@ export const ExportTab: React.FC<ExportTabProps> = ({
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Grid com os cards de estatísticas: Catálogo, Contados e Faltantes */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Card de Itens no Catálogo */}
             <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-center">
               <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                 {products.length}
@@ -59,6 +88,7 @@ export const ExportTab: React.FC<ExportTabProps> = ({
                 Itens no Catálogo
               </p>
             </div>
+            {/* Card de Itens Contados */}
             <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-center">
               <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                 {productCounts.length}
@@ -67,6 +97,7 @@ export const ExportTab: React.FC<ExportTabProps> = ({
                 Itens Contados
               </p>
             </div>
+            {/* Card de Itens Faltantes (Interativo) */}
             <div
               className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-center cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
               onClick={() => setShowMissingItemsModal(true)}
@@ -84,6 +115,8 @@ export const ExportTab: React.FC<ExportTabProps> = ({
           </div>
         </CardContent>
       </Card>
+
+      {/* Card de Ações de Contagem */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
@@ -92,7 +125,6 @@ export const ExportTab: React.FC<ExportTabProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {/* --- CORREÇÃO APLICADA AQUI --- */}
           <div className="flex w-full items-center gap-2">
             <Button onClick={exportToCsv} variant="outline" className="flex-1">
               <Download className="mr-2 h-4 w-4" />

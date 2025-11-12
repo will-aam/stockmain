@@ -1,13 +1,35 @@
+// src/hooks/useInventory.ts
+/**
+ * Descrição: Hook customizado para gerenciamento centralizado do inventário.
+ * Responsabilidade: Orquestrar todo o estado e a lógica relacionada à contagem de estoque.
+ * Isso inclui o carregamento do catálogo de produtos, a gestão de contagens (loja e estoque),
+ * a importação/exportação de dados via CSV, o processamento de códigos de barras,
+ * o cálculo de itens faltantes e a persistência dos dados no localStorage e no histórico.
+ * Este hook é a principal fonte de verdade para os componentes da interface de inventário.
+ */
+
 "use client";
 
+// --- React Hooks ---
 import { useState, useEffect, useMemo, useCallback } from "react";
+
+// --- Bibliotecas e Hooks Personalizados ---
 import { toast } from "@/hooks/use-toast";
 import * as Papa from "papaparse";
+
+// --- Tipos ---
 import type { Product, BarCode, ProductCount, TempProduct } from "@/lib/types";
 
-// ✅ define aqui fora pra não dar warning em useCallback/useEffect
-const MIN_BARCODE_LENGTH = 8; // ajuste pra 8, 10, 13...
+// --- Constantes de Configuração ---
+/** Tamanho mínimo que um código de barras deve ter para ser considerado válido, filtrando leituras parciais ou ruído. */
+const MIN_BARCODE_LENGTH = 8;
 
+// --- Funções Auxiliares ---
+/**
+ * Carrega as contagens de produtos do localStorage para um usuário específico.
+ * @param userId - O ID do usuário cujas contagens serão carregadas.
+ * @returns Um array de ProductCount ou um array vazio em caso de erro ou ausência de dados.
+ */
 const loadCountsFromLocalStorage = (userId: number | null): ProductCount[] => {
   if (typeof window === "undefined" || !userId) {
     return [];
@@ -21,7 +43,14 @@ const loadCountsFromLocalStorage = (userId: number | null): ProductCount[] => {
   }
 };
 
+// --- Hook Principal ---
+/**
+ * Hook customizado que gerencia o estado e as operações do inventário.
+ * @param userId - O ID do usuário logado, usado para personalizar e persistir os dados.
+ * @returns Um objeto contendo o estado do inventário e funções para manipulá-lo.
+ */
 export const useInventory = ({ userId }: { userId: number | null }) => {
+  // --- Estado do Componente ---
   const [products, setProducts] = useState<Product[]>([]);
   const [barCodes, setBarCodes] = useState<BarCode[]>([]);
   const [tempProducts, setTempProducts] = useState<TempProduct[]>([]);
@@ -42,6 +71,10 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   const [showMissingItemsModal, setShowMissingItemsModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
 
+  // --- Lógica de Carregamento e Sincronização ---
+  /**
+   * Carrega o catálogo de produtos e códigos de barras do banco de dados para um usuário.
+   */
   const loadCatalogFromDb = useCallback(async () => {
     if (!userId) {
       setIsLoading(false);
@@ -66,11 +99,13 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     }
   }, [userId]);
 
+  // useEffect para carregar os dados iniciais (catálogo e contagens) quando o hook é montado ou o userId muda.
   useEffect(() => {
     loadCatalogFromDb();
     setProductCounts(loadCountsFromLocalStorage(userId));
   }, [userId, loadCatalogFromDb]);
 
+  // useEffect para sincronizar as contagens com o localStorage sempre que o estado `productCounts` é atualizado.
   useEffect(() => {
     if (userId) {
       localStorage.setItem(
@@ -80,21 +115,53 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     }
   }, [productCounts, userId]);
 
+  // --- Lógica de Cálculo e Processamento ---
+  /**
+   * Memoiza a lista de itens faltantes.
+   * Compara o saldo do sistema com a quantidade contada para determinar o que falta.
+   * O useMemo evita recálculos desnecessários a cada renderização.
+   */
   const missingItems = useMemo(() => {
-    const countedProductCodes = new Set(
-      productCounts.map((pc) => pc.codigo_produto)
+    const productCountMap = new Map(
+      productCounts.map((pc) => [pc.codigo_produto, pc])
     );
+
     return products
-      .filter((p) => !countedProductCodes.has(p.codigo_produto))
       .map((product) => {
+        const saldoEstoque = Number(product.saldo_estoque) || 0;
+        const countedItem = productCountMap.get(product.codigo_produto);
+        const countedQuantity =
+          Number(countedItem?.quant_loja ?? 0) +
+          Number(countedItem?.quant_estoque ?? 0);
+        const missingQuantity = Math.max(saldoEstoque - countedQuantity, 0);
+
+        if (missingQuantity <= 0) {
+          return null;
+        }
+
         const barCode = barCodes.find((bc) => bc.produto_id === product.id);
         return {
           codigo_de_barras: barCode?.codigo_de_barras || "N/A",
           descricao: product.descricao,
+          faltante: missingQuantity,
         };
-      });
+      })
+      .filter(
+        (
+          item
+        ): item is {
+          codigo_de_barras: string;
+          descricao: string;
+          faltante: number;
+        } => item !== null
+      );
   }, [products, productCounts, barCodes]);
 
+  /**
+   * Avalia uma expressão matemática em formato de string de forma segura.
+   * @param expression - A string da expressão matemática (ex: "10+5*2").
+   * @returns Um objeto com o resultado, um booleano de validade e uma mensagem de erro, se houver.
+   */
   const calculateExpression = useCallback(
     (
       expression: string
@@ -107,6 +174,8 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
             isValid: false,
             error: "Caracteres inválidos na expressão",
           };
+        // Cuidado: O uso de Function com string dinâmica pode ser um risco de segurança se a entrada não for sanitizada.
+        // Neste caso, a regex acima mitiga o risco, permitindo apenas caracteres numéricos e operadores.
         const result = new Function("return " + cleanExpression)();
         if (typeof result !== "number" || isNaN(result) || !isFinite(result))
           return { result: 0, isValid: false, error: "Resultado inválido" };
@@ -122,6 +191,11 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     []
   );
 
+  // --- Manipuladores de Eventos (Callbacks) ---
+  /**
+   * Adiciona ou atualiza a contagem de um produto.
+   * Processa a entrada de quantidade (número ou expressão), valida e atualiza o estado `productCounts`.
+   */
   const handleAddCount = useCallback(() => {
     if (!currentProduct || !quantityInput) return;
     let finalQuantity: number;
@@ -199,6 +273,9 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     calculateExpression,
   ]);
 
+  /**
+   * Limpa todos os dados do inventário (localStorage e servidor).
+   */
   const handleClearAllData = useCallback(async () => {
     if (!userId) return;
     try {
@@ -227,11 +304,17 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     }
   }, [userId]);
 
+  /**
+   * Remove um item específico da lista de contagens.
+   */
   const handleRemoveCount = useCallback((id: number) => {
     setProductCounts((prev) => prev.filter((item) => item.id !== id));
     toast({ title: "Item removido da contagem" });
   }, []);
 
+  /**
+   * Processa o upload de um arquivo CSV, enviando-o para o servidor para importação.
+   */
   const processCsvFile = useCallback(
     async (file: File) => {
       if (!userId) {
@@ -285,6 +368,9 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     [userId, loadCatalogFromDb]
   );
 
+  /**
+   * Manipulador para o evento de mudança do input de arquivo CSV.
+   */
   const handleCsvUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -296,7 +382,11 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     [processCsvFile]
   );
 
-  // ✅ handleScan agora só age quando tiver tamanho suficiente
+  /**
+   * Processa o código de barras escaneado ou digitado.
+   * Busca o produto correspondente nos catáquivos ou cria um produto temporário se não encontrado.
+   * A busca só é acionada quando o código atinge o tamanho mínimo definido.
+   */
   const handleScan = useCallback(() => {
     const code = scanInput.trim();
     if (code === "" || code.length < MIN_BARCODE_LENGTH) {
@@ -332,6 +422,10 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     });
   }, [scanInput, barCodes, tempProducts]);
 
+  /**
+   * Manipula o resultado do escaneamento via câmera.
+   * Fecha a visualização da câmera, preenche o input de código de barras e foca no campo de quantidade.
+   */
   const handleBarcodeScanned = useCallback((barcode: string) => {
     setIsCameraViewActive(false);
     setScanInput(barcode);
@@ -343,7 +437,8 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     }, 100);
   }, []);
 
-  // ✅ agora ele não dispara busca a cada dígito
+  // useEffect que dispara a busca de produtos sempre que o input de código de barras muda e atinge o tamanho mínimo.
+  // Isso evita buscas desnecessárias a cada digitação.
   useEffect(() => {
     if (!scanInput) {
       setCurrentProduct(null);
@@ -357,6 +452,10 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     handleScan();
   }, [scanInput, handleScan]);
 
+  /**
+   * Manipula o evento de tecla no campo de quantidade.
+   * Permite calcular expressões com "Enter" ou adicionar a contagem se for um número simples.
+   */
   const handleQuantityKeyPress = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter") {
@@ -385,6 +484,9 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     [quantityInput, calculateExpression, currentProduct, handleAddCount]
   );
 
+  /**
+   * Gera e faz o download de um arquivo CSV template para importação de produtos.
+   */
   const downloadTemplateCSV = useCallback(() => {
     const templateData = [
       {
@@ -415,6 +517,9 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     URL.revokeObjectURL(link.href);
   }, []);
 
+  /**
+   * Memoiza as estatísticas das contagens (totais de loja e estoque).
+   */
   const productCountsStats = useMemo(() => {
     const totalLoja = productCounts.reduce(
       (sum, item) => sum + item.quant_loja,
@@ -427,6 +532,9 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     return { totalLoja, totalEstoque };
   }, [productCounts]);
 
+  /**
+   * Carrega o histórico de contagens salvas do servidor.
+   */
   const loadHistory = useCallback(async () => {
     if (!userId) return;
     try {
@@ -445,6 +553,9 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     }
   }, [userId]);
 
+  /**
+   * Exclui um item específico do histórico de contagens.
+   */
   const handleDeleteHistoryItem = useCallback(
     async (historyId: number) => {
       if (!userId) return;
@@ -480,6 +591,9 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     [userId]
   );
 
+  /**
+   * Gera os dados completos para o relatório, incluindo itens contados e não contados.
+   */
   const generateCompleteReportData = useCallback(() => {
     const countedItemsData = productCounts.map((item) => ({
       codigo_de_barras: item.codigo_de_barras,
@@ -520,6 +634,9 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     return combinedData;
   }, [products, productCounts, barCodes]);
 
+  /**
+   * Exporta os dados completos da contagem para um arquivo CSV.
+   */
   const exportToCsv = useCallback(() => {
     if (products.length === 0 && productCounts.length === 0) {
       toast({
@@ -549,6 +666,9 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     URL.revokeObjectURL(link.href);
   }, [products, productCounts, generateCompleteReportData]);
 
+  /**
+   * Exibe o modal para salvar a contagem, após validar se há dados para salvar.
+   */
   const handleSaveCount = useCallback(async () => {
     if (!userId) {
       toast({
@@ -572,6 +692,9 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     setShowSaveModal(true);
   }, [userId, products.length, productCounts.length]);
 
+  /**
+   * Executa o salvamento da contagem no servidor, incluindo a geração do nome do arquivo com data.
+   */
   const executeSaveCount = useCallback(
     async (baseName: string) => {
       if (!userId) return;
@@ -625,6 +748,8 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     [userId, generateCompleteReportData, loadHistory]
   );
 
+  // --- Objeto de Retorno ---
+  // Retorna todo o estado e as funções de manipulação para serem usadas pelos componentes da UI.
   return {
     products,
     barCodes,
