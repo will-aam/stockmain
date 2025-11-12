@@ -327,7 +327,7 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                     value={quantityInput}
                     onChange={handleQuantityChange}
                     onKeyPress={handleQuantityKeyPress}
-                    placeholder="Ex: 10, 5+3, 20-2, 5*4, 20/5"
+                    placeholder="Qtd ou expressão"
                     className="flex-1 mobile-optimized font-mono"
                   />
 
