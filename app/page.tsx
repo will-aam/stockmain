@@ -178,7 +178,8 @@ export default function InventorySystem() {
         )}
 
         {/* --- NOVA BARRA DE NAVEGAÇÃO FLUTUANTE --- */}
-        <div className="sm:hidden fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 w-full px-4">
+        <div className="sm:hidden fixed bottom-4 left-0 right-0 z-50 px-4">
+          {" "}
           <div className="flex items-center gap-1 p-1.5 bg-background/60 backdrop-blur-xl rounded-full shadow-2xl border border-border/50 w-full max-w-md mx-auto">
             <button
               onClick={() => setActiveTab("scan")}

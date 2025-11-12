@@ -133,7 +133,7 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center mb-4">
