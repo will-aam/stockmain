@@ -1,4 +1,4 @@
-// src/components/shared/Navigation.tsx
+// components/shared/Navigation.tsx
 /**
  * Descrição: Componente de Navegação Principal (Cabeçalho).
  * Responsabilidade: Renderizar o cabeçalho fixo da aplicação com o logo, links de ação

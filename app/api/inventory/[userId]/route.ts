@@ -1,4 +1,4 @@
-// src/app/api/inventory/[userId]/route.ts
+// app/api/inventory/[userId]/route.ts
 /**
  * Rota de API para gerenciar o inventário de um usuário específico.
  * Fornece endpoints para buscar o catálogo de produtos e limpar todos os dados do usuário.

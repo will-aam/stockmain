@@ -1,4 +1,4 @@
-// src/app/api/inventory/[userId]/history/route.ts
+// app/api/inventory/[userId]/history/route.ts
 /**
  * Rota de API para gerenciar a coleção de histórico de um usuário.
  * Lida com a listagem (GET) e a criação (POST) de contagens salvas.

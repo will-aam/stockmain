@@ -1,4 +1,4 @@
-// src/components/inventory/HistoryTab.tsx
+// components/inventory/HistoryTab.tsx
 /**
  * Descrição: Aba para visualizar o histórico de contagens de inventário.
  * Responsabilidade: Buscar, exibir, permitir o download e a exclusão de contagens salvas anteriormente.

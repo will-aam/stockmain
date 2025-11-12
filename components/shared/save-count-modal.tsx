@@ -1,4 +1,4 @@
-// src/components/shared/save-count-modal.tsx
+// components/shared/save-count-modal.tsx
 /**
  * Descrição: Modal para Salvar a Contagem de Inventário.
  * Responsabilidade: Exibir um diálogo que permite ao usuário digitar um nome para o arquivo

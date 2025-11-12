@@ -1,4 +1,4 @@
-// src/app/api/cron/route.ts
+// app/api/cron/route.ts
 /**
  * Rota de API para um CRON Job de limpeza.
  * Exclui produtos e códigos de barras com mais de 24 horas de criação.

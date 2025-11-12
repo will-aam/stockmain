@@ -1,4 +1,4 @@
-// src/components/shared/AuthModal.tsx
+// components/shared/AuthModal.tsx
 /**
  * Descrição: Modal de Autenticação da Aplicação.
  * Responsabilidade: Exibir uma interface para que o usuário insira uma senha e desbloqueie o acesso

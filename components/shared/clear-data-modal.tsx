@@ -1,4 +1,4 @@
-// src/components/shared/clear-data-modal.tsx
+// components/shared/clear-data-modal.tsx
 /**
  * Descrição: Modal de Confirmação de Exclusão de Dados.
  * Responsabilidade: Exibir um aviso crítico ao usuário, solicitando confirmação antes de

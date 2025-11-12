@@ -1,4 +1,4 @@
-// src/components/inventory/ConferenceTab.tsx
+// components/inventory/ConferenceTab.tsx
 /**
  * Descrição: Aba principal para a conferência de produtos.
  * Responsabilidade: Gerencia a interface de contagem de itens, incluindo o escaneamento de códigos de barras

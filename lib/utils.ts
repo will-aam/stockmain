@@ -1,4 +1,4 @@
-// src/lib/utils.ts
+// lib/utils.ts
 /** Utilitários globais, incluindo a função `cn` para combinar classes do Tailwind CSS. */
 
 import { clsx, type ClassValue } from "clsx";

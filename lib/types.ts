@@ -1,4 +1,4 @@
-// src/lib/types.ts
+// lib/types.ts
 /**
  * Descrição: Definições de Tipos Globais da Aplicação.
  * Responsabilidade: Centralizar todas as interfaces e tipos TypeScript que representam

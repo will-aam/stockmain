@@ -1,4 +1,4 @@
-// src/components/shared/missing-items-modal.tsx
+// components/shared/missing-items-modal.tsx
 /**
  * Descrição: Modal para exibir a lista de itens faltantes na conferência.
  * Responsabilidade: Apresentar ao usuário uma lista detalhada de todos os produtos

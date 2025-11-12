@@ -1,4 +1,4 @@
-// src/app/api/inventory/[userId]/history/[historyId]/route.ts
+// app/api/inventory/[userId]/history/[historyId]/route.ts
 /**
  * Rota de API para gerenciar um item específico do histórico.
  * Lida com a exclusão (DELETE) de uma contagem salva.

@@ -1,4 +1,4 @@
-// src/hooks/use-toast.ts
+// hooks/use-toast.ts
 /**
  * Descrição: Hook customizado para gerenciamento de notificações (Toast).
  * Responsabilidade: Fornece um sistema de gerenciamento de estado baseado em reducer

@@ -1,4 +1,4 @@
-// src/hooks/useInventory.ts
+// hooks/useInventory.ts
 /**
  * Descrição: Hook customizado para gerenciamento centralizado do inventário.
  * Responsabilidade: Orquestrar todo o estado e a lógica relacionada à contagem de estoque.

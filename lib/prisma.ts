@@ -1,4 +1,4 @@
-// src/lib/prisma.ts
+// lib/prisma.ts
 /**
  * Descrição: Configuração e instância do cliente Prisma.
  * Responsabilidade: Exportar uma única instância (singleton) do Prisma Client para ser

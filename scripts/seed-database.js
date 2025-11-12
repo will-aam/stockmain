@@ -1,4 +1,4 @@
-// src/scripts/seed-database.js
+// scripts/seed-database.js
 /**
  * Descrição: Script de População do Banco de Dados (Seed).
  * Responsabilidade: Criar dados iniciais no banco de dados para fins de desenvolvimento e teste.

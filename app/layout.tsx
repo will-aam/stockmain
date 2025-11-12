@@ -1,4 +1,4 @@
-// src/app/layout.tsx
+// app/layout.tsx
 /**
  * Descrição: Layout raiz da aplicação.
  * Responsabilidade: Envolve todas as páginas, fornecendo a estrutura HTML básica,

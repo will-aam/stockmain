@@ -1,4 +1,4 @@
-// src/components/shared/FloatingMissingItemsButton.tsx
+// components/shared/FloatingMissingItemsButton.tsx
 /**
  * Descrição: Botão flutuante e arrastável para itens faltantes.
  * Responsabilidade: Exibir um botão em uma posição fixa na tela, que pode ser arrastado pelo usuário.

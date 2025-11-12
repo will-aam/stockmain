@@ -1,4 +1,4 @@
-// src/components/inventory/ImportTab.tsx
+// components/inventory/ImportTab.tsx
 /**
  * Descrição: Aba para importação de produtos via arquivo CSV com progresso real.
  * Responsabilidade: Fornecer a interface para o upload de arquivos CSV, exibir instruções detalhadas,
@@ -209,7 +209,7 @@ export const ImportTab: React.FC<ImportTabProps> = ({
   const [isImporting, setIsImporting] = useState(false);
 
   /**
-   * Função para lidar com o upload do arquivo usando Server-Sent Events (SSE).
+   * Função para lidar com o upload do arquivo usando a stream de resposta do Fetch.
    * @param e - Evento de mudança do input de arquivo.
    */
   const handleCsvUploadWithProgress = async (
@@ -228,77 +228,114 @@ export const ImportTab: React.FC<ImportTabProps> = ({
     });
     setIsLoading(true);
 
-    const eventSource = new EventSource(`/api/inventory/${userId}/import`);
-
-    eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-
-      if (data.error) {
-        let errorMessage = data.error;
-        if (
-          data.details &&
-          Array.isArray(data.details) &&
-          data.details.length > 0
-        ) {
-          const detailsString = data.details
-            .map(
-              (d: { codigo_de_barras: string; linhas: number[] }) =>
-                `Código: ${d.codigo_de_barras} (Linhas: ${d.linhas.join(", ")})`
-            )
-            .join("; ");
-          errorMessage = `${data.error} Detalhes: ${detailsString}`;
-        }
-        setCsvErrors([errorMessage]);
-        setIsImporting(false);
-        setIsLoading(false);
-        eventSource.close();
-        return;
-      }
-
-      if (data.type === "start") {
-        setImportProgress({
-          current: 0,
-          total: data.total,
-          imported: 0,
-          errors: 0,
-        });
-      } else if (data.type === "progress") {
-        setImportProgress({
-          current: data.current,
-          total: data.total,
-          imported: data.imported,
-          errors: data.errors,
-        });
-      } else if (data.type === "complete") {
-        console.log(
-          `Importação concluída! ${data.importedCount} itens importados.`
-        );
-        eventSource.close();
-        setIsImporting(false);
-        setIsLoading(false);
-        loadCatalogFromDb();
-      }
-    };
-
-    eventSource.onerror = () => {
-      setCsvErrors(["Ocorreu um erro durante a importação."]);
-      setIsImporting(false);
-      setIsLoading(false);
-      eventSource.close();
-    };
-
     const formData = new FormData();
     formData.append("file", file);
 
-    fetch(`/api/inventory/${userId}/import`, {
-      method: "POST",
-      body: formData,
-    }).catch(() => {
-      setCsvErrors(["Falha ao enviar o arquivo."]);
+    try {
+      const response = await fetch(`/api/inventory/${userId}/import`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        // Tenta ler o erro do corpo da resposta, se houver
+        const errorData = await response.json().catch(() => ({
+          error: "Falha na requisição de upload.",
+        }));
+        throw new Error(errorData.error || "Falha ao enviar o arquivo.");
+      }
+
+      if (!response.body) {
+        throw new Error(
+          "A resposta da requisição não contém um corpo (stream)."
+        );
+      }
+
+      // Processar a stream de Server-Sent Events (SSE) vinda do POST
+      const reader = response.body
+        .pipeThrough(new TextDecoderStream())
+        .getReader();
+      let buffer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+
+        if (done) {
+          // O stream terminou.
+          break;
+        }
+
+        buffer += value;
+        const lines = buffer.split("\n");
+
+        // Mantém a última linha no buffer, pois pode estar incompleta
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          // Processa apenas linhas que são eventos de dados SSE
+          if (line.startsWith("data: ")) {
+            const dataString = line.substring(6);
+            const data = JSON.parse(dataString);
+
+            if (data.error) {
+              let errorMessage = data.error;
+              if (
+                data.details &&
+                Array.isArray(data.details) &&
+                data.details.length > 0
+              ) {
+                const detailsString = data.details
+                  .map(
+                    (d: { codigo_de_barras: string; linhas: number[] }) =>
+                      `Código: ${d.codigo_de_barras} (Linhas: ${d.linhas.join(
+                        ", "
+                      )})`
+                  )
+                  .join("; ");
+                errorMessage = `${data.error} Detalhes: ${detailsString}`;
+              }
+              setCsvErrors([errorMessage]);
+              setIsImporting(false);
+              setIsLoading(false);
+              reader.releaseLock(); // Libera o leitor
+              return; // Para a execução
+            }
+
+            if (data.type === "start") {
+              setImportProgress({
+                current: 0,
+                total: data.total,
+                imported: 0,
+                errors: 0,
+              });
+            } else if (data.type === "progress") {
+              // Usa uma atualização funcional para evitar estado obsoleto (stale state)
+              setImportProgress((prev) => ({
+                ...prev,
+                current: data.current,
+                total: data.total,
+                imported: data.imported,
+                errors: data.errors,
+              }));
+            } else if (data.type === "complete") {
+              console.log(
+                `Importação concluída! ${data.importedCount} itens importados.`
+              );
+              setIsImporting(false);
+              setIsLoading(false);
+              await loadCatalogFromDb(); // Espera o recarregamento dos dados
+              reader.releaseLock();
+              return; // Importação bem-sucedida, sai do loop
+            }
+          }
+        }
+      }
+    } catch (error: any) {
+      console.error("Erro no handleCsvUploadWithProgress:", error);
+      setCsvErrors([error.message || "Ocorreu um erro durante a importação."]);
       setIsImporting(false);
       setIsLoading(false);
-      eventSource.close();
-    });
+    }
   };
 
   return (
@@ -346,9 +383,11 @@ export const ImportTab: React.FC<ImportTabProps> = ({
               accept=".csv"
               onChange={handleCsvUploadWithProgress}
               disabled={isLoading || isImporting}
+              // Adiciona uma key para forçar o reset do input
+              key={isImporting ? "importing" : "idle"}
             />
             {/* Renderizar a barra de progresso se existir e o upload estiver ativo. */}
-            {isImporting && importProgress && (
+            {isImporting && importProgress.total > 0 && (
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Importando...</span>
@@ -360,12 +399,17 @@ export const ImportTab: React.FC<ImportTabProps> = ({
                 />
               </div>
             )}
-            {/* Skeleton exibido durante o processamento do arquivo. */}
-            {isLoading && !isImporting && <Skeleton className="h-4 w-full" />}
+            {/* Skeleton exibido durante o processamento inicial (antes do 'start' ou se o total for 0) */}
+            {isImporting && importProgress.total === 0 && (
+              <Skeleton className="h-4 w-full" />
+            )}
+
+            {/* Skeleton antigo (removido para evitar confusão com o de cima) */}
+            {/* {isLoading && !isImporting && <Skeleton className="h-4 w-full" />} */}
           </div>
 
           {/* Seção de alerta para exibir erros de validação do CSV. */}
-          {csvErrors.length > 0 && (
+          {!isImporting && csvErrors.length > 0 && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
@@ -435,15 +479,18 @@ export const ImportTab: React.FC<ImportTabProps> = ({
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="py-12">
-            <div className="text-center text-gray-500 dark:text-gray-400">
-              <Upload className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="font-medium">Nenhum produto cadastrado</p>
-              <p className="text-sm">Importe um arquivo CSV para começar</p>
-            </div>
-          </CardContent>
-        </Card>
+        // Mostra o estado vazio apenas se não estiver importando
+        !isImporting && (
+          <Card>
+            <CardContent className="py-12">
+              <div className="text-center text-gray-500 dark:text-gray-400">
+                <Upload className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="font-medium">Nenhum produto cadastrado</p>
+                <p className="text-sm">Importe um arquivo CSV para começar</p>
+              </div>
+            </CardContent>
+          </Card>
+        )
       )}
     </>
   );

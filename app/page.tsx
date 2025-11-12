@@ -1,4 +1,4 @@
-// src/app/page.tsx
+// app/page.tsx
 /**
  * Descrição: Página principal do Sistema de Inventário.
  * Responsabilidade: Gerenciar o estado principal da aplicação, incluindo a autenticação do usuário,

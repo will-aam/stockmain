@@ -1,4 +1,4 @@
-// src/components/features/barcode-scanner.tsx
+// components/features/barcode-scanner.tsx
 /**
  * Descrição: Componente de Scanner de Código de Barras.
  * Responsabilidade: Utiliza a câmera do dispositivo para escanear códigos de barras em tempo real.

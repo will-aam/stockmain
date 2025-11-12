@@ -1,4 +1,4 @@
-// src/app/api/inventory/[userId]/count/route.ts
+// app/api/inventory/[userId]/count/route.ts
 /**
  * Rota de API para registrar uma contagem de item.
  * Processa a contagem de um produto, garantindo a existência do produto e do código de barras,

@@ -1,4 +1,4 @@
-// src/app/api/inventory/[userId]/import/route.ts
+// app/api/inventory/[userId]/import/route.ts
 /**
  * Rota de API para importação de produtos com progresso real via Server-Sent Events (SSE).
  * Processa o upload, valida os dados e insere no banco, enviando atualizações de progresso
@@ -105,38 +105,65 @@ export async function POST(
           }
 
           try {
-            await prisma.$transaction(async (tx) => {
-              const product = await tx.produto.upsert({
-                where: {
-                  codigo_produto_usuario_id: {
-                    codigo_produto: row.codigo_produto,
-                    usuario_id: userId,
-                  },
-                },
-                update: {
-                  descricao: row.descricao,
-                  saldo_estoque: saldoNumerico,
-                },
-                create: {
+            // =================================================================
+            // INÍCIO DA MUDANÇA: Transação removida
+            // Não usamos mais `prisma.$transaction` aqui para evitar o P2028
+            // =================================================================
+
+            // 1. Cria ou atualiza o produto
+            const product = await prisma.produto.upsert({
+              where: {
+                codigo_produto_usuario_id: {
                   codigo_produto: row.codigo_produto,
-                  descricao: row.descricao,
-                  saldo_estoque: saldoNumerico,
                   usuario_id: userId,
                 },
-              });
-
-              await tx.codigoBarras.deleteMany({
-                where: { produto_id: product.id },
-              });
-
-              await tx.codigoBarras.create({
-                data: {
-                  codigo_de_barras: row.codigo_de_barras,
-                  produto_id: product.id,
-                  usuario_id: userId,
-                },
-              });
+              },
+              update: {
+                descricao: row.descricao,
+                saldo_estoque: saldoNumerico,
+              },
+              create: {
+                codigo_produto: row.codigo_produto,
+                descricao: row.descricao,
+                saldo_estoque: saldoNumerico,
+                usuario_id: userId,
+              },
             });
+
+            // 2. Garante que o NOVO barcode exista e esteja linkado ao produto
+            // Isso previne que o barcode já exista (P2002) e atualiza seu produto_id
+            await prisma.codigoBarras.upsert({
+              where: {
+                codigo_de_barras_usuario_id: {
+                  codigo_de_barras: row.codigo_de_barras,
+                  usuario_id: userId,
+                },
+              },
+              update: {
+                produto_id: product.id,
+              },
+              create: {
+                codigo_de_barras: row.codigo_de_barras,
+                produto_id: product.id,
+                usuario_id: userId,
+              },
+            });
+
+            // 3. Remove barcodes ANTIGOS que ainda possam estar
+            // linkados a este produto, mas NÃO são o barcode atual.
+            await prisma.codigoBarras.deleteMany({
+              where: {
+                produto_id: product.id,
+                usuario_id: userId,
+                NOT: {
+                  codigo_de_barras: row.codigo_de_barras,
+                },
+              },
+            });
+
+            // =================================================================
+            // FIM DA MUDANÇA
+            // =================================================================
 
             importedCount++;
           } catch (error: any) {
@@ -144,13 +171,16 @@ export async function POST(
               error instanceof Prisma.PrismaClientKnownRequestError &&
               error.code === "P2002"
             ) {
+              // Este erro P2002 (Unique constraint failed) é esperado
+              // se o barcode já existir e estiver sendo usado por OUTRO produto.
               console.log(
-                `Código de barras duplicado no banco, ignorando linha: ${row.codigo_de_barras}`
+                `Código de barras duplicado no banco (P2002), ignorando linha: ${row.codigo_de_barras}`
               );
               errorCount++;
             } else {
-              console.error("Erro inesperado na transação:", error);
-              throw error;
+              // Outros erros
+              console.error(`Erro ao processar linha ${index + 2}:`, error);
+              errorCount++;
             }
           }
 
@@ -184,6 +214,7 @@ export async function POST(
           encoder.encode(
             `data: ${JSON.stringify({
               error: "Erro interno do servidor.",
+              details: error.message,
             })}\n\n`
           )
         );

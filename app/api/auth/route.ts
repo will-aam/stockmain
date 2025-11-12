@@ -1,4 +1,4 @@
-// src/app/api/auth/route.ts
+// app/api/auth/route.ts
 /**
  * Rota de API para autenticação de usuário.
  * Autentica um usuário com base no email fornecido como "senha".

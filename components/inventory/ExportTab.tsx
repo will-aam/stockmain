@@ -1,4 +1,4 @@
-// src/components/inventory/ExportTab.tsx
+// components/inventory/ExportTab.tsx
 /**
  * Descrição: Aba para exportação e salvamento da contagem de inventário.
  * Responsabilidade: Exibir um resumo do progresso da contagem, incluindo o total de itens no catálogo,
