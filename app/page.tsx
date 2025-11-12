@@ -62,7 +62,7 @@ export default function InventorySystem() {
       <div ref={mainContainerRef} className="relative min-h-screen">
         <Navigation setShowClearDataModal={inventory.setShowClearDataModal} />
 
-        <main className="max-w-7xl w-full px-4 sm:px-6 lg:px-8 pt-4 pb-32 sm:pt-16 sm:pb-8">
+        <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-32 sm:pt-16 sm:pb-8">
           {" "}
           {/* Aumentei o padding-bottom only para mobile para não cobrir o conteúdo com a barra flutuante */}
           <Tabs
@@ -178,11 +178,11 @@ export default function InventorySystem() {
         )}
 
         {/* --- NOVA BARRA DE NAVEGAÇÃO FLUTUANTE --- */}
-        <div className="sm:hidden fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
-          <div className="flex items-center gap-1 p-1.5 bg-background/60 backdrop-blur-xl rounded-full shadow-2xl border border-border/50">
+        <div className="sm:hidden fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 w-full px-4">
+          <div className="flex items-center gap-1 p-1.5 bg-background/60 backdrop-blur-xl rounded-full shadow-2xl border border-border/50 w-full max-w-md mx-auto">
             <button
               onClick={() => setActiveTab("scan")}
-              className={`flex flex-col items-center justify-center gap-1 py-2 px-5 rounded-full transition-all duration-200 ${
+              className={`flex flex-1 min-w-0 flex-col items-center justify-center gap-1 py-2 px-4 rounded-full transition-all duration-200 ${
                 activeTab === "scan"
                   ? "bg-primary text-primary-foreground shadow-md"
                   : "text-muted-foreground"
@@ -194,7 +194,7 @@ export default function InventorySystem() {
 
             <button
               onClick={() => setActiveTab("export")}
-              className={`flex flex-col items-center justify-center gap-1 py-2 px-5 rounded-full transition-all duration-200 ${
+              className={`flex flex-1 min-w-0 flex-col items-center justify-center gap-1 py-2 px-4 rounded-full transition-all duration-200 ${
                 activeTab === "export"
                   ? "bg-primary text-primary-foreground shadow-md"
                   : "text-muted-foreground"
@@ -206,7 +206,7 @@ export default function InventorySystem() {
 
             <button
               onClick={() => setActiveTab("history")}
-              className={`flex flex-col items-center justify-center gap-1 py-2 px-5 rounded-full transition-all duration-200 ${
+              className={`flex flex-1 min-w-0 flex-col items-center justify-center gap-1 py-2 px-4 rounded-full transition-all duration-200 ${
                 activeTab === "history"
                   ? "bg-primary text-primary-foreground shadow-md"
                   : "text-muted-foreground"

@@ -150,19 +150,17 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
               </Button>
 
               {/* Este 'div' também terá 100% de largura no mobile */}
-              <div className="flex space-x-2 w-full sm:w-auto">
+              <div className="flex w-full sm:w-auto gap-2">
                 <Button
                   variant={countingMode === "loja" ? "default" : "outline"}
-                  // w-1/2 faz este botão ter 50% do container
-                  className="w-1/2"
+                  className="flex-1 sm:flex-none"
                   onClick={() => setCountingMode("loja")}
                 >
                   <Store className="h-4 w-4 mr-2" /> Loja
                 </Button>
                 <Button
                   variant={countingMode === "estoque" ? "default" : "outline"}
-                  // w-1/2 faz este botão ter 50% do container
-                  className="w-1/2"
+                  className="flex-1 sm:flex-none"
                   onClick={() => setCountingMode("estoque")}
                 >
                   <Package className="h-4 w-4 mr-2" /> Estoque
