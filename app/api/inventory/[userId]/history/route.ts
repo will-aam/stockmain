@@ -2,18 +2,22 @@
 /**
  * Rota de API para gerenciar a coleção de histórico de um usuário.
  * Lida com a listagem (GET) e a criação (POST) de contagens salvas.
+ *
+ * ROTA PROTEGIDA: Esta rota valida o Token JWT antes de executar.
  */
 
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server"; // Importamos o NextRequest
 import { prisma } from "@/lib/prisma";
+import { validateAuth } from "@/lib/auth"; // 1. IMPORTAMOS O GUARDIÃO
 
 /**
  * Busca todo o histórico de contagens de um usuário.
+ * @param request - O objeto da requisição (para lermos os headers).
  * @param params - Parâmetros da rota, incluindo o userId.
  * @returns JSON com a lista de contagens.
  */
 export async function GET(
-  request: Request,
+  request: NextRequest, // 2. Mudamos de Request para NextRequest
   { params }: { params: { userId: string } }
 ) {
   try {
@@ -25,17 +29,30 @@ export async function GET(
       );
     }
 
+    // 3. CHAMAMOS O GUARDIÃO PRIMEIRO
+    await validateAuth(request, userId);
+
+    // 4. Se a autenticação passar, a lógica original continua...
     const savedCounts = await prisma.contagemSalva.findMany({
       where: { usuario_id: userId },
       orderBy: { created_at: "desc" },
     });
 
     return NextResponse.json(savedCounts);
-  } catch (error) {
-    console.error("Erro ao buscar histórico:", error);
+  } catch (error: any) {
+    // 5. Capturamos erros de autenticação ou do banco
+    const status =
+      error.message.includes("Acesso não autorizado") ||
+      error.message.includes("Acesso negado")
+        ? error.message.includes("negado")
+          ? 403
+          : 401
+        : 500; // Erro interno se não for de auth
+
+    console.error("Erro ao buscar histórico:", error.message);
     return NextResponse.json(
-      { error: "Erro interno do servidor." },
-      { status: 500 }
+      { error: error.message || "Erro interno do servidor." },
+      { status: status }
     );
   }
 }
@@ -47,7 +64,7 @@ export async function GET(
  * @returns JSON com o novo registro criado.
  */
 export async function POST(
-  request: Request,
+  request: NextRequest, // 6. Mudamos de Request para NextRequest
   { params }: { params: { userId: string } }
 ) {
   try {
@@ -59,6 +76,10 @@ export async function POST(
       );
     }
 
+    // 7. CHAMAMOS O GUARDIÃO PRIMEIRO
+    await validateAuth(request, userId);
+
+    // 8. Se a autenticação passar, a lógica original continua...
     const { fileName, csvContent } = await request.json();
     if (!fileName || !csvContent) {
       return NextResponse.json(
@@ -76,11 +97,20 @@ export async function POST(
     });
 
     return NextResponse.json(newSavedCount, { status: 201 });
-  } catch (error) {
-    console.error("Erro ao salvar contagem:", error);
+  } catch (error: any) {
+    // 9. Capturamos erros de autenticação ou do banco
+    const status =
+      error.message.includes("Acesso não autorizado") ||
+      error.message.includes("Acesso negado")
+        ? error.message.includes("negado")
+          ? 403
+          : 401
+        : 500; // Erro interno se não for de auth
+
+    console.error("Erro ao salvar contagem:", error.message);
     return NextResponse.json(
-      { error: "Erro interno do servidor." },
-      { status: 500 }
+      { error: error.message || "Erro interno do servidor." },
+      { status: status }
     );
   }
 }

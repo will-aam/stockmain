@@ -3,12 +3,16 @@
  * Rota de API para importação de produtos com progresso real via Server-Sent Events (SSE).
  * Processa o upload, valida os dados e insere no banco, enviando atualizações de progresso
  * para o cliente em tempo real.
+ *
+ * ROTA PROTEGIDA: Esta rota valida o Token JWT antes de executar a importação.
  */
 
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import * as Papa from "papaparse";
 import { Prisma } from "@prisma/client";
+// 1. IMPORTAMOS NOSSOS UTILITÁRIOS DE AUTENTICAÇÃO
+import { validateAuth, createSseErrorResponse } from "@/lib/auth";
 
 interface CsvRow {
   codigo_de_barras: string;
@@ -28,8 +32,10 @@ export async function POST(
   { params }: { params: { userId: string } }
 ) {
   const userId = parseInt(params.userId, 10);
+  const encoder = new TextEncoder(); // Movemos o encoder para fora
+
+  // Verificação inicial do ID (antes de criar o stream)
   if (isNaN(userId)) {
-    // Em SSE, enviamos um evento de erro
     return new Response(
       `data: ${JSON.stringify({ error: "ID de usuário inválido." })}\n\n`,
       {
@@ -44,10 +50,14 @@ export async function POST(
   }
 
   // Cria um stream de resposta writable para enviar eventos
-  const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
       try {
+        // 2. CHAMAMOS O GUARDIÃO DE AUTENTICAÇÃO PRIMEIRO
+        // Isso verifica o token e se o ID do token bate com o ID da URL.
+        await validateAuth(request, userId);
+
+        // 3. SE A AUTENTICAÇÃO PASSAR, A LÓGICA DE IMPORTAÇÃO CONTINUA...
         const formData = await request.formData();
         const file = formData.get("file") as File;
         if (!file) {
@@ -93,6 +103,7 @@ export async function POST(
           )
         );
 
+        // ... (RESTANTE DA LÓGICA DE IMPORTAÇÃO ORIGINAL) ...
         for (const [index, row] of parseResult.data.entries()) {
           const saldoNumerico = parseFloat(row.saldo_estoque.replace(",", "."));
           if (
@@ -124,7 +135,6 @@ export async function POST(
               },
             });
 
-            // Isso previne que o barcode já exista (P2002) e atualiza seu produto_id
             await prisma.codigoBarras.upsert({
               where: {
                 codigo_de_barras_usuario_id: {
@@ -142,7 +152,6 @@ export async function POST(
               },
             });
 
-            // linkados a este produto, mas NÃO são o barcode atual.
             await prisma.codigoBarras.deleteMany({
               where: {
                 produto_id: product.id,
@@ -159,19 +168,16 @@ export async function POST(
               error instanceof Prisma.PrismaClientKnownRequestError &&
               error.code === "P2002"
             ) {
-              // se o barcode já existir e estiver sendo usado por OUTRO produto.
               console.log(
                 `Código de barras duplicado no banco (P2002), ignorando linha: ${row.codigo_de_barras}`
               );
               errorCount++;
             } else {
-              // Outros erros
               console.error(`Erro ao processar linha ${index + 2}:`, error);
               errorCount++;
             }
           }
 
-          // Envia o progresso atual para o cliente
           controller.enqueue(
             encoder.encode(
               `data: ${JSON.stringify({
@@ -185,7 +191,6 @@ export async function POST(
           );
         }
 
-        // Envia o evento final de sucesso
         controller.enqueue(
           encoder.encode(
             `data: ${JSON.stringify({
@@ -196,15 +201,25 @@ export async function POST(
           )
         );
       } catch (error: any) {
-        console.error("Erro na importação de CSV:", error);
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({
-              error: "Erro interno do servidor.",
-              details: error.message,
-            })}\n\n`
-          )
-        );
+        // 4. USAMOS O HELPER DE ERRO SSE
+        // Se o erro for do 'validateAuth' (ex: token inválido)
+        if (
+          error.message.includes("Acesso não autorizado") ||
+          error.message.includes("Acesso negado")
+        ) {
+          // Usamos o status 401 (Unauthorized) ou 403 (Forbidden)
+          const status = error.message.includes("negado") ? 403 : 401;
+          createSseErrorResponse(controller, encoder, error.message, status);
+        } else {
+          // Se for um erro interno da importação
+          console.error("Erro na importação de CSV:", error);
+          createSseErrorResponse(
+            controller,
+            encoder,
+            "Erro interno do servidor.",
+            500
+          );
+        }
       } finally {
         controller.close();
       }

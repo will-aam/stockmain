@@ -218,6 +218,15 @@ export const ImportTab: React.FC<ImportTabProps> = ({
     const file = e.target.files?.[0];
     if (!file || !userId) return;
 
+    // Verificar se o token de autenticação existe
+    const token = sessionStorage.getItem("authToken");
+    if (!token) {
+      setCsvErrors(["Erro de autenticação. Faça login novamente."]);
+      setIsImporting(false);
+      setIsLoading(false);
+      return;
+    }
+
     setIsImporting(true);
     setCsvErrors([]);
     setImportProgress({
@@ -235,6 +244,10 @@ export const ImportTab: React.FC<ImportTabProps> = ({
       const response = await fetch(`/api/inventory/${userId}/import`, {
         method: "POST",
         body: formData,
+        headers: {
+          // ADICIONADO: Header de autorização com o token
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (!response.ok) {

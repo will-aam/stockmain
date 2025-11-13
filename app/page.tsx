@@ -53,11 +53,18 @@ export default function InventorySystem() {
   const mainContainerRef = useRef<HTMLDivElement>(null); // Ref para o container principal, usada para restrições de arrastar.
 
   // --- Efeitos Colaterais ---
-  // Verifica se há um usuário salvo na sessão ao carregar o componente.
+  // Verifica se há um usuário E UM TOKEN salvos na sessão ao carregar o componente.
   useEffect(() => {
     const savedUserId = sessionStorage.getItem("currentUserId");
-    if (savedUserId) {
+    const savedToken = sessionStorage.getItem("authToken"); // 1. Verificamos o token
+
+    // 2. Só consideramos o usuário logado se AMBOS existirem
+    if (savedUserId && savedToken) {
       setCurrentUserId(parseInt(savedUserId, 10));
+    } else {
+      // 3. Se faltar um dos dois, limpamos tudo por segurança
+      sessionStorage.removeItem("currentUserId");
+      sessionStorage.removeItem("authToken");
     }
     setIsLoading(false);
   }, []);
@@ -67,9 +74,11 @@ export default function InventorySystem() {
   const inventory = useInventory({ userId: currentUserId });
 
   // --- Manipuladores de Eventos ---
-  // Called after successful authentication to set the user ID in state and session storage.
-  const handleUnlock = (userId: number) => {
+  // Called after successful authentication to set the user ID and token in state and session storage.
+  const handleUnlock = (userId: number, token: string) => {
+    // 1. Recebemos o token
     sessionStorage.setItem("currentUserId", userId.toString());
+    sessionStorage.setItem("authToken", token); // 2. Salvamos o token na sessão
     setCurrentUserId(userId);
   };
 

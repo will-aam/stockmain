@@ -1,7 +1,7 @@
-// components/shared/AuthModal.tsx
+// src/components/shared/AuthModal.tsx
 /**
  * Descrição: Modal de Autenticação da Aplicação.
- * Responsabilidade: Exibir uma interface para que o usuário insira uma senha e desbloqueie o acesso
+ * Responsabilidade: Exibir uma interface para que o usuário insira seu acesso e senha e desbloqueie o acesso
  * ao sistema. Gerencia o estado do formulário, a validação, a comunicação com a API de autenticação
  * e fornece feedback visual (carregamento, erros) para o usuário.
  */
@@ -25,39 +25,43 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 // --- Ícones e Utilitários ---
-import { LockKeyhole, Loader2, Shield, Eye, EyeOff } from "lucide-react";
+import { LockKeyhole, Loader2, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // --- Interfaces e Tipos ---
 /**
  * Props para o componente AuthModal.
- * @param onUnlock - Função de callback chamada após a autenticação bem-sucedida, recebendo o ID do usuário.
+ * @param onUnlock - Função de callback chamada após a autenticação bem-sucedida, recebendo o ID do usuário e o token.
  */
 interface AuthModalProps {
-  onUnlock: (userId: number) => void;
+  onUnlock: (userId: number, token: string) => void; // Adicionamos o token aqui
 }
 
 /**
  * Componente AuthModal.
  * Renderiza um modal em tela cheia para autenticação, com animações de fundo e
- * um formulário de senha com validação e feedback visual.
+ * um formulário de acesso e senha com validação e feedback visual.
  */
 export function AuthModal({ onUnlock }: AuthModalProps) {
   // --- Estado do Componente ---
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
 
+  // Número de WhatsApp para solicitação de acesso (pode ser alterado)
+  const whatsappNumber = "5579996638956"; // Substitua pelo número desejado
+
   /**
    * Função para processar o desbloqueio.
-   * Envia a senha para a API de autenticação, gerencia os estados de carregamento e erro,
+   * Envia o email e a senha para a API de autenticação, gerencia os estados de carregamento e erro,
    * e chama a função `onUnlock` em caso de sucesso.
    */
   const handleUnlock = async () => {
-    if (!password.trim()) {
-      setError("Por favor, insira a senha");
+    if (!email.trim() || !senha.trim()) {
+      setError("Por favor, insira o acesso e a senha");
       return;
     }
 
@@ -70,7 +74,7 @@ export function AuthModal({ onUnlock }: AuthModalProps) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ email: email.trim(), senha: senha.trim() }),
       });
 
       const data = await response.json();
@@ -79,12 +83,17 @@ export function AuthModal({ onUnlock }: AuthModalProps) {
         throw new Error(data.error || "Erro ao autenticar");
       }
 
-      if (data.success && data.userId) {
-        onUnlock(data.userId);
+      if (data.success && data.userId && data.token) {
+        // Passamos os dois valores para a página principal
+        onUnlock(data.userId, data.token);
+      } else {
+        // Se o token não veio por algum motivo, é um erro
+        throw new Error(data.error || "Token de autenticação não recebido.");
       }
     } catch (err: any) {
       setError(err.message);
-      setPassword("");
+      setEmail("");
+      setSenha("");
     } finally {
       setIsLoading(false);
     }
@@ -121,32 +130,41 @@ export function AuthModal({ onUnlock }: AuthModalProps) {
 
           {/* Conteúdo do Modal */}
           <div className="relative">
-            {/* Cabeçalho com ícone animado */}
-            <CardHeader className="text-center pb-2 px-4 sm:px-6">
-              <div className="mx-auto mb-4 relative">
-                {/* Efeito de brilho animado no ícone, ativado pelo foco no input. */}
-                <div
-                  className={cn(
-                    "absolute inset-0 bg-primary/50 rounded-full blur-lg opacity-50 transition-all duration-300",
-                    isFocused && "scale-110 opacity-75"
-                  )}
-                />
-                <div className="relative bg-primary p-4 rounded-full shadow-lg">
-                  <Shield className="h-8 w-8 text-primary-foreground animate-pulse" />
-                </div>
-              </div>
-
+            {/* Cabeçalho simplificado sem ícone */}
+            <CardHeader className="text-center pb-2 px-4 sm:px-6 pt-8">
               <CardTitle className="text-xl sm:text-2xl font-bold text-foreground">
                 Acesso Restrito
               </CardTitle>
 
               <CardDescription className="text-muted-foreground mt-2 text-sm sm:text-base">
-                Insira a senha para acessar o sistema de contagem
+                Insira suas credenciais para acessar o sistema de contagem
               </CardDescription>
             </CardHeader>
 
             {/* Corpo do Modal com o formulário */}
             <CardContent className="space-y-6 px-4 sm:px-8">
+              <div className="space-y-3">
+                <Label
+                  htmlFor="email"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Acesso
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
+                  placeholder="seu-acesso@"
+                  autoFocus
+                  disabled={isLoading}
+                  className="h-12 text-base border-input focus:border-primary focus:ring-primary/20 transition-all duration-200"
+                />
+              </div>
+
               <div className="space-y-3">
                 <Label
                   htmlFor="password"
@@ -160,13 +178,12 @@ export function AuthModal({ onUnlock }: AuthModalProps) {
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={senha}
+                    onChange={(e) => setSenha(e.target.value)}
                     onKeyPress={handleKeyPress}
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
                     placeholder="••••••••"
-                    autoFocus
                     disabled={isLoading}
                     className="pr-12 h-12 text-base border-input focus:border-primary focus:ring-primary/20 transition-all duration-200"
                   />
@@ -211,7 +228,7 @@ export function AuthModal({ onUnlock }: AuthModalProps) {
                   "shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]",
                   "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 )}
-                disabled={isLoading || !password.trim()}
+                disabled={isLoading || !email.trim() || !senha.trim()}
               >
                 {isLoading ? (
                   <>
@@ -235,6 +252,19 @@ export function AuthModal({ onUnlock }: AuthModalProps) {
         {/* Texto informativo adicional abaixo do modal. */}
         <p className="text-center text-xs text-muted-foreground mt-4 px-4">
           Área restrita • Acesso autorizado somente
+        </p>
+
+        {/* Link para solicitar acesso via WhatsApp */}
+        <p className="text-center text-xs text-muted-foreground mt-2 px-4">
+          Não possui acesso?{" "}
+          <a
+            href={`https://wa.me/${whatsappNumber}?text=Olá, tudo bem? Estou interessado em utilizar o sistema de contagem Countifly. Gostaria de solicitar meu acesso.`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline font-medium"
+          >
+            Solicitar acesso
+          </a>
         </p>
       </div>
 

@@ -24,6 +24,25 @@ import type { Product, BarCode, ProductCount, TempProduct } from "@/lib/types";
 /** Tamanho mínimo que um código de barras deve ter para ser considerado válido, filtrando leituras parciais ou ruído. */
 const MIN_BARCODE_LENGTH = 8;
 
+/**
+ * Pega o token de autenticação do sessionStorage e formata os headers.
+ * Esta é nossa nova função auxiliar.
+ */
+const getAuthHeaders = () => {
+  const token = sessionStorage.getItem("authToken");
+  if (!token) {
+    // Se o token não existir, a chamada falhará (o que é o esperado)
+    // O backend (guardião) vai rejeitar a requisição.
+    throw new Error(
+      "Token de autenticação não encontrado. Faça login novamente."
+    );
+  }
+  return {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json", // Definimos o padrão aqui
+  };
+};
+
 // --- Funções Auxiliares ---
 /**
  * Carrega as contagens de produtos do localStorage para um usuário específico.
@@ -81,7 +100,13 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     }
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/inventory/${userId}`);
+      // 1. ADICIONADO HEADERS
+      const headers = getAuthHeaders();
+
+      const response = await fetch(`/api/inventory/${userId}`, {
+        headers: { Authorization: headers.Authorization }, // CORREÇÃO: Apenas o header de autorização
+      });
+
       if (!response.ok)
         throw new Error("Falha ao carregar a lista de produtos.");
       const data = await response.json();
@@ -93,6 +118,11 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
         description: error.message,
         variant: "destructive",
       });
+      // Se o token for inválido, desloga o usuário
+      if (error.message.includes("Token")) {
+        sessionStorage.clear();
+        window.location.reload();
+      }
     } finally {
       setIsLoading(false);
     }
@@ -192,6 +222,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   // --- Manipuladores de Eventos (Callbacks) ---
   /**
    * Adiciona ou atualiza a contagem de um produto.
+   * (Esta função não chama API, apenas o localStorage, o que está correto)
    */
   const handleAddCount = useCallback(() => {
     if (!currentProduct || !quantityInput) return;
@@ -276,11 +307,15 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   const handleClearAllData = useCallback(async () => {
     if (!userId) return;
     try {
+      // 2. ADICIONADO HEADERS
+      const headers = getAuthHeaders();
+
       setProductCounts([]);
       localStorage.removeItem(`productCounts-${userId}`);
 
       const response = await fetch(`/api/inventory/${userId}`, {
         method: "DELETE",
+        headers: { Authorization: headers.Authorization }, // CORREÇÃO: Apenas o header de autorização
       });
       if (!response.ok) throw new Error("Falha ao limpar dados do servidor.");
 
@@ -303,6 +338,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
 
   /**
    * Remove um item específico da lista de contagens.
+   * (Apenas local, não chama API, o que está correto)
    */
   const handleRemoveCount = useCallback((id: number) => {
     setProductCounts((prev) => prev.filter((item) => item.id !== id));
@@ -459,7 +495,12 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   const loadHistory = useCallback(async () => {
     if (!userId) return;
     try {
-      const response = await fetch(`/api/inventory/${userId}/history`);
+      // 3. ADICIONADO HEADERS
+      const headers = getAuthHeaders();
+
+      const response = await fetch(`/api/inventory/${userId}/history`, {
+        headers: { Authorization: headers.Authorization }, // CORREÇÃO: Apenas o header de autorização
+      });
       if (!response.ok) {
         throw new Error("Falha ao carregar o histórico.");
       }
@@ -482,10 +523,14 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       if (!userId) return;
 
       try {
+        // 4. ADICIONADO HEADERS
+        const headers = getAuthHeaders();
+
         const response = await fetch(
           `/api/inventory/${userId}/history/${historyId}`,
           {
             method: "DELETE",
+            headers: { Authorization: headers.Authorization }, // CORREÇÃO: Apenas o header de autorização
           }
         );
 
@@ -622,6 +667,9 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
 
       setIsSaving(true);
       try {
+        // 5. ADICIONADO HEADERS
+        const headers = getAuthHeaders();
+
         const dataToExport = generateCompleteReportData();
 
         const csvContent = Papa.unparse(dataToExport, {
@@ -638,7 +686,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
 
         const response = await fetch(`/api/inventory/${userId}/history`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: headers, // Usamos a função auxiliar
           body: JSON.stringify({ fileName, csvContent }),
         });
 

@@ -44,10 +44,11 @@ export function Navigation({ setShowClearDataModal }: NavigationProps) {
 
   /**
    * Função para realizar o logout do usuário.
-   * Remove o ID do usuário da sessão e recarrega a página para limpar o estado da aplicação.
+   * Remove o ID do usuário e o token de autenticação da sessão e recarrega a página para limpar o estado da aplicação.
    */
   const handleLogout = () => {
     sessionStorage.removeItem("currentUserId");
+    sessionStorage.removeItem("authToken"); // Adicione esta linha
     window.location.reload();
   };
 
