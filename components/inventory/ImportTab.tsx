@@ -140,15 +140,19 @@ const CsvInstructions: React.FC<CsvInstructionsProps> = ({
         <div className="relative bg-gray-950 text-gray-100 rounded-md p-3 font-mono text-xs border border-gray-800 mt-3">
           <button
             onClick={() => {
-              const textoVisual =
-                "codigo_de_barras;codigo_produto;descricao;saldo_estoque";
-              navigator.clipboard.writeText(textoVisual).then(() => {
-                const btn = document.getElementById("copy-btn");
-                if (btn) {
-                  btn.textContent = "Copiado!";
-                  setTimeout(() => (btn.textContent = "Copiar"), 2000);
-                }
-              });
+              const textoParaAreaDeTransferencia =
+                "codigo_de_barras\tcodigo_produto\tdescricao\tsaldo_estoque";
+              navigator.clipboard
+                .writeText(textoParaAreaDeTransferencia)
+                .then(() => {
+                  const btn = document.getElementById("copy-btn");
+                  if (btn) {
+                    const originalText = btn.textContent;
+                    btn.textContent = "Copiado!";
+
+                    setTimeout(() => (btn.textContent = "Copiar"), 2000);
+                  }
+                });
             }}
             id="copy-btn"
             className="absolute top-2 right-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] px-2 py-1 rounded transition-all"
