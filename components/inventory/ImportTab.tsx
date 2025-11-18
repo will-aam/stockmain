@@ -43,6 +43,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ScrollArea } from "@/components/ui/scroll-area"; // Importamos o ScrollArea
 
 // --- Ícones ---
 // Adicionamos Share2 e Link para a funcionalidade de compartilhamento
@@ -115,40 +116,51 @@ ProductTableRow.displayName = "ProductTableRow";
  */
 interface CsvInstructionsProps {
   downloadTemplateCSV: () => void;
+  isMobile?: boolean; // Nova prop para indicar se é mobile
 }
 
 /**
  * Subcomponente que exibe as instruções para formatar o arquivo CSV.
  * @param downloadTemplateCSV - Função para baixar o arquivo template.
+ * @param isMobile - Indica se está em modo mobile (opcional).
  */
 const CsvInstructions: React.FC<CsvInstructionsProps> = ({
   downloadTemplateCSV,
+  isMobile = false, // Valor padrão é false (desktop)
 }) => (
-  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-    <h3 className="text-base font-semibold text-blue-800 dark:text-blue-200 mb-3">
-      Instruções
-    </h3>
-    <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
-      <li>
-        • <strong>Separador:</strong> Use ponto e vírgula (;) entre as colunas
-      </li>
-      <li>
-        • <strong>Código de barras:</strong> Formate a coluna como NÚMERO
-      </li>
-      <li>
-        • <strong>Saldo estoque:</strong> Use apenas números inteiros
-      </li>
-      <li>
-        • <strong>Codificação:</strong> Salve o arquivo em UTF-8
-      </li>
-      <li>
-        • <strong>Cabeçalho:</strong> Primeira linha deve conter os nomes das
-        colunas
-      </li>
-    </ul>
-    <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+  <div className="space-y-4">
+    <div className="p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+      <h3 className="text-base font-semibold text-blue-800 dark:text-blue-200 mb-3">
+        Instruções
+      </h3>
+      <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-2">
+        <li className="flex flex-col sm:flex-row sm:items-start">
+          <span className="font-semibold mr-2">Separador:</span>
+          <span>Use ponto e vírgula (;) entre as colunas</span>
+        </li>
+        <li className="flex flex-col sm:flex-row sm:items-start">
+          <span className="font-semibold mr-2">Código de barras:</span>
+          <span>Formate a coluna como NÚMERO</span>
+        </li>
+        <li className="flex flex-col sm:flex-row sm:items-start">
+          <span className="font-semibold mr-2">Saldo estoque:</span>
+          <span>Use apenas números inteiros</span>
+        </li>
+        <li className="flex flex-col sm:flex-row sm:items-start">
+          <span className="font-semibold mr-2">Codificação:</span>
+          <span>Salve o arquivo em UTF-8</span>
+        </li>
+        <li className="flex flex-col sm:flex-row sm:items-start">
+          <span className="font-semibold mr-2">Cabeçalho:</span>
+          <span>Primeira linha deve conter os nomes das colunas</span>
+        </li>
+      </ul>
+    </div>
+
+    {/* Bloco de código - exibido apenas no desktop */}
+    {!isMobile && (
       <div className="text-xs text-blue-600 dark:text-blue-400">
-        <div className="relative bg-gray-950 text-gray-100 rounded-md p-3 font-mono text-xs border border-gray-800 mt-3">
+        <div className="relative bg-gray-950 text-gray-100 rounded-md p-3 font-mono text-xs border border-gray-800">
           <button
             onClick={() => {
               // Usamos \t para facilitar a colagem no Excel
@@ -169,22 +181,24 @@ const CsvInstructions: React.FC<CsvInstructionsProps> = ({
           >
             Copiar
           </button>
-          <pre className="overflow-x-auto whitespace-pre-wrap leading-relaxed">
-            {`codigo_de_barras;codigo_produto;descricao;saldo_estoque`}
-          </pre>
+          <div className="overflow-x-auto pb-1">
+            <pre className="whitespace-nowrap">
+              {`codigo_de_barras;codigo_produto;descricao;saldo_estoque`}
+            </pre>
+          </div>
         </div>
       </div>
+    )}
 
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={downloadTemplateCSV}
-        className="shrink-0 border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900/30 bg-transparent"
-      >
-        <Download className="h-3 w-3 mr-1" />
-        Baixar Template
-      </Button>
-    </div>
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={downloadTemplateCSV}
+      className="w-full border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900/30 bg-transparent"
+    >
+      <Download className="h-3 w-3 mr-1" />
+      Baixar Template
+    </Button>
   </div>
 );
 CsvInstructions.displayName = "CsvInstructions";
@@ -416,7 +430,10 @@ export const ImportTab: React.FC<ImportTabProps> = ({
 
           {/* Seção de instruções: exibida diretamente em desktop ou dentro de um Dialog em mobile. */}
           <div className="hidden sm:block mt-4">
-            <CsvInstructions downloadTemplateCSV={downloadTemplateCSV} />
+            <CsvInstructions
+              downloadTemplateCSV={downloadTemplateCSV}
+              isMobile={false}
+            />
           </div>
 
           <div className="sm:hidden mt-4">
@@ -427,13 +444,34 @@ export const ImportTab: React.FC<ImportTabProps> = ({
                   Ver Instruções para o CSV
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-[90vw] rounded-lg">
-                <DialogHeader>
-                  <DialogTitle>Instruções para o arquivo CSV</DialogTitle>
+
+              {/* Versão responsiva do DialogContent com altura dinâmica */}
+              <DialogContent
+                className={`
+                  w-full
+                  max-w-[calc(100vw-2rem)]  /* nunca passa da width da tela - 2rem */
+                  sm:max-w-2xl              /* em telas maiores, limita para 2xl */
+                  max-h-[85vh]              /* altura máxima, mas não fixa */
+                  p-0                       /* tiramos o padding do container */
+                  flex flex-col
+                  overflow-hidden           /* impede scroll horizontal no próprio modal */
+                `}
+              >
+                <DialogHeader className="px-4 pt-4 pb-2 sm:px-6 sm:pt-6 sm:pb-3">
+                  <DialogTitle className="text-lg sm:text-xl break-words">
+                    Instruções para o arquivo CSV
+                  </DialogTitle>
                 </DialogHeader>
-                <div className="-mx-4 px-4">
-                  <CsvInstructions downloadTemplateCSV={downloadTemplateCSV} />
-                </div>
+
+                {/* Área rolável - agora com altura dinâmica */}
+                <ScrollArea className="px-4 pb-4 sm:px-6 sm:pb-6">
+                  <div className="max-w-full">
+                    <CsvInstructions
+                      downloadTemplateCSV={downloadTemplateCSV}
+                      isMobile={true} // Indica que é a versão mobile
+                    />
+                  </div>
+                </ScrollArea>
               </DialogContent>
             </Dialog>
           </div>
@@ -478,7 +516,7 @@ export const ImportTab: React.FC<ImportTabProps> = ({
                 <div className="space-y-1">
                   <p className="font-semibold">Erros encontrados:</p>
                   {csvErrors.map((error, index) => (
-                    <p key={index} className="text-sm">
+                    <p key={index} className="text-sm break-words">
                       {error}
                     </p>
                   ))}
