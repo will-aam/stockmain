@@ -426,7 +426,14 @@ export const ImportTab: React.FC<ImportTabProps> = ({
             <Upload className="h-5 w-5 mr-2" />
             Importar Produtos
           </CardTitle>
-          <CardDescription>Faça upload de um arquivo CSV</CardDescription>
+          <CardDescription>
+            <span className="hidden sm:inline">
+              Faça upload de um arquivo CSV
+            </span>
+            <span className="sm:hidden">
+              A importação é feita no computador
+            </span>
+          </CardDescription>
 
           {/* Seção de instruções: exibida diretamente em desktop ou dentro de um Dialog em mobile. */}
           <div className="hidden sm:block mt-4">
@@ -477,8 +484,8 @@ export const ImportTab: React.FC<ImportTabProps> = ({
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Campo de input para o upload do arquivo CSV. */}
-          <div className="space-y-2">
+          {/* Campo de input para o upload do arquivo CSV - Apenas desktop */}
+          <div className="hidden sm:block space-y-2">
             <Label htmlFor="csv-file">Arquivo CSV</Label>
             <Input
               id="csv-file"
