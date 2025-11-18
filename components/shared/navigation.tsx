@@ -148,7 +148,7 @@ export function Navigation({
 
                 {/* Versão */}
                 <p className="text-xs text-muted-foreground">
-                  Countifly v1.0 • Logado
+                  Countifly v2.0 • Logado
                 </p>
               </div>
             </div>
