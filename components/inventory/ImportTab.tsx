@@ -5,6 +5,7 @@
  * mostrar o progresso de importação em tempo real via Server-Sent Events (SSE),
  * exibir erros de validação e listar os produtos que foram importados com sucesso.
  * Inclui funcionalidades para baixar um template e para visualizar os dados em uma tabela responsiva.
+ * Inclui guia de onboarding mobile com "Link Mágico" para compartilhamento.
  */
 
 "use client";
@@ -44,10 +45,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 // --- Ícones ---
-import { Upload, Download, AlertCircle, Info } from "lucide-react";
+// Adicionamos Share2 e Link para a funcionalidade de compartilhamento
+import {
+  Upload,
+  Download,
+  AlertCircle,
+  Info,
+  Monitor,
+  Share2,
+  Link as LinkIcon,
+} from "lucide-react";
 
 // --- Tipos ---
 import type { Product, BarCode } from "@/lib/types";
+import { toast } from "@/hooks/use-toast"; // Importamos o toast para feedback
 
 // --- Interfaces e Tipos ---
 /**
@@ -140,6 +151,7 @@ const CsvInstructions: React.FC<CsvInstructionsProps> = ({
         <div className="relative bg-gray-950 text-gray-100 rounded-md p-3 font-mono text-xs border border-gray-800 mt-3">
           <button
             onClick={() => {
+              // Usamos \t para facilitar a colagem no Excel
               const textoParaAreaDeTransferencia =
                 "codigo_de_barras\tcodigo_produto\tdescricao\tsaldo_estoque";
               navigator.clipboard
@@ -147,9 +159,7 @@ const CsvInstructions: React.FC<CsvInstructionsProps> = ({
                 .then(() => {
                   const btn = document.getElementById("copy-btn");
                   if (btn) {
-                    const originalText = btn.textContent;
                     btn.textContent = "Copiado!";
-
                     setTimeout(() => (btn.textContent = "Copiar"), 2000);
                   }
                 });
@@ -211,6 +221,44 @@ export const ImportTab: React.FC<ImportTabProps> = ({
   });
 
   const [isImporting, setIsImporting] = useState(false);
+
+  // --- Funções de Compartilhamento (Link Mágico) ---
+  /**
+   * Tenta usar a API de compartilhamento nativa (Mobile) ou copia para a área de transferência.
+   */
+  const handleShareLink = async () => {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    const shareData = {
+      title: "Acesse o Countifly no PC",
+      text: "Link para acessar o sistema de inventário Countifly no computador:",
+      url: url,
+    };
+
+    // Se o navegador suportar compartilhamento nativo (comum em mobile)
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        console.log("Usuário cancelou o compartilhamento ou erro:", err);
+      }
+    } else {
+      // Fallback: Copia o link
+      handleCopyLink();
+    }
+  };
+
+  /**
+   * Copia o link atual para a área de transferência.
+   */
+  const handleCopyLink = () => {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    navigator.clipboard.writeText(url).then(() => {
+      toast({
+        title: "Link copiado!",
+        description: "Cole no seu WhatsApp ou E-mail para abrir no PC.",
+      });
+    });
+  };
 
   /**
    * Função para lidar com o upload do arquivo usando a stream de resposta do Fetch.
@@ -420,9 +468,6 @@ export const ImportTab: React.FC<ImportTabProps> = ({
             {isImporting && importProgress.total === 0 && (
               <Skeleton className="h-4 w-full" />
             )}
-
-            {/* Skeleton antigo (removido para evitar confusão com o de cima) */}
-            {/* {isLoading && !isImporting && <Skeleton className="h-4 w-full" />} */}
           </div>
 
           {/* Seção de alerta para exibir erros de validação do CSV. */}
@@ -499,11 +544,69 @@ export const ImportTab: React.FC<ImportTabProps> = ({
         // Mostra o estado vazio apenas se não estiver importando
         !isImporting && (
           <Card>
-            <CardContent className="py-12">
-              <div className="text-center text-gray-500 dark:text-gray-400">
+            <CardContent className="py-8 sm:py-12">
+              {/* --- Guia de Onboarding para Mobile com Link Mágico --- */}
+              {/* Exibido apenas em telas pequenas (block sm:hidden) */}
+              <div className="block sm:hidden text-center space-y-4">
+                <div className="bg-primary/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Monitor className="h-10 w-10 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold text-foreground">
+                  A configuração é feita no PC
+                </h3>
+                <div className="text-left text-sm text-muted-foreground space-y-3 bg-muted/50 p-5 rounded-lg border border-border">
+                  <p className="flex gap-2">
+                    <span className="font-bold text-primary">1.</span>
+                    <span>
+                      Acesse <strong>Countifly</strong> no seu computador.
+                    </span>
+                  </p>
+                  <p className="flex gap-2">
+                    <span className="font-bold text-primary">2.</span>
+                    <span>
+                      Baixe o template e preencha com dados do seu ERP.
+                    </span>
+                  </p>
+                  <p className="flex gap-2">
+                    <span className="font-bold text-primary">3.</span>
+                    <span>Importe o arquivo lá.</span>
+                  </p>
+                  <p className="flex gap-2">
+                    <span className="font-bold text-primary">4.</span>
+                    <span>Os dados aparecerão aqui magicamente ✨</span>
+                  </p>
+                </div>
+
+                {/* --- Seção do Link Mágico --- */}
+                <div className="mt-6 pt-4 border-t border-border/60">
+                  <p className="text-sm font-medium text-foreground mb-3">
+                    Quer abrir no PC agora? Envie o link para você mesmo:
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button onClick={handleShareLink} className="w-full">
+                      <Share2 className="h-4 w-4 mr-2" />
+                      Enviar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleCopyLink}
+                      className="w-full"
+                    >
+                      <LinkIcon className="h-4 w-4 mr-2" />
+                      Copiar
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* --- Estado Vazio Padrão para Desktop --- */}
+              {/* Exibido apenas em telas maiores (hidden sm:block) */}
+              <div className="hidden sm:block text-center text-muted-foreground">
                 <Upload className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="font-medium">Nenhum produto cadastrado</p>
-                <p className="text-sm">Importe um arquivo CSV para começar</p>
+                <p className="font-medium text-lg">Nenhum produto cadastrado</p>
+                <p className="text-sm">
+                  Importe um arquivo CSV acima para começar
+                </p>
               </div>
             </CardContent>
           </Card>
