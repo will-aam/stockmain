@@ -104,10 +104,14 @@ const ProductCountItem: React.FC<ProductCountItemProps> = ({
             item.total === 0
               ? "secondary"
               : item.total > 0
-              ? "default"
+              ? "outline"
               : "destructive"
           }
-          className="text-xs"
+          className={`text-xs ${
+            item.total > 0
+              ? "bg-green-800 text-white hover:bg-green-900 border-transparent"
+              : ""
+          }`}
         >
           Total: {item.total > 0 ? "+" : ""}
           {item.total}
