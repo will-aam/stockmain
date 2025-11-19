@@ -55,6 +55,7 @@ import {
   Monitor,
   Share2,
   Link as LinkIcon,
+  Zap, // Adicionado ícone Zap para o botão de demo
 } from "lucide-react";
 
 // --- Tipos ---
@@ -78,6 +79,7 @@ interface ImportTabProps {
   products: Product[];
   barCodes: BarCode[];
   downloadTemplateCSV: () => void;
+  onStartDemo: () => void; // Nova prop para o botão de demo
 }
 
 // --- Subcomponentes ---
@@ -220,6 +222,7 @@ export const ImportTab: React.FC<ImportTabProps> = ({
   products,
   barCodes,
   downloadTemplateCSV,
+  onStartDemo, // Nova prop recebida
 }) => {
   // --- Estado Local para o Progresso da Importação ---
   const [importProgress, setImportProgress] = useState<{
@@ -592,13 +595,18 @@ export const ImportTab: React.FC<ImportTabProps> = ({
             <CardContent className="py-8 sm:py-12">
               {/* --- Guia de Onboarding para Mobile com Link Mágico --- */}
               {/* Exibido apenas em telas pequenas (block sm:hidden) */}
-              <div className="block sm:hidden text-center space-y-4">
-                <div className="bg-primary/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Monitor className="h-10 w-10 text-primary" />
+              <div className="block sm:hidden text-center space-y-6 pt-4">
+                {/* Ícone e Título */}
+                <div className="space-y-2">
+                  <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto">
+                    <Monitor className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold">
+                    A configuração é no PC
+                  </h3>
                 </div>
-                <h3 className="text-xl font-semibold text-foreground">
-                  A configuração é feita no PC
-                </h3>
+
+                {/* Passo a passo (mantido igual ao anterior) */}
                 <div className="text-left text-sm text-muted-foreground space-y-3 bg-muted/50 p-5 rounded-lg border border-border">
                   <p className="flex gap-2">
                     <span className="font-bold text-primary">1.</span>
@@ -622,8 +630,20 @@ export const ImportTab: React.FC<ImportTabProps> = ({
                   </p>
                 </div>
 
-                {/* --- Seção do Link Mágico --- */}
-                <div className="mt-6 pt-4 border-t border-border/60">
+                {/* --- NOVO BOTÃO DE DEMO --- */}
+                <Button
+                  onClick={onStartDemo}
+                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold shadow-md h-12"
+                >
+                  <Zap className="mr-2 h-5 w-5 fill-current" />
+                  Testar Modo Demo Agora
+                </Button>
+                <p className="text-xs text-muted-foreground px-4">
+                  Simule o app escaneando qualquer produto real perto de você.
+                </p>
+
+                {/* Link Mágico (mantido igual) */}
+                <div className="pt-4 border-t border-border/60">
                   <p className="text-sm font-medium text-foreground mb-3">
                     Quer abrir no PC agora? Envie o link para você mesmo:
                   </p>

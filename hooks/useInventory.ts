@@ -89,6 +89,9 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   const [showMissingItemsModal, setShowMissingItemsModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
 
+  // NOVO ESTADO PARA O MODO DEMO
+  const [isDemoMode, setIsDemoMode] = useState(false);
+
   // --- Lógica de Carregamento e Sincronização ---
   /**
    * Carrega o catálogo de produtos e códigos de barras do banco de dados para um usuário.
@@ -346,7 +349,20 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   }, []);
 
   /**
+   * NOVA FUNÇÃO: Ativa o modo demo
+   */
+  const enableDemoMode = useCallback(() => {
+    setIsDemoMode(true);
+    toast({
+      title: "Modo Demo Ativado 🚀",
+      description: "Escaneie qualquer produto real para testar.",
+      className: "bg-blue-600 text-white border-none",
+    });
+  }, []);
+
+  /**
    * Processa o código de barras escaneado ou digitado.
+   * MODIFICADA PARA INCLUIR A LÓGICA DO MODO DEMO
    */
   const handleScan = useCallback(() => {
     const code = scanInput.trim();
@@ -354,18 +370,54 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       return;
     }
 
+    // 1. Tenta encontrar o produto normalmente
     const barCode = barCodes.find((bc) => bc.codigo_de_barras === code);
     if (barCode?.produto) {
       setCurrentProduct(barCode.produto);
       return;
     }
 
+    // 2. Verifica se já é um produto temporário
     const tempProduct = tempProducts.find((tp) => tp.codigo_de_barras === code);
     if (tempProduct) {
       setCurrentProduct(tempProduct);
       return;
     }
 
+    // 3. LÓGICA MÁGICA DO MODO DEMO
+    if (isDemoMode) {
+      // Gera um saldo aleatório entre 10 e 100 para simular o sistema
+      const randomStock = Math.floor(Math.random() * 90) + 10;
+
+      // Cria um produto "fake" na memória
+      const demoProduct: Product = {
+        id: Date.now(), // ID provisório
+        codigo_produto: `DEMO-${code.slice(-4)}`,
+        descricao: `Produto de Teste (Cód: ${code.slice(-4)})`,
+        saldo_estoque: randomStock,
+      };
+
+      // Cria o vínculo do código de barras
+      const demoBarCode: BarCode = {
+        codigo_de_barras: code,
+        produto_id: demoProduct.id,
+        produto: demoProduct,
+      };
+
+      // Adiciona aos estados locais (sem salvar no banco)
+      setProducts((prev) => [...prev, demoProduct]);
+      setBarCodes((prev) => [...prev, demoBarCode]);
+      setCurrentProduct(demoProduct);
+
+      toast({
+        title: "Produto Simulado Criado! ✨",
+        description: `Sistema diz que tem ${randomStock} unidades. Quanto você conta?`,
+        className: "bg-green-600 text-white border-none",
+      });
+      return;
+    }
+
+    // 4. Se não achou e não é demo, cria como temporário (fluxo original)
     const newTempProduct: TempProduct = {
       id: `TEMP-${code}`,
       codigo_de_barras: code,
@@ -381,7 +433,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       description:
         "Digite a quantidade para adicionar este novo item à contagem.",
     });
-  }, [scanInput, barCodes, tempProducts]);
+  }, [scanInput, barCodes, tempProducts, isDemoMode]);
 
   /**
    * Manipula o resultado do escaneamento via câmera.
@@ -760,5 +812,8 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     setCsvErrors,
     setIsLoading,
     loadCatalogFromDb,
+    // Adicionando as novas funções e estado do modo demo
+    enableDemoMode,
+    isDemoMode,
   };
 };

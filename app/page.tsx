@@ -141,6 +141,11 @@ export default function InventorySystem() {
                 products={inventory.products}
                 barCodes={inventory.barCodes}
                 downloadTemplateCSV={inventory.downloadTemplateCSV}
+                // AQUI ESTÁ A MÁGICA:
+                onStartDemo={() => {
+                  inventory.enableDemoMode(); // 1. Ativa a flag de demo
+                  setActiveTab("scan"); // 2. Joga o usuário para a tela de scanner
+                }}
               />
             </TabsContent>
 
