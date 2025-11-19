@@ -60,10 +60,23 @@ export function Navigation({
     setMounted(true);
   }, []);
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("currentUserId");
-    sessionStorage.removeItem("authToken");
-    window.location.reload();
+  const handleLogout = async () => {
+    try {
+      // 1. Chama a API para limpar o cookie do navegador
+      await fetch("/api/auth/logout", { method: "POST" });
+
+      // 2. Limpa o estado local da UI (apenas o ID)
+      sessionStorage.removeItem("currentUserId");
+      // sessionStorage.removeItem("authToken"); // Essa linha não é mais necessária
+
+      // 3. Recarrega a página para voltar ao login
+      window.location.reload();
+    } catch (error) {
+      console.error("Erro ao sair", error);
+      // Fallback em caso de erro de rede: força a limpeza local
+      sessionStorage.removeItem("currentUserId");
+      window.location.reload();
+    }
   };
 
   const handleNavigate = (tab: string) => {

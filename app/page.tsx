@@ -36,13 +36,15 @@ export default function InventorySystem() {
 
   useEffect(() => {
     const savedUserId = sessionStorage.getItem("currentUserId");
-    const savedToken = sessionStorage.getItem("authToken");
+    // REMOVIDO: const savedToken = sessionStorage.getItem("authToken");
 
-    if (savedUserId && savedToken) {
+    // Apenas restaura o ID para manter a UI no estado "logado".
+    // A segurança real será testada quando o hook useInventory tentar carregar os dados.
+    if (savedUserId) {
       setCurrentUserId(parseInt(savedUserId, 10));
     } else {
       sessionStorage.removeItem("currentUserId");
-      sessionStorage.removeItem("authToken");
+      // REMOVIDO: sessionStorage.removeItem("authToken");
     }
     setIsLoading(false);
   }, []);
@@ -50,8 +52,10 @@ export default function InventorySystem() {
   const inventory = useInventory({ userId: currentUserId });
 
   const handleUnlock = (userId: number, token: string) => {
+    // O token ainda vem do AuthModal (que recebe da API), mas não precisamos salvá-lo.
+    // O cookie já foi definido pela API de login.
     sessionStorage.setItem("currentUserId", userId.toString());
-    sessionStorage.setItem("authToken", token);
+    // REMOVIDO: sessionStorage.setItem("authToken", token);
     setCurrentUserId(userId);
   };
 

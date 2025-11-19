@@ -24,40 +24,17 @@ import type { Product, BarCode, ProductCount, TempProduct } from "@/lib/types";
 /** Tamanho mínimo que um código de barras deve ter para ser considerado válido, filtrando leituras parciais ou ruído. */
 const MIN_BARCODE_LENGTH = 8;
 
-/**
- * Pega o token de autenticação do sessionStorage e formata os headers.
- * Esta é nossa nova função auxiliar.
- */
-const getAuthHeaders = () => {
-  const token = sessionStorage.getItem("authToken");
-  if (!token) {
-    // Se o token não existir, a chamada falhará (o que é o esperado)
-    // O backend (guardião) vai rejeitar a requisição.
-    throw new Error(
-      "Token de autenticação não encontrado. Faça login novamente."
-    );
-  }
-  return {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json", // Definimos o padrão aqui
-  };
-};
-
 // --- Funções Auxiliares ---
 /**
- * Carrega as contagens de produtos do localStorage para um usuário específico.
- * @param userId - O ID do usuário cujas contagens serão carregadas.
- * @returns Um array de ProductCount ou um array vazio em caso de erro ou ausência de dados.
+ * Carrega as contagens do localStorage para um usuário específico.
  */
 const loadCountsFromLocalStorage = (userId: number | null): ProductCount[] => {
-  if (typeof window === "undefined" || !userId) {
-    return [];
-  }
+  if (!userId) return [];
   try {
-    const savedCounts = localStorage.getItem(`productCounts-${userId}`);
-    return savedCounts ? JSON.parse(savedCounts) : [];
+    const stored = localStorage.getItem(`productCounts-${userId}`);
+    return stored ? JSON.parse(stored) : [];
   } catch (error) {
-    console.error("Falha ao ler contagens do localStorage", error);
+    console.error("Erro ao carregar contagens do localStorage:", error);
     return [];
   }
 };
@@ -103,15 +80,16 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     }
     setIsLoading(true);
     try {
-      // 1. ADICIONADO HEADERS
-      const headers = getAuthHeaders();
+      const response = await fetch(`/api/inventory/${userId}`);
 
-      const response = await fetch(`/api/inventory/${userId}`, {
-        headers: { Authorization: headers.Authorization }, // CORREÇÃO: Apenas o header de autorização
-      });
-
-      if (!response.ok)
+      if (!response.ok) {
+        // Nova validação de sessão
+        if (response.status === 401 || response.status === 403) {
+          throw new Error("Sessão expirada. Token inválido.");
+        }
         throw new Error("Falha ao carregar a lista de produtos.");
+      }
+
       const data = await response.json();
       setProducts(data.products || []);
       setBarCodes(data.barCodes || []);
@@ -121,9 +99,8 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
         description: error.message,
         variant: "destructive",
       });
-      // Se o token for inválido, desloga o usuário
-      if (error.message.includes("Token")) {
-        sessionStorage.clear();
+      if (error.message.includes("Sessão") || error.message.includes("Token")) {
+        sessionStorage.removeItem("currentUserId");
         window.location.reload();
       }
     } finally {
@@ -299,9 +276,9 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   }, [
     currentProduct,
     quantityInput,
+    calculateExpression,
     countingMode,
     scanInput,
-    calculateExpression,
   ]);
 
   /**
@@ -310,16 +287,14 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   const handleClearAllData = useCallback(async () => {
     if (!userId) return;
     try {
-      // 2. ADICIONADO HEADERS
-      const headers = getAuthHeaders();
-
       setProductCounts([]);
       localStorage.removeItem(`productCounts-${userId}`);
 
+      // ALTERADO: Headers removidos
       const response = await fetch(`/api/inventory/${userId}`, {
         method: "DELETE",
-        headers: { Authorization: headers.Authorization }, // CORREÇÃO: Apenas o header de autorização
       });
+
       if (!response.ok) throw new Error("Falha ao limpar dados do servidor.");
 
       setProducts([]);
@@ -547,12 +522,9 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   const loadHistory = useCallback(async () => {
     if (!userId) return;
     try {
-      // 3. ADICIONADO HEADERS
-      const headers = getAuthHeaders();
+      // ALTERADO: Headers removidos
+      const response = await fetch(`/api/inventory/${userId}/history`);
 
-      const response = await fetch(`/api/inventory/${userId}/history`, {
-        headers: { Authorization: headers.Authorization }, // CORREÇÃO: Apenas o header de autorização
-      });
       if (!response.ok) {
         throw new Error("Falha ao carregar o histórico.");
       }
@@ -575,14 +547,11 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       if (!userId) return;
 
       try {
-        // 4. ADICIONADO HEADERS
-        const headers = getAuthHeaders();
-
+        // ALTERADO: Headers removidos
         const response = await fetch(
           `/api/inventory/${userId}/history/${historyId}`,
           {
             method: "DELETE",
-            headers: { Authorization: headers.Authorization }, // CORREÇÃO: Apenas o header de autorização
           }
         );
 
@@ -719,9 +688,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
 
       setIsSaving(true);
       try {
-        // 5. ADICIONADO HEADERS
-        const headers = getAuthHeaders();
-
         const dataToExport = generateCompleteReportData();
 
         const csvContent = Papa.unparse(dataToExport, {
@@ -736,9 +702,12 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
           .padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`;
         const fileName = `${baseName.trim()}_${dateSuffix}.csv`;
 
+        // ALTERADO: Headers de autorização removidos, mantém apenas Content-Type
         const response = await fetch(`/api/inventory/${userId}/history`, {
           method: "POST",
-          headers: headers, // Usamos a função auxiliar
+          headers: {
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({ fileName, csvContent }),
         });
 
@@ -770,7 +739,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   );
 
   // --- Objeto de Retorno ---
-  // Retorna todo o estado e as funções de manipulação para serem usadas pelos componentes da UI.
   return {
     products,
     barCodes,
@@ -812,7 +780,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     setCsvErrors,
     setIsLoading,
     loadCatalogFromDb,
-    // Adicionando as novas funções e estado do modo demo
     enableDemoMode,
     isDemoMode,
   };

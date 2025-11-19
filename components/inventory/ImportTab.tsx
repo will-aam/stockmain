@@ -287,7 +287,8 @@ export const ImportTab: React.FC<ImportTabProps> = ({
     const file = e.target.files?.[0];
     if (!file || !userId) return;
 
-    // Verificar se o token de autenticação existe
+    // REMOVIDO: Verificação manual de token
+    /*
     const token = sessionStorage.getItem("authToken");
     if (!token) {
       setCsvErrors(["Erro de autenticação. Faça login novamente."]);
@@ -295,6 +296,7 @@ export const ImportTab: React.FC<ImportTabProps> = ({
       setIsLoading(false);
       return;
     }
+    */
 
     setIsImporting(true);
     setCsvErrors([]);
@@ -313,14 +315,17 @@ export const ImportTab: React.FC<ImportTabProps> = ({
       const response = await fetch(`/api/inventory/${userId}/import`, {
         method: "POST",
         body: formData,
-        headers: {
-          // ADICIONADO: Header de autorização com o token
-          Authorization: `Bearer ${token}`,
-        },
+        // REMOVIDO: headers: { Authorization: ... }
+        // Não precisamos de headers manuais aqui, o cookie vai automático.
+        // E não definimos Content-Type porque o browser faz isso sozinho para FormData.
       });
 
       if (!response.ok) {
-        // Tenta ler o erro do corpo da resposta, se houver
+        // Adicionar verificação de sessão
+        if (response.status === 401 || response.status === 403) {
+          throw new Error("Sessão expirada. Faça login novamente.");
+        }
+
         const errorData = await response.json().catch(() => ({
           error: "Falha na requisição de upload.",
         }));
