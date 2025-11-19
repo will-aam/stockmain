@@ -141,10 +141,9 @@ export default function InventorySystem() {
                 products={inventory.products}
                 barCodes={inventory.barCodes}
                 downloadTemplateCSV={inventory.downloadTemplateCSV}
-                // AQUI ESTÁ A MÁGICA:
                 onStartDemo={() => {
-                  inventory.enableDemoMode(); // 1. Ativa a flag de demo
-                  setActiveTab("scan"); // 2. Joga o usuário para a tela de scanner
+                  inventory.enableDemoMode();
+                  setActiveTab("scan");
                 }}
               />
             </TabsContent>
@@ -161,8 +160,14 @@ export default function InventorySystem() {
               />
             </TabsContent>
 
+            {/* Conteúdo da aba de Histórico. */}
             <TabsContent value="history" className="space-y-6">
-              <HistoryTab userId={currentUserId} />
+              <HistoryTab
+                userId={currentUserId}
+                history={inventory.history} // Passando o estado do pai
+                loadHistory={inventory.loadHistory} // Passando a função do pai
+                handleDeleteHistoryItem={inventory.handleDeleteHistoryItem} // Passando a função do pai
+              />
             </TabsContent>
           </Tabs>
         </main>
