@@ -1,3 +1,5 @@
+// prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,17 +10,93 @@ datasource db {
 }
 
 model Usuario {
-  id             Int            @id @default(autoincrement())
-  email          String         @unique
-  senha_hash     String
-  created_at     DateTime       @default(now())
-  contagens      Contagem[]
-  produtos       Produto[]
-  codigos_barras CodigoBarras[]
+  id               Int             @id @default(autoincrement())
+  email            String          @unique
+  senha_hash       String
+  created_at       DateTime        @default(now())
+  
+  // Relações existentes (Modo Single-player - Mantidas para compatibilidade ou migração futura)
+  contagens        Contagem[]
+  produtos         Produto[]
+  codigos_barras   CodigoBarras[]
   contagens_salvas ContagemSalva[]
+  
+  // Novas Relações (Modo Multiplayer)
+  sessoes          Sessao[]        @relation("GestorSessao") // O usuário é o "Gestor"
 
   @@map("usuarios")
 }
+
+// --- NOVAS ENTIDADES (Fase 1 do Plano de Arquitetura) ---
+
+// A "Sala" de contagem [cite: 22]
+model Sessao {
+  id            Int           @id @default(autoincrement())
+  codigo_acesso String        @unique // Código curto (ex: #LOJA-01) [cite: 24]
+  nome          String        // Nome amigável (ex: "Inventário Dezembro")
+  status        String        @default("ABERTA") // ABERTA, PAUSADA, FINALIZADA [cite: 25]
+  criado_em     DateTime      @default(now())
+  finalizado_em DateTime?
+
+  gestor_id     Int
+  gestor        Usuario       @relation("GestorSessao", fields: [gestor_id], references: [id])
+
+  participantes Participante[]
+  movimentos    Movimento[]
+  produtos      ProdutoSessao[] // Produtos vinculados especificamente a esta contagem
+
+  @@map("sessoes")
+}
+
+// Quem está contando [cite: 27]
+model Participante {
+  id         Int         @id @default(autoincrement())
+  nome       String      // Ex: "Maria" [cite: 29]
+  sessao_id  Int
+  sessao     Sessao      @relation(fields: [sessao_id], references: [id], onDelete: Cascade)
+  status     String      @default("ATIVO") // ATIVO, FINALIZADO [cite: 30]
+  entrou_em  DateTime    @default(now())
+
+  movimentos Movimento[] // Histórico do que esse participante fez
+
+  @@map("participantes")
+}
+
+// O "Event Sourcing" simplificado [cite: 32]
+model Movimento {
+  id              Int          @id @default(autoincrement())
+  sessao_id       Int
+  sessao          Sessao       @relation(fields: [sessao_id], references: [id], onDelete: Cascade)
+  
+  participante_id Int?         // Pode ser nulo se for o Gestor fazendo ajuste direto
+  participante    Participante? @relation(fields: [participante_id], references: [id])
+  
+  codigo_barras   String       // O que foi bipado [cite: 37]
+  quantidade      Int          // O Delta (+1, +10, -1) [cite: 38]
+  data_hora       DateTime     @default(now())
+
+  @@index([sessao_id, codigo_barras]) // Índice para somar rápido
+  @@map("movimentos")
+}
+
+// Tabela de ligação para saber quais produtos o Gestor importou para ESSA sessão
+// Isso resolve a parte de "vincular os produtos a uma Sessão" [cite: 77]
+model ProdutoSessao {
+  id             Int      @id @default(autoincrement())
+  sessao_id      Int
+  sessao         Sessao   @relation(fields: [sessao_id], references: [id], onDelete: Cascade)
+  
+  codigo_produto String
+  descricao      String
+  saldo_sistema  Int      @default(0) // O saldo esperado (snapshot do ERP)
+
+  codigo_barras  String?  // Armazena o código principal para facilitar o scan
+  
+  @@unique([sessao_id, codigo_produto])
+  @@map("produtos_sessao")
+}
+
+// --- ENTIDADES LEGADO (Mantidas para não quebrar o app atual imediatamente) ---
 
 model Produto {
   id             Int            @id @default(autoincrement())
@@ -46,6 +124,7 @@ model CodigoBarras {
   @@id([codigo_de_barras, usuario_id])
   @@map("codigos_de_barras")
 }
+
 model Contagem {
   id             Int           @id @default(autoincrement())
   usuario_id     Int
@@ -66,13 +145,12 @@ model ItemContado {
   codigo_de_barras        String
   quant_loja              Int      @default(0)
   quant_estoque           Int      @default(0)
-  saldo_estoque_inicial  Int
+  saldo_estoque_inicial   Int
   total                   Int
   data_hora               DateTime @default(now())
 
   contagem      Contagem     @relation(fields: [contagem_id], references: [id], onDelete: Cascade)
   produto       Produto      @relation(fields: [produto_id], references: [id])
-
 
   @@unique([contagem_id, produto_id])
   @@map("itens_contados")

@@ -1,6 +1,7 @@
 // app/page.tsx
 /**
- * Descrição: Página principal do Sistema de Inventário.
+ * Descrição: Página Principal (Controlador de Fluxo).
+ * Responsabilidade: Decidir qual interface mostrar (Login, Gestor ou Colaborador).
  */
 
 "use client";
@@ -24,40 +25,84 @@ import {
   Download,
   History as HistoryIcon,
   Scan,
+  LogOut,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ParticipantView } from "@/components/inventory/ParticipantView"; // Adicione esta linha
 
 export const dynamic = "force-dynamic";
 
 export default function InventorySystem() {
-  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState("scan");
+  // --- Estados de Sessão ---
   const [isLoading, setIsLoading] = useState(true);
+  const [userType, setUserType] = useState<"manager" | "participant" | null>(
+    null
+  );
+
+  // Estado Gestor
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+
+  // Estado Colaborador
+  const [sessionData, setSessionData] = useState<any>(null);
+
+  // --- Estados de UI do Gestor ---
+  const [activeTab, setActiveTab] = useState("scan");
   const mainContainerRef = useRef<HTMLDivElement>(null);
 
+  // Hook do Inventário (Funciona plenamente apenas para o Gestor)
+  const inventory = useInventory({ userId: currentUserId });
+
+  // --- Efeito de Inicialização (Restaura Sessão) ---
   useEffect(() => {
     const savedUserId = sessionStorage.getItem("currentUserId");
-    // REMOVIDO: const savedToken = sessionStorage.getItem("authToken");
+    const savedSession = sessionStorage.getItem("currentSession");
 
-    // Apenas restaura o ID para manter a UI no estado "logado".
-    // A segurança real será testada quando o hook useInventory tentar carregar os dados.
     if (savedUserId) {
       setCurrentUserId(parseInt(savedUserId, 10));
-    } else {
-      sessionStorage.removeItem("currentUserId");
-      // REMOVIDO: sessionStorage.removeItem("authToken");
+      setUserType("manager");
+    } else if (savedSession) {
+      setSessionData(JSON.parse(savedSession));
+      setUserType("participant");
     }
+
     setIsLoading(false);
   }, []);
 
-  const inventory = useInventory({ userId: currentUserId });
+  // --- Handlers de Login ---
 
-  const handleUnlock = (userId: number, token: string) => {
-    // O token ainda vem do AuthModal (que recebe da API), mas não precisamos salvá-lo.
-    // O cookie já foi definido pela API de login.
+  // 1. Entrar como Gestor
+  const handleManagerLogin = (userId: number, token: string) => {
     sessionStorage.setItem("currentUserId", userId.toString());
-    // REMOVIDO: sessionStorage.setItem("authToken", token);
+    // Limpa qualquer sessão de colaborador anterior
+    sessionStorage.removeItem("currentSession");
+
     setCurrentUserId(userId);
+    setUserType("manager");
   };
+
+  // 2. Entrar como Colaborador (NOVO!)
+  const handleCollaboratorJoin = (data: any) => {
+    // Salva os dados da sessão (ID, codigo, participante)
+    sessionStorage.setItem("currentSession", JSON.stringify(data));
+    // Limpa qualquer login de gestor anterior
+    sessionStorage.removeItem("currentUserId");
+
+    setSessionData(data);
+    setUserType("participant");
+  };
+
+  // 3. Logout Geral
+  const handleLogout = async () => {
+    // Tenta limpar cookie se for gestor
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (e) {}
+
+    sessionStorage.clear();
+    window.location.reload();
+  };
+
+  // --- Renderização ---
 
   if (isLoading) {
     return (
@@ -67,14 +112,26 @@ export default function InventorySystem() {
     );
   }
 
-  if (!currentUserId) {
-    return <AuthModal onUnlock={handleUnlock} />;
+  // Se não estiver logado (nem gestor, nem colaborador) -> AuthModal
+  if (!userType) {
+    return (
+      <AuthModal
+        onUnlock={handleManagerLogin}
+        onJoinSession={handleCollaboratorJoin}
+      />
+    );
   }
 
+  if (userType === "participant") {
+    return (
+      <ParticipantView sessionData={sessionData} onLogout={handleLogout} />
+    );
+  }
+
+  // --- VIEW DO GESTOR (Original) ---
   return (
     <>
       <div ref={mainContainerRef} className="relative min-h-screen">
-        {/* Passamos onNavigate para o Navigation controlar as abas via Menu de Perfil */}
         <Navigation
           setShowClearDataModal={inventory.setShowClearDataModal}
           onNavigate={setActiveTab}
@@ -86,8 +143,6 @@ export default function InventorySystem() {
             onValueChange={setActiveTab}
             className="space-y-6"
           >
-            {/* --- Navegação Desktop (CORRIGIDO) --- */}
-            {/* Aqui mantemos as 4 abas originais, incluindo Importar */}
             <div className="hidden sm:block">
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="scan" className="flex items-center gap-2">
@@ -112,7 +167,6 @@ export default function InventorySystem() {
               </TabsList>
             </div>
 
-            {/* Conteúdos das abas */}
             <TabsContent value="scan" className="space-y-6">
               <ConferenceTab
                 countingMode={inventory.countingMode}
@@ -164,19 +218,17 @@ export default function InventorySystem() {
               />
             </TabsContent>
 
-            {/* Conteúdo da aba de Histórico. */}
             <TabsContent value="history" className="space-y-6">
               <HistoryTab
                 userId={currentUserId}
-                history={inventory.history} // Passando o estado do pai
-                loadHistory={inventory.loadHistory} // Passando a função do pai
-                handleDeleteHistoryItem={inventory.handleDeleteHistoryItem} // Passando a função do pai
+                history={inventory.history}
+                loadHistory={inventory.loadHistory}
+                handleDeleteHistoryItem={inventory.handleDeleteHistoryItem}
               />
             </TabsContent>
           </Tabs>
         </main>
 
-        {/* Modais */}
         {inventory.showClearDataModal && (
           <ClearDataModal
             isOpen={inventory.showClearDataModal}
@@ -211,8 +263,7 @@ export default function InventorySystem() {
         )}
       </div>
 
-      {/* --- Navegação Mobile (Bottom Bar) --- */}
-      {/* Mantém apenas 3 botões: Conferir, Exportar, Histórico. */}
+      {/* Menu Mobile (Gestor) */}
       <div className="sm:hidden fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-[320px]">
         <div className="flex items-center justify-between px-6 py-2 bg-background/80 backdrop-blur-xl rounded-full shadow-2xl border border-border/50 mx-4">
           <button
@@ -226,7 +277,6 @@ export default function InventorySystem() {
             <Scan className={activeTab === "scan" ? "h-6 w-6" : "h-5 w-5"} />
             <span className="text-[10px] font-medium">Conferir</span>
           </button>
-
           <button
             onClick={() => setActiveTab("export")}
             className={`flex flex-col items-center justify-center gap-1 p-2 rounded-lg transition-all duration-200 ${
@@ -240,7 +290,6 @@ export default function InventorySystem() {
             />
             <span className="text-[10px] font-medium">Exportar</span>
           </button>
-
           <button
             onClick={() => setActiveTab("history")}
             className={`flex flex-col items-center justify-center gap-1 p-2 rounded-lg transition-all duration-200 ${

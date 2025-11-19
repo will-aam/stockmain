@@ -1,16 +1,13 @@
-// src/components/shared/AuthModal.tsx
+// components/shared/AuthModal.tsx
 /**
- * Descrição: Modal de Autenticação da Aplicação.
- * Responsabilidade: Exibir uma interface para que o usuário insira seu acesso e senha.
- * ATUALIZAÇÃO: Ajustado para funcionar com Cookies HTTP-Only (não exige mais token no corpo da resposta).
+ * Descrição: Modal de Autenticação Híbrido (Gestor vs Colaborador).
+ * Responsabilidade: Permitir o login tradicional (email/senha) OU
+ * o acesso rápido a uma sessão de contagem (código/nome).
  */
 
 "use client";
 
-// --- React Hooks ---
 import { useState } from "react";
-
-// --- Componentes de UI ---
 import {
   Card,
   CardContent,
@@ -22,240 +19,260 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-// --- Ícones e Utilitários ---
-import { LockKeyhole, Loader2, Eye, EyeOff } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LockKeyhole, Loader2, Eye, EyeOff, Users, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// --- Interfaces e Tipos ---
-/**
- * Props para o componente AuthModal.
- */
 interface AuthModalProps {
-  // O token não é mais usado pelo frontend, mas mantemos a assinatura para não quebrar a tipagem do pai imediatamente
-  onUnlock: (userId: number, token: string) => void;
+  onUnlock: (userId: number, token: string) => void; // Callback para Gestor
+  onJoinSession?: (data: any) => void; // Callback para Colaborador (Novo!)
 }
 
-/**
- * Componente AuthModal.
- */
-export function AuthModal({ onUnlock }: AuthModalProps) {
-  // --- Estado do Componente ---
+export function AuthModal({ onUnlock, onJoinSession }: AuthModalProps) {
+  // Estado Geral
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState("manager");
+
+  // Estado Gestor
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
 
-  const whatsappNumber = "5579996638956";
+  // Estado Colaborador
+  const [sessionCode, setSessionCode] = useState("");
+  const [participantName, setParticipantName] = useState("");
 
   /**
-   * Função para processar o desbloqueio.
+   * Login de Gestor (Existente)
    */
-  const handleUnlock = async () => {
+  const handleManagerLogin = async () => {
     if (!email.trim() || !senha.trim()) {
       setError("Por favor, insira o acesso e a senha");
       return;
     }
-
     setIsLoading(true);
     setError("");
 
     try {
       const response = await fetch("/api/auth", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim(), senha: senha.trim() }),
       });
 
       const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Erro ao autenticar");
 
-      if (!response.ok) {
-        throw new Error(data.error || "Erro ao autenticar");
-      }
-
-      // --- CORREÇÃO AQUI ---
-      // Antes: if (data.success && data.userId && data.token)
-      // Agora: Verificamos apenas o success e o userId. O token está no Cookie.
       if (data.success && data.userId) {
-        // Passamos uma string vazia como token, pois o AuthModalProps ainda espera 2 argumentos
         onUnlock(data.userId, "");
-      } else {
-        throw new Error(data.error || "Erro desconhecido no login.");
       }
     } catch (err: any) {
       setError(err.message);
-      // Não limpamos os campos imediatamente para o usuário corrigir se errou digitação
     } finally {
       setIsLoading(false);
     }
   };
 
   /**
-   * Manipulador de evento de teclado.
+   * Login de Colaborador (Novo!)
    */
+  const handleCollaboratorJoin = async () => {
+    if (!sessionCode.trim() || !participantName.trim()) {
+      setError("Código da sala e seu nome são obrigatórios.");
+      return;
+    }
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/session/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: sessionCode.trim(),
+          name: participantName.trim(),
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Erro ao entrar na sala");
+
+      if (data.success && onJoinSession) {
+        // Passamos os dados da sessão para o componente pai
+        onJoinSession(data);
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !isLoading) {
-      handleUnlock();
+      if (activeTab === "manager") handleManagerLogin();
+      else handleCollaboratorJoin();
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* --- Fundo Animado --- */}
+      {/* Fundo Animado */}
       <div className="absolute inset-0 bg-background">
         <div className="absolute inset-0 bg-black/60 backdrop-blur-md" />
         <div className="absolute top-0 -left-4 w-72 h-72 bg-primary/20 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse" />
-        <div className="absolute bottom-0 -right-4 w-72 h-72 bg-primary/20 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse animation-delay-2000" />
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-primary/20 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse animation-delay-4000" />
+        <div className="absolute bottom-0 -right-4 w-72 h-72 bg-blue-500/20 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse animation-delay-2000" />
       </div>
 
-      {/* --- Container do Modal --- */}
+      {/* Card Principal */}
       <div className="relative z-10 w-full max-w-md animate-in fade-in-0 zoom-in-95 duration-300">
-        <Card className="relative overflow-hidden border shadow-2xl bg-card/95 backdrop-blur-xl">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-primary/30 to-primary/20 opacity-10" />
+        <Card className="border shadow-2xl bg-card/95 backdrop-blur-xl overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-blue-500/5 pointer-events-none" />
 
-          <div className="relative">
-            <CardHeader className="text-center pb-2 px-4 sm:px-6 pt-8">
-              <CardTitle className="text-xl sm:text-2xl font-bold text-foreground">
-                Acesso Restrito
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full"
+          >
+            <CardHeader className="pb-4">
+              <CardTitle className="text-center text-2xl font-bold mb-2">
+                Countifly
               </CardTitle>
-              <CardDescription className="text-muted-foreground mt-2 text-sm sm:text-base">
-                Insira suas credenciais para acessar o sistema
-              </CardDescription>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger
+                  value="manager"
+                  className="flex items-center gap-2"
+                >
+                  <LockKeyhole className="h-4 w-4" />
+                  Sou Gestor
+                </TabsTrigger>
+                <TabsTrigger
+                  value="collaborator"
+                  className="flex items-center gap-2"
+                >
+                  <Users className="h-4 w-4" />
+                  Sou Colaborador
+                </TabsTrigger>
+              </TabsList>
             </CardHeader>
 
-            <CardContent className="space-y-6 px-4 sm:px-8">
-              <div className="space-y-3">
-                <Label htmlFor="email">Acesso</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  onFocus={() => setIsFocused(true)}
-                  onBlur={() => setIsFocused(false)}
-                  placeholder="seu-acesso@"
-                  autoFocus
-                  disabled={isLoading}
-                  className="h-12 text-base border-input focus:border-primary focus:ring-primary/20 transition-all duration-200"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <Label htmlFor="password">Senha da Sessão</Label>
-                <div className="relative">
+            <CardContent className="space-y-4 pt-0">
+              {/* --- FORMULÁRIO GESTOR --- */}
+              <TabsContent value="manager" className="space-y-4 mt-0">
+                <CardDescription className="text-center mb-4">
+                  Acesso administrativo para controle de estoque.
+                </CardDescription>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email de Acesso</Label>
                   <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={senha}
-                    onChange={(e) => setSenha(e.target.value)}
+                    id="email"
+                    type="email"
+                    placeholder="admin@empresa.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    onFocus={() => setIsFocused(true)}
-                    onBlur={() => setIsFocused(false)}
-                    placeholder="••••••••"
                     disabled={isLoading}
-                    className="pr-12 h-12 text-base border-input focus:border-primary focus:ring-primary/20 transition-all duration-200"
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-10 w-10 p-0 hover:bg-muted"
-                    onClick={() => setShowPassword(!showPassword)}
-                    disabled={isLoading}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </Button>
                 </div>
-              </div>
-
-              {error && (
-                <div className="animate-in slide-in-from-top-2 duration-200">
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                    <LockKeyhole className="h-4 w-4 text-destructive" />
-                    <p className="text-sm font-medium text-destructive">
-                      {error}
-                    </p>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Senha</Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={senha}
+                      onChange={(e) => setSenha(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      disabled={isLoading}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </Button>
                   </div>
+                </div>
+              </TabsContent>
+
+              {/* --- FORMULÁRIO COLABORADOR --- */}
+              <TabsContent value="collaborator" className="space-y-4 mt-0">
+                <CardDescription className="text-center mb-4">
+                  Entre com o código fornecido pelo seu gestor.
+                </CardDescription>
+                <div className="space-y-2">
+                  <Label htmlFor="code">Código da Sessão</Label>
+                  <Input
+                    id="code"
+                    placeholder="Ex: A1B2C3"
+                    value={sessionCode}
+                    onChange={(e) =>
+                      setSessionCode(e.target.value.toUpperCase())
+                    }
+                    onKeyPress={handleKeyPress}
+                    disabled={isLoading}
+                    className="uppercase tracking-widest font-mono text-center text-lg"
+                    maxLength={8}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="name">Seu Nome</Label>
+                  <Input
+                    id="name"
+                    placeholder="Ex: Maria Silva"
+                    value={participantName}
+                    onChange={(e) => setParticipantName(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    disabled={isLoading}
+                  />
+                </div>
+              </TabsContent>
+
+              {/* Exibição de Erros */}
+              {error && (
+                <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive font-medium animate-in slide-in-from-top-2">
+                  {error}
                 </div>
               )}
             </CardContent>
 
-            <CardFooter className="px-4 sm:px-8 pb-8 pt-2">
+            <CardFooter>
               <Button
-                onClick={handleUnlock}
-                className={cn(
-                  "w-full h-12 text-base font-medium transition-all duration-200",
-                  "bg-primary hover:bg-primary/90",
-                  "shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]",
-                  "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                )}
-                disabled={isLoading || !email.trim() || !senha.trim()}
+                className="w-full h-11 text-base shadow-lg hover:shadow-primary/20 transition-all"
+                onClick={
+                  activeTab === "manager"
+                    ? handleManagerLogin
+                    : handleCollaboratorJoin
+                }
+                disabled={isLoading}
               >
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Verificando...
+                    {activeTab === "manager" ? "Entrando..." : "Validando..."}
                   </>
                 ) : (
                   <>
-                    <LockKeyhole className="mr-2 h-5 w-5" />
-                    Desbloquear Acesso
+                    <LogIn className="mr-2 h-5 w-5" />
+                    {activeTab === "manager"
+                      ? "Acessar Painel"
+                      : "Entrar na Contagem"}
                   </>
                 )}
               </Button>
             </CardFooter>
-          </div>
-          <div className="h-1 bg-gradient-to-r from-primary/80 via-primary to-primary/80" />
+          </Tabs>
         </Card>
-
-        <p className="text-center text-xs text-muted-foreground mt-4 px-4">
-          Área restrita • Acesso autorizado somente
-        </p>
-        <p className="text-center text-xs text-muted-foreground mt-2 px-4">
-          Não possui acesso?{" "}
-          <a
-            href={`https://wa.me/${whatsappNumber}?text=Olá, gostaria de solicitar acesso.`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:underline font-medium"
-          >
-            Solicitar acesso
-          </a>
-        </p>
       </div>
-
-      <style jsx>{`
-        @keyframes pulse {
-          0%,
-          100% {
-            opacity: 0.2;
-          }
-          50% {
-            opacity: 0.3;
-          }
-        }
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-        .animation-delay-4000 {
-          animation-delay: 4s;
-        }
-        @media (max-width: 360px) {
-          .fixed {
-            padding: 12px;
-          }
-        }
-      `}</style>
     </div>
   );
 }
