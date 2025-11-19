@@ -3,6 +3,8 @@
  * Descrição: Componente de Navegação Principal (Cabeçalho).
  * Responsabilidade: Renderizar o cabeçalho com o ícone de Perfil.
  * O Perfil abre um Menu Lateral (Navbar) contendo: Importar (apenas mobile), Tema e Logout.
+ *
+ * ATUALIZAÇÃO: Removido listener de scroll para otimização de performance.
  */
 
 "use client";
@@ -17,6 +19,7 @@ import {
   Moon,
   Sun,
   ChevronRight,
+  X,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "@/lib/utils";
@@ -47,7 +50,7 @@ export function Navigation({
   setShowClearDataModal,
   onNavigate,
 }: NavigationProps) {
-  const [isScrolled, setIsScrolled] = useState(false);
+  // REMOVIDO: Estado isScrolled e useEffect de scroll para melhorar performance.
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -55,11 +58,6 @@ export function Navigation({
 
   useEffect(() => {
     setMounted(true);
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   const handleLogout = () => {
@@ -82,10 +80,8 @@ export function Navigation({
   return (
     <>
       <header
-        className={cn(
-          "sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur-sm transition-shadow duration-200",
-          isScrolled ? "shadow-sm" : ""
-        )}
+        // Mantemos apenas a borda e o fundo desfocado, sem a sombra condicional
+        className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur-sm"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -148,7 +144,7 @@ export function Navigation({
 
                 {/* Versão */}
                 <p className="text-xs text-muted-foreground">
-                  Countifly v2.0 • Logado
+                  Countifly v1.0 • Logado
                 </p>
               </div>
             </div>
