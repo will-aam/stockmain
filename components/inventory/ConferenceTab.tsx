@@ -1,13 +1,12 @@
 // components/inventory/ConferenceTab.tsx
 /**
- * Descrição: Aba principal para a conferência de produtos.
- * Responsabilidade: Gerencia a interface de contagem de itens, incluindo o escaneamento de códigos de barras
- * (via câmera ou input manual), a adição de quantidades (com suporte a expressões matemáticas),
- * a seleção do local de contagem (loja/estoque) e a exibição da lista de itens já contados.
- * Também oferece funcionalidades de busca e remoção de itens da lista.
+ * Descrição: Aba principal de conferência (Híbrida).
+ * Responsabilidade:
+ * 1. Permitir a contagem individual (Scanner Clássico).
+ * 2. Permitir alternar para o Modo Gerente (Dashboard Multiplayer).
  */
 
-import React from "react";
+import React, { useState } from "react";
 
 // --- Componentes de UI ---
 import {
@@ -24,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 
 // --- Componentes de Funcionalidades ---
 import { BarcodeScanner } from "@/components/features/barcode-scanner";
+import { ManagerSessionDashboard } from "./ManagerSessionDashboard"; // <--- NOVO IMPORT
 
 // --- Ícones ---
 import {
@@ -36,6 +36,8 @@ import {
   Trash2,
   Search,
   Calculator,
+  Users,
+  User,
 } from "lucide-react";
 
 // --- Tipos e Hooks ---
@@ -43,10 +45,8 @@ import type { Product, TempProduct, ProductCount } from "@/lib/types";
 import { useMemo } from "react";
 
 // --- Interfaces e Tipos ---
-/**
- * Props para o componente ConferenceTab.
- */
 interface ConferenceTabProps {
+  userId: number | null; // <--- NOVA PROP
   countingMode: "loja" | "estoque";
   setCountingMode: (mode: "loja" | "estoque") => void;
   scanInput: string;
@@ -65,21 +65,12 @@ interface ConferenceTabProps {
   handleSaveCount: () => void;
 }
 
-/**
- * Props para o subcomponente ProductCountItem.
- */
 interface ProductCountItemProps {
   item: ProductCount;
   onRemove: (id: number) => void;
 }
 
 // --- Subcomponentes ---
-/**
- * Componente que renderiza um único item da lista de contagem.
- * Exibe as informações do produto, as quantidades contadas e um botão para removê-lo.
- * @param item - O objeto ProductCount a ser exibido.
- * @param onRemove - Função para remover o item da lista.
- */
 const ProductCountItem: React.FC<ProductCountItemProps> = ({
   item,
   onRemove,
@@ -126,11 +117,8 @@ const ProductCountItem: React.FC<ProductCountItemProps> = ({
 ProductCountItem.displayName = "ProductCountItem";
 
 // --- Componente Principal ---
-/**
- * Componente ConferenceTab.
- * Orquestra toda a lógica e a interface da aba de conferência.
- */
 export const ConferenceTab: React.FC<ConferenceTabProps> = ({
+  userId,
   countingMode,
   setCountingMode,
   scanInput,
@@ -148,11 +136,11 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
   handleRemoveCount,
   handleSaveCount,
 }) => {
-  // --- Estado Local ---
-  // Armazena o termo de busca para filtrar a lista de produtos contados.
   const [searchQuery, setSearchQuery] = React.useState("");
 
-  // --- Lógica de Filtragem e Ordenação ---
+  // Estado para alternar entre visão Individual e Equipe
+  const [viewMode, setViewMode] = useState<"individual" | "team">("individual");
+
   const filteredProductCounts = useMemo(() => {
     const sortedCounts = [...productCounts].sort((a, b) =>
       a.descricao.localeCompare(b.descricao)
@@ -168,242 +156,262 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
     );
   }, [productCounts, searchQuery]);
 
-  // --- Funções de Manipulação ---
-  /**
-   * Manipula a mudança no campo de quantidade.
-   * Filtra a entrada para permitir apenas números, operadores matemáticos básicos e pontos,
-   * possibilitando que o usuário digite expressões como "10+5".
-   * @param e - O evento de mudança do input.
-   */
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // Permitir apenas números, operadores básicos e espaços
     const validValue = value.replace(/[^0-9+\-*/\s.]/g, "");
     setQuantityInput(validValue);
   };
 
   return (
-    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
-      {/* Seção de Escaneamento e Entrada de Dados */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center mb-4">
-            <Scan className="h-5 w-5 mr-2" /> Scanner
-          </CardTitle>
-          <CardDescription>
-            {/* Botões de Ação e Seleção de Modo */}
-            <div className="flex flex-col sm:flex-row items-center gap-2">
-              <Button
-                onClick={handleSaveCount}
-                variant="outline"
-                className="w-full sm:w-auto"
-              >
-                <CloudUpload className="mr-2 h-4 w-4" />
-                Salvar Contagem
-              </Button>
+    <div className="space-y-6">
+      {/* --- SELETOR DE MODO (Novo) --- */}
+      <div className="flex justify-center sm:justify-end">
+        <div className="bg-muted p-1 rounded-lg flex gap-1">
+          <Button
+            variant={viewMode === "individual" ? "default" : "ghost"}
+            size="sm"
+            className="h-8 px-4 text-xs"
+            onClick={() => setViewMode("individual")}
+          >
+            <User className="w-3 h-3 mr-2" />
+            Individual
+          </Button>
+          <Button
+            variant={viewMode === "team" ? "default" : "ghost"}
+            size="sm"
+            className="h-8 px-4 text-xs"
+            onClick={() => setViewMode("team")}
+          >
+            <Users className="w-3 h-3 mr-2" />
+            Gerenciar Equipe
+          </Button>
+        </div>
+      </div>
 
-              <div className="flex w-full sm:w-auto gap-2">
-                <Button
-                  variant={countingMode === "loja" ? "default" : "outline"}
-                  className="flex-1 sm:flex-none"
-                  onClick={() => setCountingMode("loja")}
-                >
-                  <Store className="h-4 w-4 mr-2" /> Loja
-                </Button>
-                <Button
-                  variant={countingMode === "estoque" ? "default" : "outline"}
-                  className="flex-1 sm:flex-none"
-                  onClick={() => setCountingMode("estoque")}
-                >
-                  <Package className="h-4 w-4 mr-2" /> Estoque
-                </Button>
-              </div>
-            </div>
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Renderização Condicional: Scanner de Câmera ou Input Manual */}
-          {isCameraViewActive ? (
-            <BarcodeScanner
-              onScan={handleBarcodeScanned}
-              onClose={() => setIsCameraViewActive(false)}
-            />
-          ) : (
-            <>
-              {/* Campo de Entrada para Código de Barras */}
-              <div className="space-y-2">
-                <Label htmlFor="barcode">Código de Barras</Label>
-                <div className="flex space-x-2">
-                  <Input
-                    id="barcode"
-                    type="tel"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={scanInput}
-                    onChange={(e) => {
-                      const numericValue = e.target.value.replace(/\D/g, "");
-                      setScanInput(numericValue);
-                    }}
-                    placeholder="Digite ou escaneie"
-                    className="flex-1 mobile-optimized"
-                    onKeyPress={(e) => e.key === "Enter" && handleScan()}
-                  />
-                  <Button onClick={handleScan}>
-                    <Scan className="h-4 w-4" />
-                  </Button>
+      {/* --- CONTEÚDO CONDICIONAL --- */}
+      {viewMode === "team" && userId ? (
+        <ManagerSessionDashboard userId={userId} />
+      ) : (
+        <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
+          {/* Seção de Escaneamento e Entrada de Dados */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center mb-4">
+                <Scan className="h-5 w-5 mr-2" /> Scanner
+              </CardTitle>
+              <CardDescription>
+                <div className="flex flex-col sm:flex-row items-center gap-2">
                   <Button
-                    onClick={() => setIsCameraViewActive(true)}
+                    onClick={handleSaveCount}
                     variant="outline"
+                    className="w-full sm:w-auto"
                   >
-                    <Camera className="h-4 w-4" />
+                    <CloudUpload className="mr-2 h-4 w-4" />
+                    Salvar Contagem
                   </Button>
-                </div>
-              </div>
 
-              {/* Exibição do Produto Encontrado ou Temporário */}
-              {currentProduct && (
-                <div
-                  className={`p-4 border rounded-lg ${
-                    "isTemporary" in currentProduct &&
-                    currentProduct.isTemporary
-                      ? "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800"
-                      : "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3
-                        className={`font-semibold ${
-                          "isTemporary" in currentProduct &&
-                          currentProduct.isTemporary
-                            ? "text-amber-800 dark:text-amber-200"
-                            : "text-green-800 dark:text-green-200"
-                        }`}
+                  <div className="flex w-full sm:w-auto gap-2">
+                    <Button
+                      variant={countingMode === "loja" ? "default" : "outline"}
+                      className="flex-1 sm:flex-none"
+                      onClick={() => setCountingMode("loja")}
+                    >
+                      <Store className="h-4 w-4 mr-2" /> Loja
+                    </Button>
+                    <Button
+                      variant={
+                        countingMode === "estoque" ? "default" : "outline"
+                      }
+                      className="flex-1 sm:flex-none"
+                      onClick={() => setCountingMode("estoque")}
+                    >
+                      <Package className="h-4 w-4 mr-2" /> Estoque
+                    </Button>
+                  </div>
+                </div>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isCameraViewActive ? (
+                <BarcodeScanner
+                  onScan={handleBarcodeScanned}
+                  onClose={() => setIsCameraViewActive(false)}
+                />
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="barcode">Código de Barras</Label>
+                    <div className="flex space-x-2">
+                      <Input
+                        id="barcode"
+                        type="tel"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={scanInput}
+                        onChange={(e) => {
+                          const numericValue = e.target.value.replace(
+                            /\D/g,
+                            ""
+                          );
+                          setScanInput(numericValue);
+                        }}
+                        placeholder="Digite ou escaneie"
+                        className="flex-1 mobile-optimized"
+                        onKeyPress={(e) => e.key === "Enter" && handleScan()}
+                      />
+                      <Button onClick={handleScan}>
+                        <Scan className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        onClick={() => setIsCameraViewActive(true)}
+                        variant="outline"
                       >
-                        {"isTemporary" in currentProduct &&
+                        <Camera className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {currentProduct && (
+                    <div
+                      className={`p-4 border rounded-lg ${
+                        "isTemporary" in currentProduct &&
                         currentProduct.isTemporary
-                          ? "Produto Temporário"
-                          : "Produto Encontrado"}
-                      </h3>
-                      <p
-                        className={`text-sm ${
-                          "isTemporary" in currentProduct &&
-                          currentProduct.isTemporary
-                            ? "text-amber-700 dark:text-amber-300"
-                            : "text-green-700 dark:text-green-300"
-                        }`}
-                      >
-                        {currentProduct.descricao}
-                      </p>
-                      <p
-                        className={`text-xs ${
-                          "isTemporary" in currentProduct &&
-                          currentProduct.isTemporary
-                            ? "text-amber-600 dark:text-amber-400"
-                            : "text-green-600 dark:text-green-400"
-                        }`}
-                      >
-                        Cód. Barras: {scanInput}
+                          ? "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800"
+                          : "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3
+                            className={`font-semibold ${
+                              "isTemporary" in currentProduct &&
+                              currentProduct.isTemporary
+                                ? "text-amber-800 dark:text-amber-200"
+                                : "text-green-800 dark:text-green-200"
+                            }`}
+                          >
+                            {"isTemporary" in currentProduct &&
+                            currentProduct.isTemporary
+                              ? "Produto Temporário"
+                              : "Produto Encontrado"}
+                          </h3>
+                          <p
+                            className={`text-sm ${
+                              "isTemporary" in currentProduct &&
+                              currentProduct.isTemporary
+                                ? "text-amber-700 dark:text-amber-300"
+                                : "text-green-700 dark:text-green-300"
+                            }`}
+                          >
+                            {currentProduct.descricao}
+                          </p>
+                          <p
+                            className={`text-xs ${
+                              "isTemporary" in currentProduct &&
+                              currentProduct.isTemporary
+                                ? "text-amber-600 dark:text-amber-400"
+                                : "text-green-600 dark:text-green-400"
+                            }`}
+                          >
+                            Cód. Barras: {scanInput}
+                          </p>
+                        </div>
+                        <Badge variant="secondary" className="ml-2">
+                          Estoque: {currentProduct.saldo_estoque}
+                        </Badge>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="quantity">
+                          Quantidade{" "}
+                          {countingMode === "loja" ? "em Loja" : "em Estoque"}
+                        </Label>
+                        <Calculator className="h-4 w-4 text-gray-500" />
+                      </div>
+
+                      <Input
+                        id="quantity"
+                        type="text"
+                        inputMode="text"
+                        value={quantityInput}
+                        onChange={handleQuantityChange}
+                        onKeyPress={handleQuantityKeyPress}
+                        placeholder="Qtd ou expressão"
+                        className="flex-1 mobile-optimized font-mono"
+                      />
+
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Digite o número ou expressão matemática (ex: 10, 5+3,
+                        20-2, 5*4, 20/5). Pressione Enter para calcular.
                       </p>
                     </div>
-                    <Badge variant="secondary" className="ml-2">
-                      Estoque: {currentProduct.saldo_estoque}
-                    </Badge>
                   </div>
-                </div>
+
+                  <Button
+                    onClick={handleAddCount}
+                    className="w-full mobile-button"
+                    disabled={!currentProduct || !quantityInput}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar Contagem de{" "}
+                    {countingMode === "loja" ? "Loja" : "Estoque"}
+                  </Button>
+                </>
               )}
+            </CardContent>
+          </Card>
 
-              {/* Campo de Entrada para Quantidade com Suporte a Expressões */}
-              <div className="space-y-2">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="quantity">
-                      Quantidade{" "}
-                      {countingMode === "loja" ? "em Loja" : "em Estoque"}
-                    </Label>
-                    <Calculator className="h-4 w-4 text-gray-500" />
-                  </div>
-
+          {/* Seção de Lista de Itens Contados */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex flex-col gap-3">
+                <CardTitle className="text-lg">
+                  Itens Contados ({productCounts.length})
+                </CardTitle>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                   <Input
-                    id="quantity"
                     type="text"
-                    inputMode="text"
-                    value={quantityInput}
-                    onChange={handleQuantityChange}
-                    onKeyPress={handleQuantityKeyPress}
-                    placeholder="Qtd ou expressão"
-                    className="flex-1 mobile-optimized font-mono"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Buscar por descrição ou código..."
+                    className="pl-10 pr-4 h-10 text-sm bg-background border-input shadow-sm transition-all duration-200 focus-within:ring-2 focus-within:ring-ring focus-within:border-ring"
                   />
-
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Digite o número ou expressão matemática (ex: 10, 5+3, 20-2,
-                    5*4, 20/5). Pressione Enter para calcular.
-                  </p>
                 </div>
               </div>
-
-              {/* Botão para Adicionar a Contagem */}
-              <Button
-                onClick={handleAddCount}
-                className="w-full mobile-button"
-                disabled={!currentProduct || !quantityInput}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Contagem de{" "}
-                {countingMode === "loja" ? "Loja" : "Estoque"}
-              </Button>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Seção de Lista de Itens Contados */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex flex-col gap-3">
-            <CardTitle className="text-lg">
-              Itens Contados ({productCounts.length})
-            </CardTitle>
-            {/* Campo de Busca na Lista de Itens */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <Input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar por descrição ou código..."
-                className="pl-10 pr-4 h-10 text-sm bg-background border-input shadow-sm transition-all duration-200 focus-within:ring-2 focus-within:ring-ring focus-within:border-ring"
-              />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {/* Renderização da Lista Filtrada ou Mensagem de Estado Vazio */}
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {filteredProductCounts.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="font-medium">
-                  {searchQuery
-                    ? `Nenhum produto encontrado para "${searchQuery}"`
-                    : "Nenhum produto contado ainda"}
-                </p>
-                <p className="text-sm">
-                  {!searchQuery && "Escaneie um código para começar"}
-                </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {filteredProductCounts.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="font-medium">
+                      {searchQuery
+                        ? `Nenhum produto encontrado para "${searchQuery}"`
+                        : "Nenhum produto contado ainda"}
+                    </p>
+                    <p className="text-sm">
+                      {!searchQuery && "Escaneie um código para começar"}
+                    </p>
+                  </div>
+                ) : (
+                  filteredProductCounts.map((item) => (
+                    <ProductCountItem
+                      key={item.id}
+                      item={item}
+                      onRemove={handleRemoveCount}
+                    />
+                  ))
+                )}
               </div>
-            ) : (
-              filteredProductCounts.map((item) => (
-                <ProductCountItem
-                  key={item.id}
-                  item={item}
-                  onRemove={handleRemoveCount}
-                />
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };

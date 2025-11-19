@@ -169,6 +169,7 @@ export default function InventorySystem() {
 
             <TabsContent value="scan" className="space-y-6">
               <ConferenceTab
+                userId={currentUserId}
                 countingMode={inventory.countingMode}
                 setCountingMode={inventory.setCountingMode}
                 scanInput={inventory.scanInput}
