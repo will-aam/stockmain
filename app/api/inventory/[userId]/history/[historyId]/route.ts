@@ -28,17 +28,31 @@ export async function DELETE(
       return NextResponse.json({ error: "IDs inválidos." }, { status: 400 });
     }
 
-    // 3. CHAMAMOS O GUARDIÃO PRIMEIRO
+    // 3. CHAMAMOS O GUARDIÃO PRIMEIRO (Segurança)
     await validateAuth(request, userId);
 
-    // 4. Se a autenticação passar, a lógica original continua...
-    // Exclui o item, garantindo que pertença ao usuário para segurança.
-    await prisma.contagemSalva.delete({
+    // 4. Se a autenticação passar, executamos a exclusão segura.
+    // CORREÇÃO: Usamos deleteMany em vez de delete.
+    // O método .delete() exige uma chave única (@unique) no where.
+    // Como { id, usuario_id } não é único no schema, usamos deleteMany
+    // que permite filtrar por múltiplos campos e garante que o usuário só apague o que é dele.
+    const result = await prisma.contagemSalva.deleteMany({
       where: {
         id: historyId,
-        usuario_id: userId, // Esta verificação dupla é ótima (auth + query)
+        usuario_id: userId,
       },
     });
+
+    // Opcional: Verificar se algo foi realmente apagado
+    if (result.count === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Item não encontrado ou você não tem permissão para excluí-lo.",
+        },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json(
       { message: "Item do histórico excluído com sucesso." },
