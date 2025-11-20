@@ -1,10 +1,9 @@
 // components/inventory/ManagerSessionDashboard.tsx
 /**
- * Descrição: Painel de Controle do Gestor (Multiplayer).
+ * Descrição: Painel de Controle do Gestor (Multiplayer) - VERSÃO ATUALIZADA
  * Responsabilidade:
- * 1. Permitir criar uma nova sessão de contagem.
- * 2. Exibir o CÓDIGO DA SALA para compartilhar com a equipe.
- * 3. Monitorar o progresso (número de participantes e movimentos).
+ * 1. Criar/Monitorar Sessões.
+ * 2. IMPORTAR PRODUTOS PARA A SESSÃO (Novo!).
  */
 
 "use client";
@@ -30,6 +29,9 @@ import {
   RefreshCw,
   Copy,
   Share2,
+  Upload,
+  FileText,
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -57,13 +59,16 @@ export function ManagerSessionDashboard({
   const [isLoading, setIsLoading] = useState(false);
   const [newSessionName, setNewSessionName] = useState("");
 
+  // Estado de Importação
+  const [isImporting, setIsImporting] = useState(false);
+  const [importStatus, setImportStatus] = useState("");
+
   // --- Carregar Sessões ---
   const loadSessions = useCallback(async () => {
     try {
       const response = await fetch(`/api/inventory/${userId}/session`);
       if (response.ok) {
         const data = await response.json();
-        // Pega a primeira sessão que estiver ABERTA
         const current = data.find((s: any) => s.status === "ABERTA");
         setActiveSession(current || null);
       }
@@ -72,10 +77,9 @@ export function ManagerSessionDashboard({
     }
   }, [userId]);
 
-  // Polling para atualização em tempo real (a cada 10s)
   useEffect(() => {
     loadSessions();
-    const interval = setInterval(loadSessions, 10000);
+    const interval = setInterval(loadSessions, 10000); // Atualiza a cada 10s
     return () => clearInterval(interval);
   }, [loadSessions]);
 
@@ -95,7 +99,7 @@ export function ManagerSessionDashboard({
 
       toast({
         title: "Sessão Criada!",
-        description: "Compartilhe o código com sua equipe.",
+        description: "Agora importe os produtos para começar.",
       });
       setNewSessionName("");
       loadSessions();
@@ -110,17 +114,81 @@ export function ManagerSessionDashboard({
     }
   };
 
+  const handleSessionImport = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeSession) return;
+
+    setIsImporting(true);
+    setImportStatus("Iniciando upload...");
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      // Chama a rota específica da sessão criada no Passo 3
+      const response = await fetch(
+        `/api/inventory/${userId}/session/${activeSession.id}/import`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      if (!response.ok) throw new Error("Falha no upload");
+      if (!response.body) throw new Error("Sem resposta do servidor");
+
+      // Leitura do progresso via SSE
+      const reader = response.body
+        .pipeThrough(new TextDecoderStream())
+        .getReader();
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        const lines = value.split("\n");
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = JSON.parse(line.substring(6));
+
+            if (data.type === "progress") {
+              setImportStatus(`Importando: ${data.imported} itens...`);
+            } else if (data.type === "complete") {
+              toast({
+                title: "Sucesso!",
+                description: `${data.importedCount} produtos carregados na sala.`,
+              });
+              setImportStatus("");
+              loadSessions(); // Atualiza os contadores
+            } else if (data.error) {
+              throw new Error(data.error);
+            }
+          }
+        }
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro na importação",
+        description: error.message,
+        variant: "destructive",
+      });
+      setImportStatus("");
+    } finally {
+      setIsImporting(false);
+      // Limpa o input para permitir re-upload se necessário
+      e.target.value = "";
+    }
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast({
-      title: "Copiado!",
-      description: "Código copiado para a área de transferência.",
-    });
+    toast({ title: "Copiado!", description: "Código copiado." });
   };
 
   // --- Renderização ---
 
-  // 1. Estado: Nenhuma sessão ativa -> Mostrar formulário de criação
   if (!activeSession) {
     return (
       <Card className="border-dashed border-2 bg-muted/20">
@@ -161,7 +229,6 @@ export function ManagerSessionDashboard({
     );
   }
 
-  // 2. Estado: Sessão Ativa -> Mostrar Dashboard
   return (
     <Card className="border-primary/50 shadow-md bg-primary/5 overflow-hidden">
       <CardHeader className="pb-2">
@@ -199,7 +266,6 @@ export function ManagerSessionDashboard({
             >
               <Copy className="mr-2 h-3 w-3" /> Copiar
             </Button>
-            {/* Botão share nativo para mobile */}
             <Button
               variant="ghost"
               size="sm"
@@ -254,15 +320,52 @@ export function ManagerSessionDashboard({
             <div className="text-xs text-muted-foreground">Itens Catálogo</div>
           </div>
         </div>
+
+        {/* --- ÁREA DE IMPORTAÇÃO DA SESSÃO (NOVO!) --- */}
+        <div className="bg-background p-4 rounded-lg border border-dashed border-primary/30">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-semibold flex items-center gap-2">
+              <FileText className="h-4 w-4 text-primary" />
+              Catálogo da Sessão
+            </h4>
+            {activeSession._count.produtos > 0 && (
+              <Badge
+                variant="outline"
+                className="text-xs text-green-600 border-green-200 bg-green-50"
+              >
+                <CheckCircle2 className="h-3 w-3 mr-1" />{" "}
+                {activeSession._count.produtos} itens carregados
+              </Badge>
+            )}
+          </div>
+
+          <div className="flex gap-2 items-center">
+            <Input
+              type="file"
+              accept=".csv"
+              onChange={handleSessionImport}
+              disabled={isImporting}
+              className="text-xs h-9 file:mr-4 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+            />
+            {isImporting && (
+              <span className="text-xs text-muted-foreground animate-pulse whitespace-nowrap">
+                {importStatus}
+              </span>
+            )}
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-2">
+            Importe o CSV aqui para que os colaboradores vejam os produtos.
+            (Mesmo formato da aba Importar).
+          </p>
+        </div>
       </CardContent>
 
       <CardFooter className="bg-muted/50 pt-4 flex gap-2 justify-end">
         <Button variant="outline" size="sm" onClick={loadSessions}>
           <RefreshCw className="mr-2 h-3 w-3" /> Atualizar
         </Button>
-        {/* Este botão ainda será implementado na lógica de backend de encerramento */}
         <Button variant="destructive" size="sm" disabled>
-          <StopCircle className="mr-2 h-4 w-4" /> Encerrar Sessão (Em breve)
+          <StopCircle className="mr-2 h-4 w-4" /> Encerrar Sessão
         </Button>
       </CardFooter>
     </Card>
