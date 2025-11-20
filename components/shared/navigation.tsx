@@ -1,10 +1,7 @@
 // components/shared/navigation.tsx
 /**
- * Descrição: Componente de Navegação Principal (Cabeçalho).
- * Responsabilidade: Renderizar o cabeçalho com o ícone de Perfil.
- * O Perfil abre um Menu Lateral (Navbar) contendo: Importar (apenas mobile), Tema e Logout.
- *
- * ATUALIZAÇÃO: Removido listener de scroll para otimização de performance.
+ * Descrição: Componente de Navegação Principal.
+ * Atualização: Adicionada opção "Gerenciar Sala de Contagem".
  */
 
 "use client";
@@ -19,38 +16,37 @@ import {
   Moon,
   Sun,
   ChevronRight,
-  X,
+  Users, // Ícone novo
 } from "lucide-react";
 import { Button } from "../ui/button";
-import { cn } from "@/lib/utils";
 
 // Hook personalizado para detectar dispositivos móveis
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
-
   useEffect(() => {
     const checkIsMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-
     checkIsMobile();
     window.addEventListener("resize", checkIsMobile);
     return () => window.removeEventListener("resize", checkIsMobile);
   }, []);
-
   return isMobile;
 }
 
 interface NavigationProps {
   setShowClearDataModal: (show: boolean) => void;
   onNavigate?: (tab: string) => void;
+  onSwitchToTeamMode?: () => void; // <--- NOVA PROP
+  currentMode?: "single" | "team"; // <--- NOVA PROP para saber qual mostrar
 }
 
 export function Navigation({
   setShowClearDataModal,
   onNavigate,
+  onSwitchToTeamMode,
+  currentMode = "single",
 }: NavigationProps) {
-  // REMOVIDO: Estado isScrolled e useEffect de scroll para melhorar performance.
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -62,56 +58,47 @@ export function Navigation({
 
   const handleLogout = async () => {
     try {
-      // 1. Chama a API para limpar o cookie do navegador
       await fetch("/api/auth/logout", { method: "POST" });
-
-      // 2. Limpa o estado local da UI (apenas o ID)
-      sessionStorage.removeItem("currentUserId");
-      // sessionStorage.removeItem("authToken"); // Essa linha não é mais necessária
-
-      // 3. Recarrega a página para voltar ao login
+      sessionStorage.clear();
       window.location.reload();
     } catch (error) {
-      console.error("Erro ao sair", error);
-      // Fallback em caso de erro de rede: força a limpeza local
-      sessionStorage.removeItem("currentUserId");
+      sessionStorage.clear();
       window.location.reload();
     }
   };
 
   const handleNavigate = (tab: string) => {
-    if (onNavigate) {
-      onNavigate(tab);
-    }
+    if (onNavigate) onNavigate(tab);
     setIsProfileMenuOpen(false);
-  };
-
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
   };
 
   return (
     <>
-      <header
-        // Mantemos apenas a borda e o fundo desfocado, sem a sombra condicional
-        className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur-sm"
-      >
+      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <span className="text-xl font-bold text-gray-800 dark:text-gray-200">
-              Countifly
-            </span>
+            <div className="flex flex-col">
+              <span className="text-xl font-bold text-gray-800 dark:text-gray-200">
+                Countifly
+              </span>
+              {/* Indicador visual de modo */}
+              <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">
+                {currentMode === "team" ? "Modo Equipe" : "Modo Individual"}
+              </span>
+            </div>
 
             <div className="flex items-center space-x-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowClearDataModal(true)}
-                aria-label="Limpar dados"
-                className="text-red-500 hover:text-red-600 hover:bg-red-100/50 dark:hover:bg-red-900/20"
-              >
-                <Trash2 className="h-5 w-5" />
-              </Button>
+              {/* Botão de limpar dados só aparece no modo individual para evitar acidentes na sessão */}
+              {currentMode === "single" && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowClearDataModal(true)}
+                  className="text-red-500 hover:text-red-600 hover:bg-red-100/50 dark:hover:bg-red-900/20"
+                >
+                  <Trash2 className="h-5 w-5" />
+                </Button>
+              )}
 
               <Button
                 variant="ghost"
@@ -134,38 +121,67 @@ export function Navigation({
           />
 
           <div className="relative w-full max-w-xs bg-background h-full shadow-2xl animate-in slide-in-from-right-full duration-300 flex flex-col">
-            {/* Topo do Menu - Perfil e Ações */}
             <div className="p-6 bg-gradient-to-b from-background to-muted/30">
               <div className="flex flex-col items-center space-y-4">
-                {/* Ícone de Perfil (clicável para fechar) */}
                 <button
                   onClick={() => setIsProfileMenuOpen(false)}
                   className="relative rounded-full bg-secondary/50 w-16 h-16 flex items-center justify-center border-2 border-border hover:border-primary transition-colors"
                 >
                   <User className="h-8 w-8 text-primary" />
                 </button>
-
-                {/* Botão de Sair da Conta */}
-                <Button
-                  variant="destructive"
-                  className="w-full max-w-xs"
-                  onClick={handleLogout}
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sair da Conta
-                </Button>
-
-                {/* Versão */}
-                <p className="text-xs text-muted-foreground">
-                  Countifly v1.0 • Logado
-                </p>
+                <div className="text-center">
+                  <p className="font-medium">Menu do Usuário</p>
+                  <p className="text-xs text-muted-foreground">
+                    Countifly v1.0
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* Corpo do Menu - Lista de Opções */}
             <div className="flex-1 overflow-y-auto py-6 px-4 space-y-2">
-              {/* Opção de Importar - Apenas em dispositivos móveis */}
-              {isMobile && (
+              {/* --- BOTÃO DE TROCA DE MODO --- */}
+              {onSwitchToTeamMode && (
+                <button
+                  onClick={() => {
+                    onSwitchToTeamMode();
+                    setIsProfileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center justify-between p-4 rounded-xl hover:bg-accent transition-colors text-left group border border-transparent hover:border-primary/20"
+                >
+                  <div className="flex items-center gap-4">
+                    <div
+                      className={`p-3 rounded-xl ${
+                        currentMode === "single"
+                          ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400"
+                          : "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {currentMode === "single" ? (
+                        <Users className="h-6 w-6" />
+                      ) : (
+                        <User className="h-6 w-6" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-medium">
+                        {currentMode === "single"
+                          ? "Gerenciar Sala"
+                          : "Voltar ao Individual"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {currentMode === "single"
+                          ? "Modo Equipe"
+                          : "Meu Estoque"}
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+                </button>
+              )}
+
+              <div className="h-px bg-border my-2" />
+
+              {isMobile && currentMode === "single" && (
                 <button
                   onClick={() => handleNavigate("import")}
                   className="w-full flex items-center justify-between p-4 rounded-xl hover:bg-accent transition-colors text-left group"
@@ -177,17 +193,16 @@ export function Navigation({
                     <div>
                       <p className="font-medium">Importar Produtos</p>
                       <p className="text-sm text-muted-foreground">
-                        Carregar CSV do ERP
+                        Carregar CSV
                       </p>
                     </div>
                   </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
                 </button>
               )}
 
               {mounted && (
                 <button
-                  onClick={toggleTheme}
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                   className="w-full flex items-center justify-between p-4 rounded-xl hover:bg-accent transition-colors text-left group"
                 >
                   <div className="flex items-center gap-4">
@@ -205,22 +220,18 @@ export function Navigation({
                       </p>
                     </div>
                   </div>
-                  {/* Switch de tema corrigido */}
-                  <div className="flex items-center">
-                    <div
-                      className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${
-                        theme === "dark" ? "bg-primary" : "bg-muted"
-                      }`}
-                    >
-                      <div
-                        className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-                          theme === "dark" ? "translate-x-6" : ""
-                        }`}
-                      />
-                    </div>
-                  </div>
                 </button>
               )}
+
+              <div className="h-px bg-border my-2" />
+
+              <Button
+                variant="destructive"
+                className="w-full"
+                onClick={handleLogout}
+              >
+                <LogOut className="mr-2 h-4 w-4" /> Sair da Conta
+              </Button>
             </div>
           </div>
         </div>
