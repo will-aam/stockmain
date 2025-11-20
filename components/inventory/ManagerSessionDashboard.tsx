@@ -1,10 +1,11 @@
 // components/inventory/ManagerSessionDashboard.tsx
 /**
- * Descrição: Painel de Controle do Gestor (Multiplayer) - VERSÃO CORRIGIDA (SEM LOOP)
+ * Descrição: Painel de Controle do Gestor (Multiplayer) - VERSÃO FINAL E COMPLETA
  * Responsabilidade:
  * 1. Criar/Monitorar Sessões.
- * 2. Importar produtos para a sessão.
- * 3. Visualizar Itens Faltantes.
+ * 2. Importar produtos.
+ * 3. Visualizar Faltantes.
+ * 4. ENCERRAR SESSÃO (Habilitado!).
  */
 
 "use client";
@@ -32,6 +33,7 @@ import {
   Share2,
   FileText,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -69,6 +71,7 @@ export function ManagerSessionDashboard({
 }: ManagerSessionDashboardProps) {
   const [activeSession, setActiveSession] = useState<SessaoData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isEnding, setIsEnding] = useState(false); // Estado para o botão de encerrar
   const [newSessionName, setNewSessionName] = useState("");
 
   // Estado de Importação
@@ -80,13 +83,8 @@ export function ManagerSessionDashboard({
   const [showMissingModal, setShowMissingModal] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // --- REF CORRECTION: Evita Loop Infinito ---
-  // Usamos uma ref para guardar a sessão atual e acessá-la dentro do intervalo
-  // sem forçar o useEffect a reiniciar.
   const activeSessionRef = useRef<SessaoData | null>(null);
 
-  // Mantém a ref sincronizada com o estado sempre que ele mudar
   useEffect(() => {
     activeSessionRef.current = activeSession;
   }, [activeSession]);
@@ -106,7 +104,6 @@ export function ManagerSessionDashboard({
   }, [userId]);
 
   // --- 2. Carregar Produtos da Sessão Ativa ---
-  // Agora aceita um ID opcional ou usa a ref, removendo dependência de estado
   const loadSessionProducts = useCallback(async (sessionId?: number) => {
     const targetId = sessionId || activeSessionRef.current?.id;
     if (!targetId) return;
@@ -122,22 +119,18 @@ export function ManagerSessionDashboard({
     }
   }, []);
 
-  // --- Polling Unificado (CORRIGIDO) ---
+  // --- Polling Unificado ---
   useEffect(() => {
-    // Carga inicial
     loadSessions();
-
     const interval = setInterval(() => {
       loadSessions();
-      // Usa a REF para verificar se deve carregar produtos
-      // Isso impede que o intervalo seja recriado a cada atualização de estado
       if (activeSessionRef.current) {
         loadSessionProducts(activeSessionRef.current.id);
       }
-    }, 5000); // 5 segundos reais
+    }, 5000);
 
     return () => clearInterval(interval);
-  }, [loadSessions, loadSessionProducts]); // REMOVIDO activeSession das dependências
+  }, [loadSessions, loadSessionProducts]);
 
   // --- 3. Calcular Faltantes ---
   const missingItems = useMemo(() => {
@@ -178,6 +171,51 @@ export function ManagerSessionDashboard({
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // --- AÇÃO DE ENCERRAR (NOVO!) ---
+  const handleEndSession = async () => {
+    if (!activeSession) return;
+
+    const confirm = window.confirm(
+      "Tem certeza? Isso vai finalizar a contagem, bloquear novos envios e gerar o relatório final no seu Histórico."
+    );
+    if (!confirm) return;
+
+    setIsEnding(true);
+    try {
+      const response = await fetch(
+        `/api/inventory/${userId}/session/${activeSession.id}/end`,
+        {
+          method: "POST",
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Erro ao encerrar.");
+      }
+
+      toast({
+        title: "Sessão Finalizada! 🏁",
+        description: "O relatório completo foi salvo na aba Histórico.",
+        className: "bg-green-600 text-white border-none",
+      });
+
+      // Limpa a sessão ativa da tela
+      setActiveSession(null);
+      setSessionProducts([]);
+      // Recarrega para garantir que o estado está limpo
+      loadSessions();
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsEnding(false);
     }
   };
 
@@ -438,25 +476,34 @@ export function ManagerSessionDashboard({
               loadSessions();
               loadSessionProducts();
             }}
+            disabled={isEnding}
           >
             <RefreshCw className="mr-2 h-3 w-3" /> Atualizar Dados
           </Button>
-          <Button variant="destructive" size="sm" disabled>
-            <StopCircle className="mr-2 h-4 w-4" /> Encerrar Sessão
+
+          {/* BOTÃO DE ENCERRAR HABILITADO */}
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleEndSession}
+            disabled={isEnding}
+          >
+            {isEnding ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <StopCircle className="mr-2 h-4 w-4" />
+            )}
+            Encerrar Sessão
           </Button>
         </CardFooter>
       </Card>
 
-      {/* --- COMPONENTES FLUTUANTES (VISÃO GLOBAL) --- */}
-
-      {/* Botão Flutuante */}
+      {/* Componentes Flutuantes */}
       <FloatingMissingItemsButton
         itemCount={missingItems.length}
         onClick={() => setShowMissingModal(true)}
         dragConstraintsRef={containerRef}
       />
-
-      {/* Modal de Itens Faltantes */}
       <MissingItemsModal
         isOpen={showMissingModal}
         onClose={() => setShowMissingModal(false)}
