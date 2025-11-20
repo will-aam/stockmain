@@ -294,38 +294,40 @@ export function ManagerSessionDashboard({
 
   if (!activeSession) {
     return (
-      <Card className="border-dashed border-2 bg-muted/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <Card className="max-w-md mx-auto border-dashed border-2 border-primary/30 bg-gradient-to-br from-muted/10 to-background shadow-sm rounded-xl">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-xl flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
-            Modo Equipe (Multiplayer)
+            Modo Equipe
           </CardTitle>
-          <CardDescription>
-            Crie uma sala para que várias pessoas contem o estoque
-            simultaneamente.
+          <CardDescription className="text-sm">
+            Crie uma sala para contagem colaborativa de estoque.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid w-full items-center gap-1.5">
-            <Label htmlFor="sessionName">Nome da Contagem (Opcional)</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="sessionName" className="text-sm">
+              Nome da Sessão (Opcional)
+            </Label>
             <Input
               id="sessionName"
-              placeholder="Ex: Inventário Geral Dezembro"
+              placeholder="Ex: Inventário Dezembro"
               value={newSessionName}
               onChange={(e) => setNewSessionName(e.target.value)}
+              className="h-9 text-sm"
             />
           </div>
           <Button
             onClick={handleCreateSession}
             disabled={isLoading}
-            className="w-full"
+            className="w-full h-9 text-sm"
           >
             {isLoading ? (
               <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <Play className="mr-2 h-4 w-4" />
             )}
-            Iniciar Nova Sessão
+            Iniciar Sessão
           </Button>
         </CardContent>
       </Card>
@@ -333,55 +335,57 @@ export function ManagerSessionDashboard({
   }
 
   return (
-    <div ref={containerRef} className="relative min-h-[500px]">
-      <Card className="border-primary/50 shadow-md bg-primary/5 overflow-hidden">
-        <CardHeader className="pb-2">
-          <div className="flex justify-between items-start">
+    <div
+      ref={containerRef}
+      className="relative min-h-[400px] max-w-2xl mx-auto"
+    >
+      <Card className="border-primary/20 shadow-lg bg-gradient-to-br from-background to-muted/20 rounded-2xl overflow-hidden">
+        <CardHeader className="pb-3 bg-primary/5">
+          <div className="flex justify-between items-center">
             <div>
-              <CardTitle>{activeSession.nome}</CardTitle>
-              <CardDescription>
-                Sessão Ativa • Criada em{" "}
+              <CardTitle className="text-lg">{activeSession.nome}</CardTitle>
+              <CardDescription className="text-xs mt-1">
+                Criada em{" "}
                 {new Date(activeSession.criado_em).toLocaleDateString()}
               </CardDescription>
             </div>
-            <Badge
-              variant="default"
-              className="bg-green-600 hover:bg-green-700"
-            >
-              EM ANDAMENTO
+            <Badge variant="default" className="text-xs bg-green-500/80">
+              Ativa
             </Badge>
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-6">
-          {/* Destaque do Código */}
-          <div className="bg-white dark:bg-gray-900 p-6 rounded-xl border text-center space-y-2 shadow-inner">
-            <p className="text-sm text-muted-foreground font-medium uppercase tracking-wide">
+        <CardContent className="space-y-4 p-4">
+          {/* Código de Acesso - Mais condensado e moderno */}
+          <div className="bg-background p-4 rounded-lg border border-primary/10 shadow-sm text-center space-y-1">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">
               Código de Acesso
             </p>
             <div
-              className="text-5xl sm:text-6xl font-black tracking-widest text-primary cursor-pointer select-all"
+              className="text-4xl font-mono tracking-widest text-primary cursor-pointer select-all"
               onClick={() => copyToClipboard(activeSession.codigo_acesso)}
             >
               {activeSession.codigo_acesso}
             </div>
-            <div className="flex justify-center gap-2 pt-2">
+            <div className="flex justify-center gap-2 mt-2">
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
+                className="h-7 text-xs"
                 onClick={() => copyToClipboard(activeSession.codigo_acesso)}
               >
-                <Copy className="mr-2 h-3 w-3" /> Copiar
+                <Copy className="mr-1 h-3 w-3" /> Copiar
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
+                className="h-7 text-xs"
                 onClick={() => {
                   if (navigator.share) {
                     navigator
                       .share({
                         title: "Acesse o Inventário",
-                        text: `Entre na sessão com o código: ${activeSession.codigo_acesso}`,
+                        text: `Código: ${activeSession.codigo_acesso}`,
                         url: window.location.origin,
                       })
                       .catch(console.error);
@@ -397,103 +401,91 @@ export function ManagerSessionDashboard({
             </div>
           </div>
 
-          {/* Estatísticas */}
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div className="bg-background p-3 rounded-lg border">
-              <div className="flex justify-center mb-1">
-                <Users className="h-5 w-5 text-blue-500" />
-              </div>
-              <div className="text-2xl font-bold">
+          {/* Estatísticas - Grid compacto */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-background p-2 rounded-md border text-center">
+              <Users className="h-4 w-4 text-blue-500 mx-auto mb-1" />
+              <div className="text-lg font-bold">
                 {activeSession._count.participantes}
               </div>
               <div className="text-xs text-muted-foreground">Pessoas</div>
             </div>
-            <div className="bg-background p-3 rounded-lg border">
-              <div className="flex justify-center mb-1">
-                <Activity className="h-5 w-5 text-amber-500" />
-              </div>
-              <div className="text-2xl font-bold">
+            <div className="bg-background p-2 rounded-md border text-center">
+              <Activity className="h-4 w-4 text-amber-500 mx-auto mb-1" />
+              <div className="text-lg font-bold">
                 {activeSession._count.movimentos}
               </div>
               <div className="text-xs text-muted-foreground">Bipes</div>
             </div>
-            <div className="bg-background p-3 rounded-lg border">
-              <div className="flex justify-center mb-1">
-                <RefreshCw className="h-5 w-5 text-green-500" />
-              </div>
-              <div className="text-2xl font-bold">
+            <div className="bg-background p-2 rounded-md border text-center">
+              <RefreshCw className="h-4 w-4 text-green-500 mx-auto mb-1" />
+              <div className="text-lg font-bold">
                 {activeSession._count.produtos}
               </div>
-              <div className="text-xs text-muted-foreground">
-                Itens Catálogo
-              </div>
+              <div className="text-xs text-muted-foreground">Itens</div>
             </div>
           </div>
 
-          {/* Área de Importação */}
-          <div className="bg-background p-4 rounded-lg border border-dashed border-primary/30">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-semibold flex items-center gap-2">
+          {/* Importação - Mais condensada */}
+          <div className="bg-background p-3 rounded-md border border-dashed border-primary/20 space-y-2">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium flex items-center gap-1">
                 <FileText className="h-4 w-4 text-primary" />
-                Catálogo da Sessão
+                Importar Catálogo
               </h4>
               {activeSession._count.produtos > 0 && (
-                <Badge
-                  variant="outline"
-                  className="text-xs text-green-600 border-green-200 bg-green-50"
-                >
-                  <CheckCircle2 className="h-3 w-3 mr-1" />{" "}
-                  {activeSession._count.produtos} itens carregados
+                <Badge variant="outline" className="text-xs border-green-300">
+                  <CheckCircle2 className="h-3 w-3 mr-1 text-green-500" />
+                  {activeSession._count.produtos} itens
                 </Badge>
               )}
             </div>
-
-            <div className="flex gap-2 items-center">
+            <div className="flex items-center gap-2">
               <Input
                 type="file"
                 accept=".csv"
                 onChange={handleSessionImport}
                 disabled={isImporting}
-                className="text-xs h-9 file:mr-4 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                className="text-xs h-8 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
               />
               {isImporting && (
-                <span className="text-xs text-muted-foreground animate-pulse whitespace-nowrap">
+                <span className="text-xs text-muted-foreground animate-pulse">
                   {importStatus}
                 </span>
               )}
             </div>
-            <p className="text-[10px] text-muted-foreground mt-2">
-              Importe o CSV aqui para que os colaboradores vejam os produtos.
+            <p className="text-xs text-muted-foreground">
+              Carregue o CSV para iniciar a contagem.
             </p>
           </div>
         </CardContent>
 
-        <CardFooter className="bg-muted/50 pt-4 flex gap-2 justify-end">
+        <CardFooter className="bg-muted/30 p-3 flex justify-end gap-2">
           <Button
             variant="outline"
             size="sm"
+            className="h-8 text-xs"
             onClick={() => {
               loadSessions();
               loadSessionProducts();
             }}
             disabled={isEnding}
           >
-            <RefreshCw className="mr-2 h-3 w-3" /> Atualizar Dados
+            <RefreshCw className="mr-1 h-3 w-3" /> Atualizar
           </Button>
-
-          {/* BOTÃO DE ENCERRAR HABILITADO */}
           <Button
             variant="destructive"
             size="sm"
+            className="h-8 text-xs"
             onClick={handleEndSession}
             disabled={isEnding}
           >
             {isEnding ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
             ) : (
-              <StopCircle className="mr-2 h-4 w-4" />
+              <StopCircle className="mr-1 h-3 w-3" />
             )}
-            Encerrar Sessão
+            Encerrar
           </Button>
         </CardFooter>
       </Card>
