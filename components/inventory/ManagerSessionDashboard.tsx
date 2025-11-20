@@ -1,6 +1,6 @@
 // components/inventory/ManagerSessionDashboard.tsx
 /**
- * Descrição: Painel de Controle do Gestor (Multiplayer) - VERSÃO FINAL (UI Ajustada)
+ * Descrição: Painel de Controle do Anfitrião (Multiplayer) - VERSÃO FINAL (UI Ajustada)
  * Responsabilidade:
  * 1. Criar/Monitorar Sessões.
  * 2. Importar produtos (Com UI melhorada).

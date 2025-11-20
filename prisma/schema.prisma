@@ -22,7 +22,7 @@ model Usuario {
   contagens_salvas ContagemSalva[]
   
   // Novas Relações (Modo Multiplayer)
-  sessoes          Sessao[]        @relation("GestorSessao") // O usuário é o "Gestor"
+  sessoes          Sessao[]        @relation("AnfitriaoSessao") // O usuário é o "Anfitrião"
 
   @@map("usuarios")
 }
@@ -38,8 +38,8 @@ model Sessao {
   criado_em     DateTime      @default(now())
   finalizado_em DateTime?
 
-  gestor_id     Int
-  gestor        Usuario       @relation("GestorSessao", fields: [gestor_id], references: [id])
+  anfitriao_id     Int
+  anfitriao        Usuario       @relation("AnfitriaoSessao", fields: [anfitriao_id], references: [id])
 
   participantes Participante[]
   movimentos    Movimento[]
@@ -68,7 +68,7 @@ model Movimento {
   sessao_id       Int
   sessao          Sessao       @relation(fields: [sessao_id], references: [id], onDelete: Cascade)
   
-  participante_id Int?         // Pode ser nulo se for o Gestor fazendo ajuste direto
+  participante_id Int?         // Pode ser nulo se for o Anfitrião fazendo ajuste direto
   participante    Participante? @relation(fields: [participante_id], references: [id])
   
   codigo_barras   String       // O que foi bipado [cite: 37]
@@ -79,7 +79,7 @@ model Movimento {
   @@map("movimentos")
 }
 
-// Tabela de ligação para saber quais produtos o Gestor importou para ESSA sessão
+// Tabela de ligação para saber quais produtos o Anfitrião importou para ESSA sessão
 // Isso resolve a parte de "vincular os produtos a uma Sessão" [cite: 77]
 model ProdutoSessao {
   id             Int      @id @default(autoincrement())

@@ -1,6 +1,6 @@
 // components/shared/AuthModal.tsx
 /**
- * Descrição: Modal de Autenticação Híbrido (Gestor vs Colaborador).
+ * Descrição: Modal de Autenticação Híbrido (Anfitrião vs Colaborador).
  * Responsabilidade: Permitir o login tradicional (email/senha) OU
  * o acesso rápido a uma sessão de contagem (código/nome).
  */
@@ -24,7 +24,7 @@ import { LockKeyhole, Loader2, Eye, EyeOff, Users, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AuthModalProps {
-  onUnlock: (userId: number, token: string) => void; // Callback para Gestor
+  onUnlock: (userId: number, token: string) => void; // Callback para Anfitrião
   onJoinSession?: (data: any) => void; // Callback para Colaborador (Novo!)
 }
 
@@ -34,7 +34,7 @@ export function AuthModal({ onUnlock, onJoinSession }: AuthModalProps) {
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("manager");
 
-  // Estado Gestor
+  // Estado Anfitrião
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -44,7 +44,7 @@ export function AuthModal({ onUnlock, onJoinSession }: AuthModalProps) {
   const [participantName, setParticipantName] = useState("");
 
   /**
-   * Login de Gestor (Existente)
+   * Login de Anfitrião (Existente)
    */
   const handleManagerLogin = async () => {
     if (!email.trim() || !senha.trim()) {
@@ -145,7 +145,7 @@ export function AuthModal({ onUnlock, onJoinSession }: AuthModalProps) {
                   className="flex items-center gap-2"
                 >
                   <LockKeyhole className="h-4 w-4" />
-                  Sou Gestor
+                  Sou Anfitrião
                 </TabsTrigger>
                 <TabsTrigger
                   value="collaborator"
@@ -158,7 +158,7 @@ export function AuthModal({ onUnlock, onJoinSession }: AuthModalProps) {
             </CardHeader>
 
             <CardContent className="space-y-4 pt-0">
-              {/* --- FORMULÁRIO GESTOR --- */}
+              {/* --- FORMULÁRIO Anfitrião --- */}
               <TabsContent value="manager" className="space-y-4 mt-0">
                 <CardDescription className="text-center mb-4">
                   Acesso administrativo para controle de estoque.
@@ -207,7 +207,7 @@ export function AuthModal({ onUnlock, onJoinSession }: AuthModalProps) {
               {/* --- FORMULÁRIO COLABORADOR --- */}
               <TabsContent value="collaborator" className="space-y-4 mt-0">
                 <CardDescription className="text-center mb-4">
-                  Entre com o código fornecido pelo seu gestor.
+                  Entre com o código fornecido pelo seu Anfitrião.
                 </CardDescription>
                 <div className="space-y-2">
                   <Label htmlFor="code">Código da Sessão</Label>

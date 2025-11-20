@@ -3,7 +3,7 @@
  * Rota de API para Gerenciamento de Sessões (Multiplayer).
  * Responsabilidade:
  * 1. POST: Criar uma nova sessão e gerar um código de acesso único.
- * 2. GET: Listar todas as sessões do usuário (gestor).
+ * 2. GET: Listar todas as sessões do usuário (Anfitrião).
  */
 
 import { NextResponse, NextRequest } from "next/server";
@@ -63,7 +63,7 @@ export async function POST(
       data: {
         nome: nomeSessao,
         codigo_acesso: codigo,
-        gestor_id: userId,
+        anfitriao_id: userId,
         status: "ABERTA",
       },
     });
@@ -80,7 +80,7 @@ export async function POST(
 }
 
 /**
- * Lista as sessões do gestor.
+ * Lista as sessões do Anfitrião.
  */
 export async function GET(
   request: NextRequest,
@@ -94,7 +94,7 @@ export async function GET(
     await validateAuth(request, userId);
 
     const sessoes = await prisma.sessao.findMany({
-      where: { gestor_id: userId },
+      where: { anfitriao_id: userId },
       orderBy: { criado_em: "desc" },
       include: {
         _count: {

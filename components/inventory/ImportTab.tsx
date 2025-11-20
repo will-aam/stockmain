@@ -631,7 +631,7 @@ export const ImportTab: React.FC<ImportTabProps> = ({
                   </p>
                   <p className="flex gap-2">
                     <span className="font-bold text-primary">4.</span>
-                    <span>Os dados aparecerão aqui magicamente ✨</span>
+                    <span>Os dados aparecerão aqui magicamente</span>
                   </p>
                 </div>
 

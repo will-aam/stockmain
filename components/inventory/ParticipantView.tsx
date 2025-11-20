@@ -153,7 +153,7 @@ export function ParticipantView({
   const handleFinishSession = () => {
     toast({
       title: "Contagem Finalizada! 🎉",
-      description: "Obrigado pelo seu trabalho. O gestor foi notificado.",
+      description: "Obrigado pelo seu trabalho. O Anfitrião foi notificado.",
       className: "bg-green-600 text-white border-none",
     });
     setTimeout(onLogout, 2000);

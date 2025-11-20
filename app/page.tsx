@@ -2,8 +2,8 @@
 /**
  * Descrição: Página Principal (Controlador de Fluxo Global).
  * Responsabilidade:
- * 1. Determinar o tipo de usuário (Gestor ou Colaborador).
- * 2. Para Gestores: Alternar entre Modo Individual e Modo Equipe.
+ * 1. Determinar o tipo de usuário (Anfitrião ou Colaborador).
+ * 2. Para Anfitriãoes: Alternar entre Modo Individual e Modo Equipe.
  * 3. Gerenciar o estado global e navegação.
  */
 
@@ -43,18 +43,18 @@ export default function InventorySystem() {
     null
   );
 
-  // Estado Gestor
+  // Estado Anfitrião
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [managerMode, setManagerMode] = useState<"single" | "team">("single"); // <--- NOVO ESTADO
 
   // Estado Colaborador
   const [sessionData, setSessionData] = useState<any>(null);
 
-  // --- Estados de UI do Gestor (Modo Individual) ---
+  // --- Estados de UI do Anfitrião (Modo Individual) ---
   const [activeTab, setActiveTab] = useState("scan");
   const mainContainerRef = useRef<HTMLDivElement>(null);
 
-  // Hook do Inventário (Funciona plenamente apenas para o Gestor)
+  // Hook do Inventário (Funciona plenamente apenas para o Anfitrião)
   const inventory = useInventory({ userId: currentUserId });
 
   // --- Efeito de Inicialização (Restaura Sessão) ---
@@ -135,7 +135,7 @@ export default function InventorySystem() {
     );
   }
 
-  // 3. Visão do Gestor (Híbrida)
+  // 3. Visão do Anfitrião (Híbrida)
   return (
     <>
       {/* Navegação Global (Controla o modo) */}

@@ -33,7 +33,7 @@ export async function POST(
       where: { id: sessionId },
     });
 
-    if (!sessao || sessao.gestor_id !== userId) {
+    if (!sessao || sessao.anfitriao_id !== userId) {
       return NextResponse.json(
         { error: "Sessão não encontrada ou acesso negado." },
         { status: 404 }

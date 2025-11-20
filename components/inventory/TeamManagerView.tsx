@@ -1,9 +1,9 @@
 // components/inventory/TeamManagerView.tsx
 /**
- * Descrição: Visão Dedicada para o Gestor de Equipe.
+ * Descrição: Visão Dedicada para o Anfitrião de Equipe.
  * Responsabilidade:
  * 1. Orquestrar o fluxo de gerenciamento de sessões.
- * 2. Fornecer acesso rápido ao Dashboard, Contagem (como gestor) e Histórico.
+ * 2. Fornecer acesso rápido ao Dashboard, Contagem (como Anfitrião) e Histórico.
  */
 
 "use client";
@@ -41,18 +41,18 @@ export function TeamManagerView({
 }: TeamManagerViewProps) {
   const [activeTab, setActiveTab] = useState("dashboard");
 
-  // Estado para controlar a sessão ativa e permitir que o gestor conte
+  // Estado para controlar a sessão ativa e permitir que o Anfitrião conte
   const [managerSessionData, setManagerSessionData] = useState<any>(null);
   const [isJoiningAsManager, setIsJoiningAsManager] = useState(false);
 
   /**
-   * Função para buscar a sessão ativa e registrar o gestor como participante
+   * Função para buscar a sessão ativa e registrar o Anfitrião como participante
    * para que ele possa usar a aba "Contar".
    */
   const prepareManagerCounting = useCallback(async () => {
     setIsJoiningAsManager(true);
     try {
-      // 1. Busca a sessão aberta do gestor
+      // 1. Busca a sessão aberta do Anfitrião
       const response = await fetch(`/api/inventory/${userId}/session`);
       if (!response.ok) return;
 
@@ -69,13 +69,13 @@ export function TeamManagerView({
         return;
       }
 
-      // 2. Auto-registro do Gestor na sessão (via API pública de Join)
+      // 2. Auto-registro do Anfitrião na sessão (via API pública de Join)
       const joinResponse = await fetch("/api/session/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           code: activeSession.codigo_acesso,
-          name: "Gestor (Você)", // Nome especial para identificar
+          name: "Anfitrião (Você)", // Nome especial para identificar
         }),
       });
 
@@ -84,7 +84,7 @@ export function TeamManagerView({
       const sessionData = await joinResponse.json();
       setManagerSessionData(sessionData);
     } catch (error) {
-      console.error("Erro ao preparar contagem do gestor:", error);
+      console.error("Erro ao preparar contagem do Anfitrião:", error);
       toast({
         title: "Erro",
         description: "Falha ao iniciar modo de contagem.",
@@ -148,7 +148,7 @@ export function TeamManagerView({
             <ManagerSessionDashboard userId={userId} />
           </TabsContent>
 
-          {/* --- ABA 2: CONTAR (PARTICIPANT VIEW PARA O GESTOR) --- */}
+          {/* --- ABA 2: CONTAR (PARTICIPANT VIEW PARA O Anfitrião) --- */}
           <TabsContent
             value="count"
             className="animate-in fade-in-50 duration-300"
