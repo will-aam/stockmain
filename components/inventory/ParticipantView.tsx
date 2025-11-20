@@ -1,29 +1,44 @@
 // components/inventory/ParticipantView.tsx
 /**
- * Descrição: Interface principal para o Colaborador (Modo Multiplayer).
- * Responsabilidade:
- * 1. Permitir a contagem rápida de itens (Scanner + Manual).
- * 2. Exibir feedback imediato (UI Otimista) das ações.
- * 3. Mostrar status de sincronização (Fila pendente).
+ * Descrição: Interface "Pro" para o Colaborador.
+ * Responsabilidade: Replicar a experiência completa da ConferenceTab (Calculadora, Busca, Lista),
+ * mas conectada ao sistema de sincronização multiplayer.
  */
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useParticipantInventory } from "@/hooks/useParticipantInventory";
 import { BarcodeScanner } from "@/components/features/barcode-scanner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+// --- UI ---
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "@/hooks/use-toast";
+
+// --- Ícones ---
 import {
   Scan,
+  Store,
+  Package,
+  Camera,
+  Plus,
+  Search,
+  Calculator,
+  CheckCircle2,
   LogOut,
+  RefreshCw,
   Wifi,
   WifiOff,
-  RefreshCw,
-  CheckCircle2,
-  Camera,
 } from "lucide-react";
 
 interface ParticipantViewProps {
@@ -31,15 +46,32 @@ interface ParticipantViewProps {
   onLogout: () => void;
 }
 
+// Função auxiliar de cálculo (igual ao useInventory)
+const calculateExpression = (
+  expression: string
+): { result: number; isValid: boolean; error?: string } => {
+  try {
+    const cleanExpression = expression.replace(/\s/g, "").replace(",", ".");
+    if (!/^[0-9+\-*/().]+$/.test(cleanExpression))
+      return { result: 0, isValid: false, error: "Caracteres inválidos" };
+    const result = new Function("return " + cleanExpression)();
+    if (typeof result !== "number" || isNaN(result) || !isFinite(result))
+      return { result: 0, isValid: false, error: "Resultado inválido" };
+    return { result: Math.round(result * 100) / 100, isValid: true };
+  } catch (error) {
+    return { result: 0, isValid: false, error: "Erro ao calcular" };
+  }
+};
+
 export function ParticipantView({
   sessionData,
   onLogout,
 }: ParticipantViewProps) {
+  // --- Hook de Lógica Multiplayer ---
   const {
     products,
     queueSize,
     isSyncing,
-    lastSyncTime,
     scanInput,
     setScanInput,
     quantityInput,
@@ -50,210 +82,327 @@ export function ParticipantView({
     forceSync,
   } = useParticipantInventory({ sessionData });
 
+  // --- Estados Locais da UI ---
+  const [countingMode, setCountingMode] = useState<"loja" | "estoque">("loja");
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Referências para foco
   const quantityInputRef = useRef<HTMLInputElement>(null);
 
-  // Foca na quantidade quando um produto é encontrado
+  // Foca na quantidade ao encontrar produto
   useEffect(() => {
     if (currentProduct && quantityInputRef.current) {
       quantityInputRef.current.focus();
     }
   }, [currentProduct]);
 
+  // --- Handlers ---
+
   const handleCameraScan = (code: string) => {
     setIsCameraActive(false);
     setScanInput(code);
-    // Pequeno timeout para garantir que o estado atualizou antes de processar
     setTimeout(() => {
-      // Dispara a busca manualmente ou deixa o useEffect do hook reagir se você mudou a lógica lá.
-      // Como o hook usa handleScan explicitamente, chamamos aqui se quisermos auto-processar:
-      // Mas como scanInput é state, o ideal é que o usuário confirme ou que usemos um useEffect lá.
-      // Para simplificar, apenas preenchemos e o usuário dá Enter ou clica em "Buscar".
+      // Auto-submit ou focar no botão de busca
+      // Aqui deixamos o usuário confirmar para evitar erros
     }, 100);
   };
 
+  const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const validValue = value.replace(/[^0-9+\-*/\s.]/g, "");
+    setQuantityInput(validValue);
+  };
+
+  const handleQuantityKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      submitCount();
+    }
+  };
+
+  const submitCount = () => {
+    if (!currentProduct || !quantityInput) return;
+
+    let finalQuantity: number;
+    const hasOperators = /[+\-*/]/.test(quantityInput);
+
+    if (hasOperators) {
+      const calculation = calculateExpression(quantityInput);
+      if (!calculation.isValid) {
+        toast({
+          title: "Erro",
+          description: calculation.error,
+          variant: "destructive",
+        });
+        return;
+      }
+      finalQuantity = calculation.result;
+    } else {
+      const parsed = parseFloat(quantityInput.replace(",", "."));
+      if (isNaN(parsed)) return;
+      finalQuantity = parsed;
+    }
+
+    // Envia para o hook (que manda para a fila)
+    handleAddMovement(finalQuantity);
+  };
+
+  const handleFinishSession = () => {
+    // Por enquanto, apenas um feedback visual e logout,
+    // pois o backend consolida tudo automaticamente.
+    toast({
+      title: "Contagem Finalizada! 🎉",
+      description: "Obrigado pelo seu trabalho. O gestor foi notificado.",
+      className: "bg-green-600 text-white border-none",
+    });
+    setTimeout(onLogout, 2000);
+  };
+
+  // --- Lista Filtrada (Itens já contados ou buscados) ---
+  const filteredProducts = useMemo(() => {
+    // Filtra apenas produtos que já têm contagem OU correspondem à busca
+    let items = products.filter((p) => p.saldo_contado > 0 || searchQuery);
+
+    if (searchQuery) {
+      const lowerQuery = searchQuery.toLowerCase();
+      items = items.filter(
+        (item) =>
+          item.descricao.toLowerCase().includes(lowerQuery) ||
+          (item.codigo_barras && item.codigo_barras.includes(lowerQuery)) ||
+          item.codigo_produto.includes(lowerQuery)
+      );
+    }
+
+    // Ordena: Mais recentes/contados primeiro ou alfabético
+    return items.sort((a, b) => a.descricao.localeCompare(b.descricao));
+  }, [products, searchQuery]);
+
+  // --- Renderização ---
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-4 pb-24">
-      {/* --- Cabeçalho Fixo --- */}
-      <div className="max-w-md mx-auto mb-6 flex items-center justify-between">
+    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 p-4 pb-24 max-w-7xl mx-auto">
+      {/* --- Cabeçalho Mobile --- */}
+      <div className="lg:col-span-2 flex justify-between items-center mb-2">
         <div>
-          <h1 className="font-bold text-lg text-primary">Modo Colaborador</h1>
+          <h2 className="font-bold text-lg">
+            Olá, {sessionData.participant.nome} 👋
+          </h2>
           <p className="text-xs text-muted-foreground">
-            {sessionData.participant.nome} • {sessionData.session.nome}
+            Sessão: {sessionData.session.nome}
           </p>
         </div>
-        <Button variant="ghost" size="icon" onClick={onLogout}>
-          <LogOut className="h-5 w-5 text-red-500" />
-        </Button>
+        <div className="flex gap-2">
+          {/* Indicador de Sync */}
+          <Badge
+            variant={queueSize === 0 ? "outline" : "secondary"}
+            className="gap-1"
+          >
+            {isSyncing ? (
+              <RefreshCw className="w-3 h-3 animate-spin" />
+            ) : queueSize === 0 ? (
+              <Wifi className="w-3 h-3 text-green-500" />
+            ) : (
+              <WifiOff className="w-3 h-3 text-amber-500" />
+            )}
+            {queueSize > 0 ? `${queueSize} Pendentes` : "Online"}
+          </Badge>
+          <Button variant="ghost" size="icon" onClick={onLogout}>
+            <LogOut className="w-4 h-4 text-red-500" />
+          </Button>
+        </div>
       </div>
 
-      <div className="max-w-md mx-auto space-y-4">
-        {/* --- Status de Sincronização --- */}
-        <Card className="border-none shadow-sm bg-white/50 dark:bg-gray-900/50 backdrop-blur">
-          <CardContent className="p-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {isSyncing ? (
-                <RefreshCw className="h-4 w-4 animate-spin text-blue-500" />
-              ) : queueSize === 0 ? (
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-              ) : (
-                <WifiOff className="h-4 w-4 text-amber-500" />
-              )}
-              <span className="text-xs font-medium text-muted-foreground">
-                {isSyncing
-                  ? "Sincronizando..."
-                  : queueSize === 0
-                  ? "Tudo salvo"
-                  : `${queueSize} pendentes`}
-              </span>
-            </div>
-            {queueSize > 0 && (
+      {/* --- Card 1: Scanner e Entrada (Igual ConferenceTab) --- */}
+      <Card className="shadow-lg border-primary/10">
+        <CardHeader>
+          <CardTitle className="flex items-center mb-2">
+            <Scan className="h-5 w-5 mr-2 text-primary" /> Scanner
+          </CardTitle>
+          <CardDescription>
+            <div className="flex flex-col sm:flex-row items-center gap-2">
               <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={forceSync}
-                disabled={isSyncing}
+                onClick={handleFinishSession}
+                className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
               >
-                Forçar Envio
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Finalizar Minha Contagem
               </Button>
-            )}
-          </CardContent>
-        </Card>
 
-        {/* --- Área de Scanner --- */}
-        <Card className="overflow-hidden border-primary/20 shadow-md">
-          <CardHeader className="bg-primary/5 p-4 pb-2">
-            <CardTitle className="text-sm font-medium flex items-center text-primary">
-              <Scan className="mr-2 h-4 w-4" />
-              Adicionar Item
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 space-y-4">
-            {isCameraActive ? (
-              <BarcodeScanner
-                onScan={handleCameraScan}
-                onClose={() => setIsCameraActive(false)}
-              />
-            ) : (
-              <>
-                <div className="flex gap-2">
+              <div className="flex w-full sm:w-auto gap-2 bg-muted p-1 rounded-md">
+                <Button
+                  variant={countingMode === "loja" ? "default" : "ghost"}
+                  className="flex-1 sm:flex-none h-8"
+                  onClick={() => setCountingMode("loja")}
+                >
+                  <Store className="h-3 w-3 mr-2" /> Loja
+                </Button>
+                <Button
+                  variant={countingMode === "estoque" ? "default" : "ghost"}
+                  className="flex-1 sm:flex-none h-8"
+                  onClick={() => setCountingMode("estoque")}
+                >
+                  <Package className="h-3 w-3 mr-2" /> Estoque
+                </Button>
+              </div>
+            </div>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isCameraActive ? (
+            <BarcodeScanner
+              onScan={handleCameraScan}
+              onClose={() => setIsCameraActive(false)}
+            />
+          ) : (
+            <>
+              {/* Input de Código */}
+              <div className="space-y-2">
+                <Label htmlFor="barcode">Código de Barras</Label>
+                <div className="flex space-x-2">
                   <Input
-                    placeholder="Código de barras..."
+                    id="barcode"
+                    type="tel" // Teclado numérico no mobile
+                    inputMode="numeric"
                     value={scanInput}
-                    onChange={(e) => setScanInput(e.target.value)}
+                    onChange={(e) => setScanInput(e.target.value)} // Aceita texto livre para busca manual se quiser
+                    placeholder="Digite ou escaneie..."
+                    className="flex-1 mobile-optimized h-12 text-lg"
                     onKeyPress={(e) => e.key === "Enter" && handleScan()}
-                    className="text-lg h-12"
                     autoFocus
                   />
+                  <Button onClick={handleScan} className="h-12 px-4">
+                    <Scan className="h-5 w-5" />
+                  </Button>
                   <Button
-                    size="icon"
-                    className="h-12 w-12 shrink-0"
                     onClick={() => setIsCameraActive(true)}
+                    variant="outline"
+                    className="h-12 px-4"
                   >
                     <Camera className="h-5 w-5" />
                   </Button>
                 </div>
-
-                {/* Botão Buscar (apenas se não tiver produto selecionado) */}
-                {!currentProduct && scanInput && (
-                  <Button className="w-full" onClick={handleScan}>
-                    Buscar Produto
-                  </Button>
-                )}
-              </>
-            )}
-
-            {/* --- Produto Encontrado --- */}
-            {currentProduct && (
-              <div className="animate-in slide-in-from-top-2 fade-in duration-200 space-y-4 pt-2">
-                <div className="p-3 bg-muted rounded-lg border">
-                  <p className="font-bold text-lg leading-tight">
-                    {currentProduct.descricao}
-                  </p>
-                  <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-                    <span>Cód: {currentProduct.codigo_produto}</span>
-                    <span className="font-mono">
-                      Total na Sessão:{" "}
-                      <strong className="text-foreground">
-                        {currentProduct.saldo_contado}
-                      </strong>
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <p className="text-xs mb-1.5 font-medium ml-1">
-                      Quantidade
-                    </p>
-                    <Input
-                      ref={quantityInputRef}
-                      type="number"
-                      inputMode="numeric"
-                      placeholder="1"
-                      className="h-12 text-lg text-center font-bold"
-                      value={quantityInput}
-                      onChange={(e) => setQuantityInput(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter") {
-                          const qtd = parseInt(quantityInput || "1", 10);
-                          if (!isNaN(qtd)) handleAddMovement(qtd);
-                        }
-                      }}
-                    />
-                  </div>
-                  <Button
-                    className="h-12 px-6 font-bold text-lg shadow-lg shadow-primary/20"
-                    onClick={() => {
-                      const qtd = parseInt(quantityInput || "1", 10);
-                      if (!isNaN(qtd)) handleAddMovement(qtd);
-                    }}
-                  >
-                    Confirmar
-                  </Button>
-                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
 
-        {/* --- Lista de Últimos Itens (Opcional, mas bom para feedback) --- */}
-        <div className="pt-4">
-          <h3 className="text-sm font-medium text-muted-foreground mb-2 px-1">
-            Sessão Ativa
-          </h3>
-          <div className="space-y-2">
-            {products.filter((p) => p.saldo_contado > 0).length === 0 ? (
-              <div className="text-center p-8 text-gray-400 text-sm">
-                Nenhum item contado ainda.
+              {/* Card do Produto Encontrado */}
+              {currentProduct && (
+                <div className="p-4 border rounded-lg bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 animate-in zoom-in-95 duration-200">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg text-blue-800 dark:text-blue-200">
+                        Produto Encontrado
+                      </h3>
+                      <p className="text-sm text-blue-700 dark:text-blue-300 mt-1 font-medium leading-tight">
+                        {currentProduct.descricao}
+                      </p>
+                      <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                        Cód: {currentProduct.codigo_produto}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xs text-muted-foreground">
+                        Total Contado
+                      </span>
+                      <p className="text-2xl font-bold text-blue-600">
+                        {currentProduct.saldo_contado}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Input de Quantidade + Calculadora */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="quantity">
+                    Quantidade em {countingMode === "loja" ? "Loja" : "Estoque"}
+                  </Label>
+                  <Calculator className="h-4 w-4 text-gray-500" />
+                </div>
+
+                <div className="flex gap-2">
+                  <Input
+                    id="quantity"
+                    ref={quantityInputRef}
+                    type="text"
+                    inputMode="text" // Permite +, *, etc
+                    value={quantityInput}
+                    onChange={handleQuantityChange}
+                    onKeyPress={handleQuantityKeyPress}
+                    placeholder="Qtd ou 5+5..."
+                    className="flex-1 mobile-optimized font-mono text-lg h-12 font-bold text-center"
+                  />
+                  <Button
+                    onClick={submitCount}
+                    className="h-12 px-6 font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md"
+                    disabled={!currentProduct || !quantityInput}
+                  >
+                    <Plus className="h-5 w-5 mr-1" /> ADICIONAR
+                  </Button>
+                </div>
+
+                <p className="text-xs text-gray-500 text-center">
+                  Dica: Você pode digitar somas como <code>10+5</code> e dar
+                  Enter.
+                </p>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* --- Card 2: Lista de Itens (Igual ConferenceTab) --- */}
+      <Card className="h-full flex flex-col shadow-lg">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col gap-3">
+            <CardTitle className="text-lg">
+              Itens na Sessão ({filteredProducts.length})
+            </CardTitle>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar item contado..."
+                className="pl-10 pr-4 h-10 bg-muted/50"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="flex-1 overflow-hidden min-h-[300px]">
+          <div className="space-y-2 h-full overflow-y-auto pr-1">
+            {filteredProducts.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <Package className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                <p className="font-medium">Nenhum item encontrado</p>
+                <p className="text-sm">Comece a bipar para preencher a lista</p>
               </div>
             ) : (
-              products
-                .filter((p) => p.saldo_contado > 0)
-                .sort((a, b) => b.saldo_contado - a.saldo_contado) // Ordena pelos mais contados
-                .slice(0, 5) // Mostra só os top 5 para não poluir
-                .map((prod) => (
-                  <div
-                    key={prod.codigo_produto}
-                    className="bg-card p-3 rounded-lg border shadow-sm flex justify-between items-center"
-                  >
-                    <span className="text-sm font-medium truncate max-w-[70%]">
-                      {prod.descricao}
-                    </span>
-                    <Badge variant="secondary">x {prod.saldo_contado}</Badge>
+              filteredProducts.map((item) => (
+                <div
+                  key={item.codigo_produto}
+                  className="flex items-center justify-between p-3 bg-card border rounded-lg shadow-sm hover:bg-accent/50 transition-colors"
+                >
+                  <div className="flex-1 min-w-0 mr-2">
+                    <p className="font-medium text-sm truncate leading-tight mb-1">
+                      {item.descricao}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-mono">
+                      {item.codigo_barras || item.codigo_produto}
+                    </p>
                   </div>
-                ))
-            )}
-            {products.filter((p) => p.saldo_contado > 0).length > 5 && (
-              <p className="text-center text-xs text-muted-foreground mt-2">
-                ... e mais{" "}
-                {products.filter((p) => p.saldo_contado > 0).length - 5} itens.
-              </p>
+                  <Badge
+                    variant="secondary"
+                    className="text-sm h-8 px-3 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                  >
+                    {item.saldo_contado}
+                  </Badge>
+                </div>
+              ))
             )}
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
