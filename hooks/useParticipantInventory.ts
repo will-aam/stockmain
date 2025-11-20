@@ -5,11 +5,12 @@
  * 1. Gerenciar a fila local de movimentos (bipagens).
  * 2. Sincronizar periodicamente com o servidor (enviar fila e receber atualizações).
  * 3. Garantir que a UI seja rápida (Optimistic UI) mesmo com internet instável.
+ * 4. Calcular e expor a lista de ITENS FALTANTES.
  */
 
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { toast } from "@/hooks/use-toast";
 
 // Tipos
@@ -224,12 +225,24 @@ export const useParticipantInventory = ({
     return () => clearInterval(intervalId);
   }, [syncData]);
 
+  // --- 4. Calcular Itens Faltantes (Global) ---
+  const missingItems = useMemo(() => {
+    return products
+      .filter((p) => p.saldo_contado === 0) // Considera faltante quem ainda não teve contagem (contado == 0)
+      .map((p) => ({
+        codigo_de_barras: p.codigo_barras || p.codigo_produto,
+        descricao: p.descricao,
+        faltante: p.saldo_sistema, // Exibe o saldo do sistema como referência do que falta
+      }));
+  }, [products]);
+
   return {
     // Dados
     products,
     queueSize: queue.length,
     isSyncing,
     lastSyncTime,
+    missingItems, // <--- EXPOSTO AQUI
 
     // UI State
     scanInput,

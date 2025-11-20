@@ -1,8 +1,8 @@
 // components/inventory/ParticipantView.tsx
 /**
  * Descrição: Interface "Pro" para o Colaborador.
- * Responsabilidade: Replicar a experiência completa da ConferenceTab (Calculadora, Busca, Lista),
- * mas conectada ao sistema de sincronização multiplayer.
+ * Responsabilidade: Replicar a experiência completa da ConferenceTab,
+ * mas conectada ao sistema multiplayer e com visualização de Itens Faltantes.
  */
 
 "use client";
@@ -10,6 +10,10 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useParticipantInventory } from "@/hooks/useParticipantInventory";
 import { BarcodeScanner } from "@/components/features/barcode-scanner";
+
+// --- Componentes Compartilhados (Novos) ---
+import { MissingItemsModal } from "@/components/shared/missing-items-modal";
+import { FloatingMissingItemsButton } from "@/components/shared/FloatingMissingItemsButton";
 
 // --- UI ---
 import {
@@ -46,7 +50,7 @@ interface ParticipantViewProps {
   onLogout: () => void;
 }
 
-// Função auxiliar de cálculo (igual ao useInventory)
+// Função auxiliar de cálculo
 const calculateExpression = (
   expression: string
 ): { result: number; isValid: boolean; error?: string } => {
@@ -80,15 +84,18 @@ export function ParticipantView({
     handleScan,
     handleAddMovement,
     forceSync,
+    missingItems, // <--- Agora temos acesso a isso!
   } = useParticipantInventory({ sessionData });
 
   // --- Estados Locais da UI ---
   const [countingMode, setCountingMode] = useState<"loja" | "estoque">("loja");
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showMissingModal, setShowMissingModal] = useState(false); // <--- Estado do Modal
 
-  // Referências para foco
+  // Referências
   const quantityInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null); // <--- Ref para o botão flutuante
 
   // Foca na quantidade ao encontrar produto
   useEffect(() => {
@@ -102,10 +109,6 @@ export function ParticipantView({
   const handleCameraScan = (code: string) => {
     setIsCameraActive(false);
     setScanInput(code);
-    setTimeout(() => {
-      // Auto-submit ou focar no botão de busca
-      // Aqui deixamos o usuário confirmar para evitar erros
-    }, 100);
   };
 
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -144,13 +147,10 @@ export function ParticipantView({
       finalQuantity = parsed;
     }
 
-    // Envia para o hook (que manda para a fila)
     handleAddMovement(finalQuantity);
   };
 
   const handleFinishSession = () => {
-    // Por enquanto, apenas um feedback visual e logout,
-    // pois o backend consolida tudo automaticamente.
     toast({
       title: "Contagem Finalizada! 🎉",
       description: "Obrigado pelo seu trabalho. O gestor foi notificado.",
@@ -159,9 +159,8 @@ export function ParticipantView({
     setTimeout(onLogout, 2000);
   };
 
-  // --- Lista Filtrada (Itens já contados ou buscados) ---
+  // --- Lista Filtrada ---
   const filteredProducts = useMemo(() => {
-    // Filtra apenas produtos que já têm contagem OU correspondem à busca
     let items = products.filter((p) => p.saldo_contado > 0 || searchQuery);
 
     if (searchQuery) {
@@ -174,13 +173,15 @@ export function ParticipantView({
       );
     }
 
-    // Ordena: Mais recentes/contados primeiro ou alfabético
     return items.sort((a, b) => a.descricao.localeCompare(b.descricao));
   }, [products, searchQuery]);
 
   // --- Renderização ---
   return (
-    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 p-4 pb-24 max-w-7xl mx-auto">
+    <div
+      ref={containerRef}
+      className="relative flex flex-col gap-6 lg:grid lg:grid-cols-2 p-4 pb-24 max-w-7xl mx-auto min-h-screen"
+    >
       {/* --- Cabeçalho Mobile --- */}
       <div className="lg:col-span-2 flex justify-between items-center mb-2">
         <div>
@@ -192,7 +193,6 @@ export function ParticipantView({
           </p>
         </div>
         <div className="flex gap-2">
-          {/* Indicador de Sync */}
           <Badge
             variant={queueSize === 0 ? "outline" : "secondary"}
             className="gap-1"
@@ -212,7 +212,7 @@ export function ParticipantView({
         </div>
       </div>
 
-      {/* --- Card 1: Scanner e Entrada (Igual ConferenceTab) --- */}
+      {/* --- Card 1: Scanner --- */}
       <Card className="shadow-lg border-primary/10">
         <CardHeader>
           <CardTitle className="flex items-center mb-2">
@@ -255,16 +255,15 @@ export function ParticipantView({
             />
           ) : (
             <>
-              {/* Input de Código */}
               <div className="space-y-2">
                 <Label htmlFor="barcode">Código de Barras</Label>
                 <div className="flex space-x-2">
                   <Input
                     id="barcode"
-                    type="tel" // Teclado numérico no mobile
+                    type="tel"
                     inputMode="numeric"
                     value={scanInput}
-                    onChange={(e) => setScanInput(e.target.value)} // Aceita texto livre para busca manual se quiser
+                    onChange={(e) => setScanInput(e.target.value)}
                     placeholder="Digite ou escaneie..."
                     className="flex-1 mobile-optimized h-12 text-lg"
                     onKeyPress={(e) => e.key === "Enter" && handleScan()}
@@ -283,7 +282,6 @@ export function ParticipantView({
                 </div>
               </div>
 
-              {/* Card do Produto Encontrado */}
               {currentProduct && (
                 <div className="p-4 border rounded-lg bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 animate-in zoom-in-95 duration-200">
                   <div className="flex items-start justify-between">
@@ -310,7 +308,6 @@ export function ParticipantView({
                 </div>
               )}
 
-              {/* Input de Quantidade + Calculadora */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Label htmlFor="quantity">
@@ -324,7 +321,7 @@ export function ParticipantView({
                     id="quantity"
                     ref={quantityInputRef}
                     type="text"
-                    inputMode="text" // Permite +, *, etc
+                    inputMode="text"
                     value={quantityInput}
                     onChange={handleQuantityChange}
                     onKeyPress={handleQuantityKeyPress}
@@ -339,18 +336,13 @@ export function ParticipantView({
                     <Plus className="h-5 w-5 mr-1" /> ADICIONAR
                   </Button>
                 </div>
-
-                <p className="text-xs text-gray-500 text-center">
-                  Dica: Você pode digitar somas como <code>10+5</code> e dar
-                  Enter.
-                </p>
               </div>
             </>
           )}
         </CardContent>
       </Card>
 
-      {/* --- Card 2: Lista de Itens (Igual ConferenceTab) --- */}
+      {/* --- Card 2: Lista de Itens --- */}
       <Card className="h-full flex flex-col shadow-lg">
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-3">
@@ -403,6 +395,22 @@ export function ParticipantView({
           </div>
         </CardContent>
       </Card>
+
+      {/* --- MODAIS E BOTÃO FLUTUANTE --- */}
+
+      {/* Botão Flutuante (Só aparece se tiver itens faltantes) */}
+      <FloatingMissingItemsButton
+        itemCount={missingItems.length}
+        onClick={() => setShowMissingModal(true)}
+        dragConstraintsRef={containerRef}
+      />
+
+      {/* Modal de Itens Faltantes */}
+      <MissingItemsModal
+        isOpen={showMissingModal}
+        onClose={() => setShowMissingModal(false)}
+        items={missingItems}
+      />
     </div>
   );
 }

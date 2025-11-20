@@ -1,14 +1,15 @@
 // components/inventory/ManagerSessionDashboard.tsx
 /**
- * Descrição: Painel de Controle do Gestor (Multiplayer) - VERSÃO ATUALIZADA
+ * Descrição: Painel de Controle do Gestor (Multiplayer) - VERSÃO CORRIGIDA (SEM LOOP)
  * Responsabilidade:
  * 1. Criar/Monitorar Sessões.
- * 2. IMPORTAR PRODUTOS PARA A SESSÃO (Novo!).
+ * 2. Importar produtos para a sessão.
+ * 3. Visualizar Itens Faltantes.
  */
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -29,11 +30,14 @@ import {
   RefreshCw,
   Copy,
   Share2,
-  Upload,
   FileText,
   CheckCircle2,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+
+// --- Novos Imports ---
+import { MissingItemsModal } from "@/components/shared/missing-items-modal";
+import { FloatingMissingItemsButton } from "@/components/shared/FloatingMissingItemsButton";
 
 interface ManagerSessionDashboardProps {
   userId: number;
@@ -52,6 +56,14 @@ interface SessaoData {
   };
 }
 
+interface ProductSessao {
+  codigo_produto: string;
+  codigo_barras: string | null;
+  descricao: string;
+  saldo_sistema: number;
+  saldo_contado: number;
+}
+
 export function ManagerSessionDashboard({
   userId,
 }: ManagerSessionDashboardProps) {
@@ -63,7 +75,23 @@ export function ManagerSessionDashboard({
   const [isImporting, setIsImporting] = useState(false);
   const [importStatus, setImportStatus] = useState("");
 
-  // --- Carregar Sessões ---
+  // Estado de Produtos e Faltantes
+  const [sessionProducts, setSessionProducts] = useState<ProductSessao[]>([]);
+  const [showMissingModal, setShowMissingModal] = useState(false);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // --- REF CORRECTION: Evita Loop Infinito ---
+  // Usamos uma ref para guardar a sessão atual e acessá-la dentro do intervalo
+  // sem forçar o useEffect a reiniciar.
+  const activeSessionRef = useRef<SessaoData | null>(null);
+
+  // Mantém a ref sincronizada com o estado sempre que ele mudar
+  useEffect(() => {
+    activeSessionRef.current = activeSession;
+  }, [activeSession]);
+
+  // --- 1. Carregar Sessões ---
   const loadSessions = useCallback(async () => {
     try {
       const response = await fetch(`/api/inventory/${userId}/session`);
@@ -77,11 +105,50 @@ export function ManagerSessionDashboard({
     }
   }, [userId]);
 
+  // --- 2. Carregar Produtos da Sessão Ativa ---
+  // Agora aceita um ID opcional ou usa a ref, removendo dependência de estado
+  const loadSessionProducts = useCallback(async (sessionId?: number) => {
+    const targetId = sessionId || activeSessionRef.current?.id;
+    if (!targetId) return;
+
+    try {
+      const response = await fetch(`/api/session/${targetId}/products`);
+      if (response.ok) {
+        const data = await response.json();
+        setSessionProducts(data);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar produtos da sessão:", error);
+    }
+  }, []);
+
+  // --- Polling Unificado (CORRIGIDO) ---
   useEffect(() => {
+    // Carga inicial
     loadSessions();
-    const interval = setInterval(loadSessions, 10000); // Atualiza a cada 10s
+
+    const interval = setInterval(() => {
+      loadSessions();
+      // Usa a REF para verificar se deve carregar produtos
+      // Isso impede que o intervalo seja recriado a cada atualização de estado
+      if (activeSessionRef.current) {
+        loadSessionProducts(activeSessionRef.current.id);
+      }
+    }, 5000); // 5 segundos reais
+
     return () => clearInterval(interval);
-  }, [loadSessions]);
+  }, [loadSessions, loadSessionProducts]); // REMOVIDO activeSession das dependências
+
+  // --- 3. Calcular Faltantes ---
+  const missingItems = useMemo(() => {
+    return sessionProducts
+      .filter((p) => p.saldo_contado === 0)
+      .map((p) => ({
+        codigo_de_barras: p.codigo_barras || p.codigo_produto,
+        descricao: p.descricao,
+        faltante: p.saldo_sistema,
+      }));
+  }, [sessionProducts]);
 
   // --- Ações ---
 
@@ -127,7 +194,6 @@ export function ManagerSessionDashboard({
     formData.append("file", file);
 
     try {
-      // Chama a rota específica da sessão criada no Passo 3
       const response = await fetch(
         `/api/inventory/${userId}/session/${activeSession.id}/import`,
         {
@@ -139,7 +205,6 @@ export function ManagerSessionDashboard({
       if (!response.ok) throw new Error("Falha no upload");
       if (!response.body) throw new Error("Sem resposta do servidor");
 
-      // Leitura do progresso via SSE
       const reader = response.body
         .pipeThrough(new TextDecoderStream())
         .getReader();
@@ -161,7 +226,8 @@ export function ManagerSessionDashboard({
                 description: `${data.importedCount} produtos carregados na sala.`,
               });
               setImportStatus("");
-              loadSessions(); // Atualiza os contadores
+              loadSessions();
+              loadSessionProducts();
             } else if (data.error) {
               throw new Error(data.error);
             }
@@ -177,7 +243,6 @@ export function ManagerSessionDashboard({
       setImportStatus("");
     } finally {
       setIsImporting(false);
-      // Limpa o input para permitir re-upload se necessário
       e.target.value = "";
     }
   };
@@ -230,144 +295,173 @@ export function ManagerSessionDashboard({
   }
 
   return (
-    <Card className="border-primary/50 shadow-md bg-primary/5 overflow-hidden">
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle>{activeSession.nome}</CardTitle>
-            <CardDescription>
-              Sessão Ativa • Criada em{" "}
-              {new Date(activeSession.criado_em).toLocaleDateString()}
-            </CardDescription>
+    <div ref={containerRef} className="relative min-h-[500px]">
+      <Card className="border-primary/50 shadow-md bg-primary/5 overflow-hidden">
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle>{activeSession.nome}</CardTitle>
+              <CardDescription>
+                Sessão Ativa • Criada em{" "}
+                {new Date(activeSession.criado_em).toLocaleDateString()}
+              </CardDescription>
+            </div>
+            <Badge
+              variant="default"
+              className="bg-green-600 hover:bg-green-700"
+            >
+              EM ANDAMENTO
+            </Badge>
           </div>
-          <Badge variant="default" className="bg-green-600 hover:bg-green-700">
-            EM ANDAMENTO
-          </Badge>
-        </div>
-      </CardHeader>
+        </CardHeader>
 
-      <CardContent className="space-y-6">
-        {/* Destaque do Código */}
-        <div className="bg-white dark:bg-gray-900 p-6 rounded-xl border text-center space-y-2 shadow-inner">
-          <p className="text-sm text-muted-foreground font-medium uppercase tracking-wide">
-            Código de Acesso
-          </p>
-          <div
-            className="text-5xl sm:text-6xl font-black tracking-widest text-primary cursor-pointer select-all"
-            onClick={() => copyToClipboard(activeSession.codigo_acesso)}
-          >
-            {activeSession.codigo_acesso}
-          </div>
-          <div className="flex justify-center gap-2 pt-2">
-            <Button
-              variant="outline"
-              size="sm"
+        <CardContent className="space-y-6">
+          {/* Destaque do Código */}
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-xl border text-center space-y-2 shadow-inner">
+            <p className="text-sm text-muted-foreground font-medium uppercase tracking-wide">
+              Código de Acesso
+            </p>
+            <div
+              className="text-5xl sm:text-6xl font-black tracking-widest text-primary cursor-pointer select-all"
               onClick={() => copyToClipboard(activeSession.codigo_acesso)}
             >
-              <Copy className="mr-2 h-3 w-3" /> Copiar
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                if (navigator.share) {
-                  navigator
-                    .share({
-                      title: "Acesse o Inventário",
-                      text: `Entre na sessão com o código: ${activeSession.codigo_acesso}`,
-                      url: window.location.origin,
-                    })
-                    .catch(console.error);
-                } else {
-                  copyToClipboard(
-                    `${window.location.origin} (Código: ${activeSession.codigo_acesso})`
-                  );
-                }
-              }}
-            >
-              <Share2 className="h-3 w-3" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Estatísticas */}
-        <div className="grid grid-cols-3 gap-4 text-center">
-          <div className="bg-background p-3 rounded-lg border">
-            <div className="flex justify-center mb-1">
-              <Users className="h-5 w-5 text-blue-500" />
+              {activeSession.codigo_acesso}
             </div>
-            <div className="text-2xl font-bold">
-              {activeSession._count.participantes}
-            </div>
-            <div className="text-xs text-muted-foreground">Pessoas</div>
-          </div>
-          <div className="bg-background p-3 rounded-lg border">
-            <div className="flex justify-center mb-1">
-              <Activity className="h-5 w-5 text-amber-500" />
-            </div>
-            <div className="text-2xl font-bold">
-              {activeSession._count.movimentos}
-            </div>
-            <div className="text-xs text-muted-foreground">Bipes</div>
-          </div>
-          <div className="bg-background p-3 rounded-lg border">
-            <div className="flex justify-center mb-1">
-              <RefreshCw className="h-5 w-5 text-green-500" />
-            </div>
-            <div className="text-2xl font-bold">
-              {activeSession._count.produtos}
-            </div>
-            <div className="text-xs text-muted-foreground">Itens Catálogo</div>
-          </div>
-        </div>
-
-        {/* --- ÁREA DE IMPORTAÇÃO DA SESSÃO (NOVO!) --- */}
-        <div className="bg-background p-4 rounded-lg border border-dashed border-primary/30">
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm font-semibold flex items-center gap-2">
-              <FileText className="h-4 w-4 text-primary" />
-              Catálogo da Sessão
-            </h4>
-            {activeSession._count.produtos > 0 && (
-              <Badge
+            <div className="flex justify-center gap-2 pt-2">
+              <Button
                 variant="outline"
-                className="text-xs text-green-600 border-green-200 bg-green-50"
+                size="sm"
+                onClick={() => copyToClipboard(activeSession.codigo_acesso)}
               >
-                <CheckCircle2 className="h-3 w-3 mr-1" />{" "}
-                {activeSession._count.produtos} itens carregados
-              </Badge>
-            )}
+                <Copy className="mr-2 h-3 w-3" /> Copiar
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  if (navigator.share) {
+                    navigator
+                      .share({
+                        title: "Acesse o Inventário",
+                        text: `Entre na sessão com o código: ${activeSession.codigo_acesso}`,
+                        url: window.location.origin,
+                      })
+                      .catch(console.error);
+                  } else {
+                    copyToClipboard(
+                      `${window.location.origin} (Código: ${activeSession.codigo_acesso})`
+                    );
+                  }
+                }}
+              >
+                <Share2 className="h-3 w-3" />
+              </Button>
+            </div>
           </div>
 
-          <div className="flex gap-2 items-center">
-            <Input
-              type="file"
-              accept=".csv"
-              onChange={handleSessionImport}
-              disabled={isImporting}
-              className="text-xs h-9 file:mr-4 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-            />
-            {isImporting && (
-              <span className="text-xs text-muted-foreground animate-pulse whitespace-nowrap">
-                {importStatus}
-              </span>
-            )}
+          {/* Estatísticas */}
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="bg-background p-3 rounded-lg border">
+              <div className="flex justify-center mb-1">
+                <Users className="h-5 w-5 text-blue-500" />
+              </div>
+              <div className="text-2xl font-bold">
+                {activeSession._count.participantes}
+              </div>
+              <div className="text-xs text-muted-foreground">Pessoas</div>
+            </div>
+            <div className="bg-background p-3 rounded-lg border">
+              <div className="flex justify-center mb-1">
+                <Activity className="h-5 w-5 text-amber-500" />
+              </div>
+              <div className="text-2xl font-bold">
+                {activeSession._count.movimentos}
+              </div>
+              <div className="text-xs text-muted-foreground">Bipes</div>
+            </div>
+            <div className="bg-background p-3 rounded-lg border">
+              <div className="flex justify-center mb-1">
+                <RefreshCw className="h-5 w-5 text-green-500" />
+              </div>
+              <div className="text-2xl font-bold">
+                {activeSession._count.produtos}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Itens Catálogo
+              </div>
+            </div>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-2">
-            Importe o CSV aqui para que os colaboradores vejam os produtos.
-            (Mesmo formato da aba Importar).
-          </p>
-        </div>
-      </CardContent>
 
-      <CardFooter className="bg-muted/50 pt-4 flex gap-2 justify-end">
-        <Button variant="outline" size="sm" onClick={loadSessions}>
-          <RefreshCw className="mr-2 h-3 w-3" /> Atualizar
-        </Button>
-        <Button variant="destructive" size="sm" disabled>
-          <StopCircle className="mr-2 h-4 w-4" /> Encerrar Sessão
-        </Button>
-      </CardFooter>
-    </Card>
+          {/* Área de Importação */}
+          <div className="bg-background p-4 rounded-lg border border-dashed border-primary/30">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                Catálogo da Sessão
+              </h4>
+              {activeSession._count.produtos > 0 && (
+                <Badge
+                  variant="outline"
+                  className="text-xs text-green-600 border-green-200 bg-green-50"
+                >
+                  <CheckCircle2 className="h-3 w-3 mr-1" />{" "}
+                  {activeSession._count.produtos} itens carregados
+                </Badge>
+              )}
+            </div>
+
+            <div className="flex gap-2 items-center">
+              <Input
+                type="file"
+                accept=".csv"
+                onChange={handleSessionImport}
+                disabled={isImporting}
+                className="text-xs h-9 file:mr-4 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+              />
+              {isImporting && (
+                <span className="text-xs text-muted-foreground animate-pulse whitespace-nowrap">
+                  {importStatus}
+                </span>
+              )}
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-2">
+              Importe o CSV aqui para que os colaboradores vejam os produtos.
+            </p>
+          </div>
+        </CardContent>
+
+        <CardFooter className="bg-muted/50 pt-4 flex gap-2 justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              loadSessions();
+              loadSessionProducts();
+            }}
+          >
+            <RefreshCw className="mr-2 h-3 w-3" /> Atualizar Dados
+          </Button>
+          <Button variant="destructive" size="sm" disabled>
+            <StopCircle className="mr-2 h-4 w-4" /> Encerrar Sessão
+          </Button>
+        </CardFooter>
+      </Card>
+
+      {/* --- COMPONENTES FLUTUANTES (VISÃO GLOBAL) --- */}
+
+      {/* Botão Flutuante */}
+      <FloatingMissingItemsButton
+        itemCount={missingItems.length}
+        onClick={() => setShowMissingModal(true)}
+        dragConstraintsRef={containerRef}
+      />
+
+      {/* Modal de Itens Faltantes */}
+      <MissingItemsModal
+        isOpen={showMissingModal}
+        onClose={() => setShowMissingModal(false)}
+        items={missingItems}
+      />
+    </div>
   );
 }
