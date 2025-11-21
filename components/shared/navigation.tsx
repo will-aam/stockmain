@@ -129,10 +129,11 @@ export function Navigation({
                 >
                   <User className="h-8 w-8 text-primary" />
                 </button>
+
                 <div className="text-center">
                   <p className="font-medium">Menu do Usuário</p>
                   <p className="text-xs text-muted-foreground">
-                    Countifly v1.0
+                    Countifly v1.1.37
                   </p>
                 </div>
               </div>
