@@ -6,6 +6,8 @@
  * 2. Sincronizar periodicamente com o servidor (enviar fila e receber atualizações).
  * 3. Garantir que a UI seja rápida (Optimistic UI) mesmo com internet instável.
  * 4. Calcular e expor a lista de ITENS FALTANTES.
+ * 5. Permitir a remoção da última bipagem de um item.
+ * 6. Permitir zerar a contagem de um item específico de uma só vez.
  */
 
 "use client";
@@ -103,7 +105,6 @@ export const useParticipantInventory = ({
 
     if (product) {
       setCurrentProduct(product);
-      // Foca no campo de quantidade (se houver lógica de UI para isso)
     } else {
       // Produto não encontrado na sessão
       toast({
@@ -153,6 +154,139 @@ export const useParticipantInventory = ({
     [currentProduct, sessionData]
   );
 
+  /**
+   * Remove a última bipagem (movimento) pendente para um produto específico.
+   * Atualiza a UI de forma otimista para feedback instantâneo.
+   */
+  const handleRemoveMovement = useCallback(
+    (productCode: string) => {
+      const product = products.find((p) => p.codigo_produto === productCode);
+      if (!product) return;
+
+      if ((product.saldo_contado || 0) <= 0) {
+        toast({
+          title: "Saldo zerado",
+          description: "Não é possível remover itens com saldo zero.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const targetCode = product.codigo_barras || product.codigo_produto;
+
+      // 1. Tenta achar um movimento PENDENTE na fila local
+      const pendingMovement = queue.findLast(
+        (m) => m.codigo_barras === targetCode
+      );
+
+      if (pendingMovement) {
+        // CENÁRIO A: O item ainda não subiu para o servidor.
+        // Podemos remover da fila tranquilamente (Desfazer Ação).
+
+        setQueue((prev) => prev.filter((m) => m.id !== pendingMovement.id));
+
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.codigo_produto === productCode
+              ? {
+                  ...p,
+                  saldo_contado: Math.max(
+                    0,
+                    (p.saldo_contado || 0) - pendingMovement.quantidade
+                  ),
+                }
+              : p
+          )
+        );
+
+        toast({
+          title: "Bipagem cancelada",
+          description: `Item removido da fila de envio.`,
+        });
+      } else {
+        // CENÁRIO B: O item já sincronizou.
+        // Criamos um novo movimento NEGATIVO para compensar no servidor.
+
+        const qtdParaRemover = 1; // Ou você pode abrir um modal perguntando a qtd
+
+        const movimentoEstorno: MovimentoFila = {
+          id: crypto.randomUUID(),
+          codigo_barras: targetCode,
+          quantidade: -qtdParaRemover, // Quantidade Negativa!
+          timestamp: Date.now(),
+        };
+
+        setQueue((prev) => [...prev, movimentoEstorno]);
+
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.codigo_produto === productCode
+              ? {
+                  ...p,
+                  saldo_contado: Math.max(
+                    0,
+                    (p.saldo_contado || 0) - qtdParaRemover
+                  ),
+                }
+              : p
+          )
+        );
+
+        toast({
+          title: "Correção registrada",
+          description: `-${qtdParaRemover} unidade(s) registrada(s).`,
+        });
+      }
+    },
+    [products, queue]
+  );
+
+  // --- NOVA FUNÇÃO: Zera o item completamente ---
+  const handleResetItem = useCallback(
+    (productCode: string) => {
+      const product = products.find((p) => p.codigo_produto === productCode);
+      // Verifica se o produto existe e se o saldo contado é maior que zero
+      if (!product || (product.saldo_contado || 0) <= 0) {
+        toast({
+          title: "Ação não permitida",
+          description: "Este item não possui contagem para zerar.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const qtdParaZerar = product.saldo_contado; // Pega o total atual (ex: 15)
+      const targetCode = product.codigo_barras || product.codigo_produto;
+
+      // Cria um movimento negativo igual ao total
+      const movimentoZerar: MovimentoFila = {
+        id: crypto.randomUUID(),
+        codigo_barras: targetCode,
+        quantidade: -qtdParaZerar, // Envia -15
+        timestamp: Date.now(),
+      };
+
+      // Adiciona à fila de envio
+      setQueue((prev) => [...prev, movimentoZerar]);
+
+      // Zera a UI imediatamente (Optimistic UI)
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.codigo_produto === productCode
+            ? { ...p, saldo_contado: 0 } // Força zero visualmente
+            : p
+        )
+      );
+
+      toast({
+        title: "Item Zerado",
+        description: `Contagem de ${qtdParaZerar} unidade(s) reiniciada.`,
+        variant: "destructive", // Vermelho para indicar ação crítica
+      });
+    },
+    [products] // Dependências
+  );
+
   // --- 3. O "Carteiro Silencioso" (Sync Loop) ---
 
   const syncData = useCallback(async () => {
@@ -160,9 +294,6 @@ export const useParticipantInventory = ({
 
     const currentQueue = queueRef.current;
     const hasDataToSend = currentQueue.length > 0;
-
-    // Se não tem nada pra enviar, fazemos um "ping" a cada 10s só pra atualizar saldos.
-    // Se tem dados, enviamos imediatamente.
 
     setIsSyncing(true);
     try {
@@ -192,7 +323,6 @@ export const useParticipantInventory = ({
         }
 
         // 2. Atualizar os saldos com a verdade absoluta do servidor
-        // (Isso corrige eventuais divergências se outro usuário bipou o mesmo item)
         if (data.updatedProducts) {
           setProducts((prev) =>
             prev.map((localProd) => {
@@ -210,7 +340,6 @@ export const useParticipantInventory = ({
       }
     } catch (error) {
       console.error("Erro de sincronização:", error);
-      // Não fazemos nada com a fila. Os itens continuam lá e serão tentados na próxima vez.
     } finally {
       setIsSyncing(false);
     }
@@ -242,7 +371,8 @@ export const useParticipantInventory = ({
     queueSize: queue.length,
     isSyncing,
     lastSyncTime,
-    missingItems, // <--- EXPOSTO AQUI
+    missingItems,
+    pendingMovements: queue, // Expondo a fila para a UI
 
     // UI State
     scanInput,
@@ -254,6 +384,8 @@ export const useParticipantInventory = ({
     // Ações
     handleScan,
     handleAddMovement,
+    handleRemoveMovement,
+    handleResetItem, // <--- NOVA FUNÇÃO EXPORTADA AQUI
     forceSync: syncData, // Botão manual de "Sincronizar Agora"
   };
 };

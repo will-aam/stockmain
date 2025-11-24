@@ -43,6 +43,8 @@ import {
   RefreshCw,
   Wifi,
   WifiOff,
+  Trash2,
+  XCircle, // <-- Ícone adicionado
 } from "lucide-react";
 
 interface ParticipantViewProps {
@@ -83,19 +85,22 @@ export function ParticipantView({
     currentProduct,
     handleScan,
     handleAddMovement,
+    handleRemoveMovement,
+    handleResetItem, // <-- Função adicionada do hook
+    pendingMovements,
     forceSync,
-    missingItems, // <--- Agora temos acesso a isso!
+    missingItems,
   } = useParticipantInventory({ sessionData });
 
   // --- Estados Locais da UI ---
   const [countingMode, setCountingMode] = useState<"loja" | "estoque">("loja");
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showMissingModal, setShowMissingModal] = useState(false); // <--- Estado do Modal
+  const [showMissingModal, setShowMissingModal] = useState(false);
 
   // Referências
   const quantityInputRef = useRef<HTMLInputElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null); // <--- Ref para o botão flutuante
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Foca na quantidade ao encontrar produto
   useEffect(() => {
@@ -383,12 +388,46 @@ export function ParticipantView({
                       {item.codigo_barras || item.codigo_produto}
                     </p>
                   </div>
-                  <Badge
-                    variant="secondary"
-                    className="text-sm h-8 px-3 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
-                  >
-                    {item.saldo_contado}
-                  </Badge>
+                  <div className="flex items-center gap-1">
+                    {" "}
+                    {/* gap ajustado para 1 */}
+                    <Badge
+                      variant="secondary"
+                      className="text-sm h-8 px-3 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 mr-1"
+                    >
+                      {item.saldo_contado}
+                    </Badge>
+                    {/* Botão de Remover 1 (O que já existia) */}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-gray-500 hover:text-orange-600 hover:bg-orange-50"
+                      title="Remover 1 unidade"
+                      disabled={item.saldo_contado <= 0}
+                      onClick={() => handleRemoveMovement(item.codigo_produto)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                    {/* NOVO BOTÃO: ZERAR TUDO */}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-red-400 hover:text-red-700 hover:bg-red-100"
+                      title="Zerar contagem deste item"
+                      disabled={item.saldo_contado <= 0}
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            `Tem certeza que deseja ZERAR a contagem de "${item.descricao}"?`
+                          )
+                        ) {
+                          handleResetItem(item.codigo_produto);
+                        }
+                      }}
+                    >
+                      <XCircle className="h-5 w-5" />
+                    </Button>
+                  </div>
                 </div>
               ))
             )}
