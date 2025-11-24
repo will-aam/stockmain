@@ -7,7 +7,14 @@
 
 "use client";
 
-import React, { useState, useMemo, useRef, useEffect } from "react";
+// --- CORREÇÃO 1: Adicionar useCallback aos imports ---
+import React, {
+  useState,
+  useMemo,
+  useRef,
+  useEffect,
+  useCallback,
+} from "react";
 import { useParticipantInventory } from "@/hooks/useParticipantInventory";
 import { BarcodeScanner } from "@/components/features/barcode-scanner";
 
@@ -111,10 +118,12 @@ export function ParticipantView({
 
   // --- Handlers ---
 
-  const handleCameraScan = (code: string) => {
+  // --- CORREÇÃO 2: Congelar a função de Scan com useCallback ---
+  // Isso impede que a função seja recriada a cada renderização do componente.
+  const handleCameraScan = useCallback((code: string) => {
     setIsCameraActive(false);
     setScanInput(code);
-  };
+  }, []); // Dependências vazias = a função nunca muda
 
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -180,6 +189,19 @@ export function ParticipantView({
 
     return items.sort((a, b) => a.descricao.localeCompare(b.descricao));
   }, [products, searchQuery]);
+
+  // --- CORREÇÃO 3: Isolar o Componente da Câmera com useMemo ---
+  // O React só irá recriar o componente da câmera se a função `handleCameraScan` mudar.
+  // Como a função está "congelada" com useCallback, a câmera não será mais recriada nos sincronismos.
+  const memoizedScanner = useMemo(
+    () => (
+      <BarcodeScanner
+        onScan={handleCameraScan}
+        onClose={() => setIsCameraActive(false)}
+      />
+    ),
+    [handleCameraScan]
+  );
 
   // --- Renderização ---
   return (
@@ -254,10 +276,8 @@ export function ParticipantView({
         </CardHeader>
         <CardContent className="space-y-4">
           {isCameraActive ? (
-            <BarcodeScanner
-              onScan={handleCameraScan}
-              onClose={() => setIsCameraActive(false)}
-            />
+            // --- CORREÇÃO 4: Usar a variável memoizada no JSX ---
+            memoizedScanner
           ) : (
             <>
               <div className="space-y-2">
