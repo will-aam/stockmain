@@ -112,7 +112,7 @@ export async function POST(
     // 6. Transação de Encerramento
     // - Fecha a sessão
     // - Salva no histórico
-    const nomeArquivo = `${sessao.nome.replace(/\s+/g, "_")}_FINAL.csv`;
+    const nomeArquivo = `${sessao.nome.replace(/\s+/g, "_")}.csv`;
 
     await prisma.$transaction([
       prisma.sessao.update({

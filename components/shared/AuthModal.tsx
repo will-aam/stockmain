@@ -213,7 +213,6 @@ export function AuthModal({ onUnlock, onJoinSession }: AuthModalProps) {
                   <Label htmlFor="code">Código da Sessão</Label>
                   <Input
                     id="code"
-                    placeholder="Ex: A1B2C3"
                     value={sessionCode}
                     onChange={(e) =>
                       setSessionCode(e.target.value.toUpperCase())

@@ -321,7 +321,7 @@ export function ManagerSessionDashboard({
           <CardContent className="space-y-4 px-6">
             <div className="space-y-1.5">
               <Label htmlFor="sessionName" className="text-sm">
-                Nome da Sessão (Opcional)
+                Nome da Sessão
               </Label>
               <Input
                 id="sessionName"
