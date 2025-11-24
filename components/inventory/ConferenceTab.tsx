@@ -165,8 +165,8 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
             <div className="flex flex-col sm:flex-row items-center gap-2">
               <Button
                 onClick={handleSaveCount}
-                variant="outline"
-                className="w-full sm:w-auto"
+                // Estilo customizado para destacar sutilmente o botão
+                className="w-full sm:w-auto border-2 border-primary text-primary bg-primary/5 hover:bg-primary/10 transition-colors duration-200"
               >
                 <CloudUpload className="mr-2 h-4 w-4" />
                 Salvar Contagem

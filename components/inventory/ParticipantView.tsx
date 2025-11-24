@@ -36,6 +36,18 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 
+// --- IMPORTAÇÃO ADICIONADA ---
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 // --- Ícones ---
 import {
   Scan,
@@ -51,7 +63,8 @@ import {
   Wifi,
   WifiOff,
   Trash2,
-  XCircle, // <-- Ícone adicionado
+  XCircle,
+  AlertTriangle, // Ícone para o alerta
 } from "lucide-react";
 
 interface ParticipantViewProps {
@@ -93,7 +106,7 @@ export function ParticipantView({
     handleScan,
     handleAddMovement,
     handleRemoveMovement,
-    handleResetItem, // <-- Função adicionada do hook
+    handleResetItem,
     pendingMovements,
     forceSync,
     missingItems,
@@ -104,6 +117,13 @@ export function ParticipantView({
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showMissingModal, setShowMissingModal] = useState(false);
+
+  // --- ESTADOS ADICIONADOS PARA O MODAL DE CONFIRMAÇÃO ---
+  const [showResetConfirmation, setShowResetConfirmation] = useState(false);
+  const [itemToReset, setItemToReset] = useState<{
+    codigo_produto: string;
+    descricao: string;
+  } | null>(null);
 
   // Referências
   const quantityInputRef = useRef<HTMLInputElement>(null);
@@ -213,7 +233,7 @@ export function ParticipantView({
       <div className="lg:col-span-2 flex justify-between items-center mb-2">
         <div>
           <h2 className="font-bold text-lg">
-            Olá, {sessionData.participant.nome} 👋
+            Olá, {sessionData.participant.nome}
           </h2>
           <p className="text-xs text-muted-foreground">
             Sessão: {sessionData.session.nome}
@@ -428,7 +448,7 @@ export function ParticipantView({
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
-                    {/* NOVO BOTÃO: ZERAR TUDO */}
+                    {/* --- BOTÃO MODIFICADO: ZERAR TUDO --- */}
                     <Button
                       size="icon"
                       variant="ghost"
@@ -436,13 +456,11 @@ export function ParticipantView({
                       title="Zerar contagem deste item"
                       disabled={item.saldo_contado <= 0}
                       onClick={() => {
-                        if (
-                          window.confirm(
-                            `Tem certeza que deseja ZERAR a contagem de "${item.descricao}"?`
-                          )
-                        ) {
-                          handleResetItem(item.codigo_produto);
-                        }
+                        setItemToReset({
+                          codigo_produto: item.codigo_produto,
+                          descricao: item.descricao,
+                        });
+                        setShowResetConfirmation(true);
                       }}
                     >
                       <XCircle className="h-5 w-5" />
@@ -470,6 +488,39 @@ export function ParticipantView({
         onClose={() => setShowMissingModal(false)}
         items={missingItems}
       />
+
+      {/* --- NOVO MODAL DE CONFIRMAÇÃO --- */}
+      <AlertDialog
+        open={showResetConfirmation}
+        onOpenChange={setShowResetConfirmation}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              Zerar Contagem do Item?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Redefinir a contagem do item{" "}
+              <strong>{itemToReset?.descricao}</strong>?
+              <br />
+              Esta ação é irreversível.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (itemToReset) {
+                  handleResetItem(itemToReset.codigo_produto);
+                }
+                setShowResetConfirmation(false);
+              }}
+            >
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

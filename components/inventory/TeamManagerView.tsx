@@ -75,7 +75,7 @@ export function TeamManagerView({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           code: activeSession.codigo_acesso,
-          name: "Anfitrião (Você)", // Nome especial para identificar
+          name: "Anfitrião", // Nome especial para identificar
         }),
       });
 

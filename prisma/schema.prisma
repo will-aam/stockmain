@@ -33,7 +33,7 @@ model Usuario {
 model Sessao {
   id            Int           @id @default(autoincrement())
   codigo_acesso String        @unique // Código curto (ex: #LOJA-01) [cite: 24]
-  nome          String        // Nome amigável (ex: "Inventário Dezembro")
+  nome          String        
   status        String        @default("ABERTA") // ABERTA, PAUSADA, FINALIZADA [cite: 25]
   criado_em     DateTime      @default(now())
   finalizado_em DateTime?

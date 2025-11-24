@@ -31,6 +31,17 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+// --- IMPORTAÇÃO ADICIONADA ---
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Users,
   Activity,
@@ -43,7 +54,8 @@ import {
   CheckCircle2,
   Loader2,
   BarChart2,
-  UploadCloud, // Ícone atualizado para dar mais destaque
+  UploadCloud,
+  AlertTriangle, // Ícone para o alerta
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -107,6 +119,10 @@ export function ManagerSessionDashboard({
     null
   );
   const [showRelatorioModal, setShowRelatorioModal] = useState(false);
+
+  // --- ESTADO ADICIONADO PARA O MODAL DE CONFIRMAÇÃO ---
+  const [showEndSessionConfirmation, setShowEndSessionConfirmation] =
+    useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const activeSessionRef = useRef<SessaoData | null>(null);
@@ -193,17 +209,13 @@ export function ManagerSessionDashboard({
     }
   };
 
-  // --- Encerrar Sessão e Carregar Relatório ---
+  // --- FUNÇÃO MODIFICADA: Encerrar Sessão e Carregar Relatório ---
   const handleEndSession = async () => {
     if (!activeSession) return;
-    if (
-      !window.confirm(
-        "Tem certeza? Isso finaliza a contagem e gera o relatório."
-      )
-    )
-      return;
 
     setIsEnding(true);
+    setShowEndSessionConfirmation(false); // Fecha o modal de confirmação
+
     try {
       const endResponse = await fetch(
         `/api/inventory/${userId}/session/${activeSession.id}/end`,
@@ -224,7 +236,7 @@ export function ManagerSessionDashboard({
       setShowRelatorioModal(true);
 
       toast({
-        title: "Sessão Finalizada! 🏁",
+        title: "Sessão Finalizada!",
         description: "Relatório gerado.",
       });
       setActiveSession(null);
@@ -474,11 +486,9 @@ export function ManagerSessionDashboard({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5, duration: 0.4 }}
-                // Aumentei o padding para p-6
                 className="bg-background/60 p-6 rounded-xl border border-dashed border-primary/30 space-y-4"
               >
                 <div className="flex items-center justify-between">
-                  {/* Título ligeiramente maior */}
                   <h4 className="text-base font-semibold flex items-center gap-2 text-primary">
                     <UploadCloud className="h-5 w-5" />
                     Importar Catálogo
@@ -498,7 +508,6 @@ export function ManagerSessionDashboard({
                       accept=".csv"
                       onChange={handleSessionImport}
                       disabled={isImporting}
-                      // Mudança chave aqui: file:font-bold, file:text-primary, file:bg-primary/10, h-12
                       className="cursor-pointer text-sm h-12 file:mr-4 file:py-2 file:px-0 file:border-0 file:text-sm file:font-bold file:text-primary file:bg-transparent hover:file:text-primary/80 transition-all"
                     />
                   </div>
@@ -529,10 +538,11 @@ export function ManagerSessionDashboard({
               >
                 <RefreshCw className="mr-2 h-4 w-4" /> Atualizar
               </Button>
+              {/* --- BOTÃO MODIFICADO --- */}
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={handleEndSession}
+                onClick={() => setShowEndSessionConfirmation(true)} // Abre o modal de confirmação
                 disabled={isEnding}
               >
                 {isEnding ? (
@@ -638,6 +648,36 @@ export function ManagerSessionDashboard({
           )}
         </DialogContent>
       </Dialog>
+
+      {/* --- NOVO MODAL DE CONFIRMAÇÃO --- */}
+      <AlertDialog
+        open={showEndSessionConfirmation}
+        onOpenChange={setShowEndSessionConfirmation}
+      >
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-primary">
+              Encerrar sessão de contagem
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Você está prestes a encerrar a sessão{" "}
+              <span className="font-semibold">{activeSession?.nome}</span>.
+              <br />
+              Ao confirmar, a contagem será finalizada e o relatório final será
+              gerado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleEndSession} disabled={isEnding}>
+              {isEnding ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
