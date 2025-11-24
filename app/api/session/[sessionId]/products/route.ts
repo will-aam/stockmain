@@ -12,13 +12,13 @@ export async function GET(
       return NextResponse.json({ error: "ID inválido" }, { status: 400 });
     }
 
-    // 1. Buscar produtos cadastrados na sessão
+    // 1. Buscar produtos cadastrados na sessão (com saldo_sistema como Decimal)
     const produtosSessao = await prisma.produtoSessao.findMany({
       where: { sessao_id: sessionId },
     });
 
-    // 2. Calcular o saldo atual (Soma dos movimentos)
-    // Agrupamos por código de barras para ser rápido
+    // 2. Calcular o saldo atual (Soma dos movimentos, que agora é Decimal)
+    // Agrupamos por código de barras para performance
     const movimentos = await prisma.movimento.groupBy({
       by: ["codigo_barras"],
       where: { sessao_id: sessionId },
@@ -28,25 +28,32 @@ export async function GET(
     });
 
     // Mapa rápido para consulta: CodigoBarras -> Quantidade Total
+    // Armazenaremos como número JavaScript puro
     const saldosMap = new Map<string, number>();
     movimentos.forEach((m) => {
       if (m.codigo_barras) {
-        saldosMap.set(m.codigo_barras, m._sum.quantidade || 0);
+        // --- CORREÇÃO 1: Converter a soma dos movimentos para número ---
+        // O valor m._sum.quantidade é um objeto Decimal e precisa ser convertido.
+        const qtd = m._sum.quantidade ? m._sum.quantidade.toNumber() : 0;
+        saldosMap.set(m.codigo_barras, qtd);
       }
     });
 
-    // 3. Combinar dados
+    // 3. Combinar dados e formatar a resposta final
     const resultado = produtosSessao.map((prod) => {
-      // Tenta achar saldo pelo código de barras principal do produto
-      // (Nota: num cenário real complexo, um produto pode ter vários códigos,
-      // mas aqui simplificamos para o código principal cadastrado)
+      // Tenta achar o saldo contado pelo código de barras principal do produto
       const totalContado = saldosMap.get(prod.codigo_barras || "") || 0;
 
       return {
         codigo_produto: prod.codigo_produto,
         codigo_barras: prod.codigo_barras,
         descricao: prod.descricao,
-        saldo_sistema: prod.saldo_sistema,
+        // --- CORREÇÃO 2: Converter o saldo do sistema para número ---
+        // O valor prod.saldo_sistema também é um objeto Decimal e precisa ser convertido.
+        saldo_sistema: prod.saldo_sistema ? prod.saldo_sistema.toNumber() : 0,
+        // --- CORREÇÃO 3: Ajustar o tipo de saldo_contado ---
+        // O tipo de `saldo_contado` no hook/frontend precisa ser `number | undefined`
+        // para refletir que pode não ter sido contado ainda.
         saldo_contado: totalContado,
       };
     });

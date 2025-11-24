@@ -152,7 +152,7 @@ export function AuthModal({ onUnlock, onJoinSession }: AuthModalProps) {
                   className="flex items-center gap-2"
                 >
                   <Users className="h-4 w-4" />
-                  Sou Colaborador
+                  Colaborador
                 </TabsTrigger>
               </TabsList>
             </CardHeader>

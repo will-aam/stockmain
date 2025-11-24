@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { validateAuth } from "@/lib/auth";
+// A importação do Papa Parse não é necessária nesta rota GET, então foi removida para manter o código limpo.
 
 export async function GET(
   request: Request,
@@ -30,12 +31,12 @@ export async function GET(
         { status: 404 }
       );
 
-    // 2. Buscar produtos (Sistema)
+    // 2. Buscar produtos do catálogo (com saldo_sistema como Decimal)
     const produtosSessao = await prisma.produtoSessao.findMany({
       where: { sessao_id: sessionId },
     });
 
-    // 3. Buscar contagens (Real)
+    // 3. Buscar contagens (soma dos movimentos, que agora é Decimal)
     const movimentos = await prisma.movimento.groupBy({
       by: ["codigo_barras"],
       where: { sessao_id: sessionId },
@@ -45,8 +46,12 @@ export async function GET(
     // 4. Consolidar dados
     const mapaContagem = new Map<string, number>();
     movimentos.forEach((m) => {
-      if (m.codigo_barras)
-        mapaContagem.set(m.codigo_barras, m._sum.quantidade || 0);
+      if (m.codigo_barras) {
+        // --- CORREÇÃO 1: Converter a soma dos movimentos para número ---
+        // O valor m._sum.quantidade é um objeto Decimal e precisa ser convertido.
+        const qtd = m._sum.quantidade ? m._sum.quantidade.toNumber() : 0;
+        mapaContagem.set(m.codigo_barras, qtd);
+      }
     });
 
     let totalProdutos = 0;
@@ -63,13 +68,19 @@ export async function GET(
       if (qtdContada > 0) totalContados++;
       else totalFaltantes++;
 
-      const diferenca = qtdContada - prod.saldo_sistema;
+      // --- CORREÇÃO 2: Converter o saldo do sistema para número antes da subtração ---
+      // O valor prod.saldo_sistema é um objeto Decimal e precisa ser convertido.
+      const saldoSistemaNum = prod.saldo_sistema
+        ? prod.saldo_sistema.toNumber()
+        : 0;
+
+      const diferenca = qtdContada - saldoSistemaNum;
 
       if (diferenca !== 0) {
         discrepancias.push({
           codigo_produto: prod.codigo_produto,
           descricao: prod.descricao,
-          saldo_sistema: prod.saldo_sistema,
+          saldo_sistema: saldoSistemaNum, // Usa o valor convertido no relatório
           saldo_contado: qtdContada,
           diferenca: diferenca,
         });

@@ -78,7 +78,9 @@ model Movimento {
   participante    Participante? @relation(fields: [participante_id], references: [id])
   
   codigo_barras   String       // O que foi bipado [cite: 37]
-  quantidade      Int          // O Delta (+1, +10, -1) [cite: 38]
+  // --- ALTERAÇÃO: Int para Decimal para aceitar valores quebrados ---
+  quantidade      Decimal      @db.Decimal(10, 3) // O Delta (+1, +10, -1.5) [cite: 38]
+  // -------------------------------------------------------------
   data_hora       DateTime     @default(now())
 
   @@index([sessao_id, codigo_barras]) // Índice para somar rápido
@@ -94,8 +96,9 @@ model ProdutoSessao {
   
   codigo_produto String
   descricao      String
-  saldo_sistema  Int      @default(0) // O saldo esperado (snapshot do ERP)
-
+  // --- ALTERAÇÃO: Int para Decimal para aceitar valores quebrados ---
+  saldo_sistema  Decimal  @db.Decimal(10, 3) @default(0) // O saldo esperado (snapshot do ERP)
+  // -------------------------------------------------------------
   codigo_barras  String?  // Armazena o código principal para facilitar o scan
   
   @@unique([sessao_id, codigo_produto])

@@ -104,14 +104,16 @@ export async function POST(
               },
               update: {
                 descricao: descricao,
-                saldo_sistema: Math.floor(saldo), // Assumindo inteiros para contagem
+                // --- ALTERAÇÃO: Removido Math.floor para permitir decimais ---
+                saldo_sistema: saldo,
                 codigo_barras: codBarras, // Atualiza o código de barras se vier no CSV
               },
               create: {
                 sessao_id: sessionId,
                 codigo_produto: codProduto,
                 descricao: descricao || "Sem descrição",
-                saldo_sistema: Math.floor(saldo),
+                // --- ALTERAÇÃO: Removido Math.floor para permitir decimais ---
+                saldo_sistema: saldo,
                 codigo_barras: codBarras,
               },
             });

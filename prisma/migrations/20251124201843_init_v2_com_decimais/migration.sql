@@ -39,7 +39,7 @@ CREATE TABLE "public"."movimentos" (
     "sessao_id" INTEGER NOT NULL,
     "participante_id" INTEGER,
     "codigo_barras" TEXT NOT NULL,
-    "quantidade" INTEGER NOT NULL,
+    "quantidade" DECIMAL(10,3) NOT NULL,
     "data_hora" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "movimentos_pkey" PRIMARY KEY ("id")
@@ -51,7 +51,7 @@ CREATE TABLE "public"."produtos_sessao" (
     "sessao_id" INTEGER NOT NULL,
     "codigo_produto" TEXT NOT NULL,
     "descricao" TEXT NOT NULL,
-    "saldo_sistema" INTEGER NOT NULL DEFAULT 0,
+    "saldo_sistema" DECIMAL(10,3) NOT NULL DEFAULT 0,
     "codigo_barras" TEXT,
 
     CONSTRAINT "produtos_sessao_pkey" PRIMARY KEY ("id")
