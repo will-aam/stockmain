@@ -22,8 +22,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 1. Buscar a sessão pelo código
-    // Convertemos para maiúsculo para facilitar (case-insensitive na prática)
+    // 1. Buscar a sessão pelo código (Case Insensitive)
     const sessao = await prisma.sessao.findUnique({
       where: { codigo_acesso: code.toUpperCase() },
     });
@@ -38,28 +37,42 @@ export async function POST(request: Request) {
     if (sessao.status !== "ABERTA") {
       return NextResponse.json(
         {
-          error:
-            "Esta sessão não está aceitando novos participantes (Status: " +
-            sessao.status +
-            ").",
+          error: `Esta sessão não está aceitando novos participantes (Status: ${sessao.status}).`,
         },
         { status: 403 }
       );
     }
 
-    // 2. Registrar o Participante
-    // Se o usuário já existir com esse nome nessa sessão, poderíamos retornar o mesmo ID,
-    // mas por simplicidade e para evitar conflitos de nomes iguais, criamos um novo registro
-    // ou assumimos que nomes duplicados são pessoas diferentes (o ID é o que importa).
-    const participante = await prisma.participante.create({
-      data: {
-        nome: name,
+    // 2. CORREÇÃO: Verificar se o participante JÁ EXISTE nesta sessão
+    let participante = await prisma.participante.findFirst({
+      where: {
         sessao_id: sessao.id,
-        status: "ATIVO",
+        nome: name, // Busca pelo nome (Ex: "Anfitrião (Você)" ou "Alex")
       },
     });
 
-    // 3. Retornar sucesso com dados vitais
+    // 3. Lógica "Find or Create"
+    if (participante) {
+      // Se já existe, apenas garantimos que ele está marcado como ATIVO novamente
+      if (participante.status !== "ATIVO") {
+        participante = await prisma.participante.update({
+          where: { id: participante.id },
+          data: { status: "ATIVO" },
+        });
+      }
+      // Não criamos nada novo, apenas usamos o 'participante' encontrado
+    } else {
+      // Se não existe, aí sim criamos um novo
+      participante = await prisma.participante.create({
+        data: {
+          nome: name,
+          sessao_id: sessao.id,
+          status: "ATIVO",
+        },
+      });
+    }
+
+    // 4. Retornar sucesso
     return NextResponse.json({
       success: true,
       session: {
