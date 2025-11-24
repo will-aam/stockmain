@@ -17,16 +17,18 @@ export async function POST(
       return NextResponse.json({ success: true, updatedProducts: [] });
     }
 
-    // 1. Salvar Movimentos em Transação (Atomicidade)
-    // Usamos createMany para ser eficiente
+    // 1. Salvar Movimentos com IDEMPOTÊNCIA
+    // O Prisma vai tentar inserir. Se o id_movimento_cliente já existir, ele IGNORE essa linha específica.
     await prisma.movimento.createMany({
       data: movements.map((mov: any) => ({
+        id_movimento_cliente: mov.id, // Mapeia o ID único gerado pelo cliente para o novo campo no banco
         sessao_id: sessionId,
         participante_id: participantId,
         codigo_barras: mov.codigo_barras,
         quantidade: mov.quantidade,
         data_hora: new Date(mov.timestamp), // Usa o horário que o usuário bipou
       })),
+      skipDuplicates: true, // Ignora registros com id_movimento_cliente duplicado, garantindo idempotência
     });
 
     // 2. Recalcular Saldos dos Produtos Afetados

@@ -64,7 +64,13 @@ model Participante {
 
 // O "Event Sourcing" simplificado [cite: 32]
 model Movimento {
-  id              Int          @id @default(autoincrement())
+  id              Int          @id @default(autoincrement()) // ID interno do banco
+  
+  // --- CAMPO ADICIONADO PARA CORREÇÃO DE BUG ---
+  // ID único gerado pelo cliente (UUID) para evitar duplicatas em caso de reenvio.
+  id_movimento_cliente String  @unique 
+  // ----------------------------------------------
+
   sessao_id       Int
   sessao          Sessao       @relation(fields: [sessao_id], references: [id], onDelete: Cascade)
   
