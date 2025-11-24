@@ -227,7 +227,7 @@ export function ParticipantView({
             <div className="flex flex-col sm:flex-row items-center gap-2">
               <Button
                 onClick={handleFinishSession}
-                className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
+                className="w-full sm:w-auto border-2 border-green-600 text-green-600 bg-transparent hover:bg-transparent hover:scale-105 transition-transform duration-300 ease-in-out"
               >
                 <CheckCircle2 className="mr-2 h-4 w-4" />
                 Finalizar Minha Contagem
