@@ -133,7 +133,7 @@ export function Navigation({
                 <div className="text-center">
                   <p className="font-medium">Menu do Usuário</p>
                   <p className="text-xs text-muted-foreground">
-                    Countifly v1.1.37
+                    Countifly v1.1.45
                   </p>
                 </div>
               </div>
