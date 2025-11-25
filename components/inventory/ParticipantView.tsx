@@ -78,6 +78,9 @@ const calculateExpression = (
   expression: string
 ): { result: number; isValid: boolean; error?: string } => {
   try {
+    if (expression.length > 50) {
+      return { result: 0, isValid: false, error: "Expressão muito longa" };
+    }
     // 1. Normaliza (troca vírgula por ponto)
     const cleanExpression = expression.replace(/,/g, ".");
 
