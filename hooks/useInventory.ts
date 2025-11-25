@@ -16,6 +16,8 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 // --- Bibliotecas e Hooks Personalizados ---
 import { toast } from "@/hooks/use-toast";
 import * as Papa from "papaparse";
+// --- IMPORTAÇÃO ADICIONADA ---
+import { evaluate } from "mathjs"; // <--- 1. ADICIONE ESTE IMPORT
 
 // --- Tipos ---
 import type { Product, BarCode, ProductCount, TempProduct } from "@/lib/types";
@@ -168,6 +170,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
   }, [products, productCounts, barCodes]);
 
   /**
+   * --- FUNÇÃO ATUALIZADA: Cálculo Seguro com MathJS ---
    * Avalia uma expressão matemática em formato de string de forma segura.
    * @param expression - A string da expressão matemática (ex: "10+5*2").
    * @returns Um objeto com o resultado, um booleano de validade e uma mensagem de erro, se houver.
@@ -177,22 +180,27 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       expression: string
     ): { result: number; isValid: boolean; error?: string } => {
       try {
-        const cleanExpression = expression.replace(/\s/g, "").replace(",", ".");
-        if (!/^[0-9+\-*/().]+$/.test(cleanExpression))
+        // Substitui vírgula por ponto para o padrão internacional
+        const cleanExpression = expression.replace(/,/g, ".");
+
+        // O evaluate do mathjs resolve a conta com segurança (sem usar eval)
+        const result = evaluate(cleanExpression);
+
+        if (typeof result !== "number" || isNaN(result) || !isFinite(result)) {
           return {
             result: 0,
             isValid: false,
-            error: "Caracteres inválidos na expressão",
+            error: "Resultado inválido",
           };
-        const result = new Function("return " + cleanExpression)();
-        if (typeof result !== "number" || isNaN(result) || !isFinite(result))
-          return { result: 0, isValid: false, error: "Resultado inválido" };
+        }
+
+        // Retorna arredondado para 2 casas decimais
         return { result: Math.round(result * 100) / 100, isValid: true };
       } catch (error) {
         return {
           result: 0,
           isValid: false,
-          error: "Erro ao calcular expressão",
+          error: "Erro de sintaxe na expressão",
         };
       }
     },

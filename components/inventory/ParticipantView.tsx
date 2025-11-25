@@ -7,7 +7,6 @@
 
 "use client";
 
-// --- CORREÇÃO 1: Adicionar useCallback aos imports ---
 import React, {
   useState,
   useMemo,
@@ -17,8 +16,10 @@ import React, {
 } from "react";
 import { useParticipantInventory } from "@/hooks/useParticipantInventory";
 import { BarcodeScanner } from "@/components/features/barcode-scanner";
+// --- CORREÇÃO DE SEGURANÇA: Importar mathjs ---
+import { evaluate } from "mathjs";
 
-// --- Componentes Compartilhados (Novos) ---
+// --- Componentes Compartilhados ---
 import { MissingItemsModal } from "@/components/shared/missing-items-modal";
 import { FloatingMissingItemsButton } from "@/components/shared/FloatingMissingItemsButton";
 
@@ -35,8 +36,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-
-// --- IMPORTAÇÃO ADICIONADA ---
+// Seus imports do Modal de Confirmação
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,7 +64,7 @@ import {
   WifiOff,
   Trash2,
   XCircle,
-  AlertTriangle, // Ícone para o alerta
+  AlertTriangle, // Ícone do seu modal
 } from "lucide-react";
 
 interface ParticipantViewProps {
@@ -72,17 +72,24 @@ interface ParticipantViewProps {
   onLogout: () => void;
 }
 
-// Função auxiliar de cálculo
+// --- CORREÇÃO DE SEGURANÇA: Função auxiliar SEGURA ---
+// Substituímos o 'new Function' pelo 'mathjs.evaluate'
 const calculateExpression = (
   expression: string
 ): { result: number; isValid: boolean; error?: string } => {
   try {
-    const cleanExpression = expression.replace(/\s/g, "").replace(",", ".");
-    if (!/^[0-9+\-*/().]+$/.test(cleanExpression))
-      return { result: 0, isValid: false, error: "Caracteres inválidos" };
-    const result = new Function("return " + cleanExpression)();
-    if (typeof result !== "number" || isNaN(result) || !isFinite(result))
+    // 1. Normaliza (troca vírgula por ponto)
+    const cleanExpression = expression.replace(/,/g, ".");
+
+    // 2. Avalia com segurança usando a biblioteca
+    const result = evaluate(cleanExpression);
+
+    // 3. Valida se o resultado é um número finito
+    if (typeof result !== "number" || isNaN(result) || !isFinite(result)) {
       return { result: 0, isValid: false, error: "Resultado inválido" };
+    }
+
+    // 4. Arredonda (2 casas) e retorna
     return { result: Math.round(result * 100) / 100, isValid: true };
   } catch (error) {
     return { result: 0, isValid: false, error: "Erro ao calcular" };
@@ -107,8 +114,7 @@ export function ParticipantView({
     handleAddMovement,
     handleRemoveMovement,
     handleResetItem,
-    pendingMovements,
-    forceSync,
+    pendingMovements, // Usado implicitamente para lógica de UI se necessário
     missingItems,
   } = useParticipantInventory({ sessionData });
 
@@ -118,7 +124,7 @@ export function ParticipantView({
   const [searchQuery, setSearchQuery] = useState("");
   const [showMissingModal, setShowMissingModal] = useState(false);
 
-  // --- ESTADOS ADICIONADOS PARA O MODAL DE CONFIRMAÇÃO ---
+  // Estado para o Modal de Confirmação (Zerar Item)
   const [showResetConfirmation, setShowResetConfirmation] = useState(false);
   const [itemToReset, setItemToReset] = useState<{
     codigo_produto: string;
@@ -138,16 +144,15 @@ export function ParticipantView({
 
   // --- Handlers ---
 
-  // --- CORREÇÃO 2: Congelar a função de Scan com useCallback ---
-  // Isso impede que a função seja recriada a cada renderização do componente.
   const handleCameraScan = useCallback((code: string) => {
     setIsCameraActive(false);
     setScanInput(code);
-  }, []); // Dependências vazias = a função nunca muda
+  }, []);
 
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    const validValue = value.replace(/[^0-9+\-*/\s.]/g, "");
+    // Permite digitar operadores matemáticos
+    const validValue = value.replace(/[^0-9+\-*/\s.,]/g, "");
     setQuantityInput(validValue);
   };
 
@@ -162,6 +167,7 @@ export function ParticipantView({
     if (!currentProduct || !quantityInput) return;
 
     let finalQuantity: number;
+    // Verifica operadores matemáticos (+ - * /)
     const hasOperators = /[+\-*/]/.test(quantityInput);
 
     if (hasOperators) {
@@ -210,9 +216,7 @@ export function ParticipantView({
     return items.sort((a, b) => a.descricao.localeCompare(b.descricao));
   }, [products, searchQuery]);
 
-  // --- CORREÇÃO 3: Isolar o Componente da Câmera com useMemo ---
-  // O React só irá recriar o componente da câmera se a função `handleCameraScan` mudar.
-  // Como a função está "congelada" com useCallback, a câmera não será mais recriada nos sincronismos.
+  // --- Memoização da Câmera ---
   const memoizedScanner = useMemo(
     () => (
       <BarcodeScanner
@@ -233,7 +237,7 @@ export function ParticipantView({
       <div className="lg:col-span-2 flex justify-between items-center mb-2">
         <div>
           <h2 className="font-bold text-lg">
-            Olá, {sessionData.participant.nome}
+            Olá, {sessionData.participant.nome} 👋
           </h2>
           <p className="text-xs text-muted-foreground">
             Sessão: {sessionData.session.nome}
@@ -296,7 +300,6 @@ export function ParticipantView({
         </CardHeader>
         <CardContent className="space-y-4">
           {isCameraActive ? (
-            // --- CORREÇÃO 4: Usar a variável memoizada no JSX ---
             memoizedScanner
           ) : (
             <>
@@ -429,15 +432,13 @@ export function ParticipantView({
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
-                    {" "}
-                    {/* gap ajustado para 1 */}
                     <Badge
                       variant="secondary"
                       className="text-sm h-8 px-3 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 mr-1"
                     >
                       {item.saldo_contado}
                     </Badge>
-                    {/* Botão de Remover 1 (O que já existia) */}
+                    {/* Botão de Remover 1 */}
                     <Button
                       size="icon"
                       variant="ghost"
@@ -448,7 +449,7 @@ export function ParticipantView({
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
-                    {/* --- BOTÃO MODIFICADO: ZERAR TUDO --- */}
+                    {/* Botão de Zerar Tudo (Aciona o Modal) */}
                     <Button
                       size="icon"
                       variant="ghost"
@@ -475,7 +476,7 @@ export function ParticipantView({
 
       {/* --- MODAIS E BOTÃO FLUTUANTE --- */}
 
-      {/* Botão Flutuante (Só aparece se tiver itens faltantes) */}
+      {/* Botão Flutuante */}
       <FloatingMissingItemsButton
         itemCount={missingItems.length}
         onClick={() => setShowMissingModal(true)}
@@ -489,7 +490,7 @@ export function ParticipantView({
         items={missingItems}
       />
 
-      {/* --- NOVO MODAL DE CONFIRMAÇÃO --- */}
+      {/* --- MODAL DE CONFIRMAÇÃO (Zerar Item) --- */}
       <AlertDialog
         open={showResetConfirmation}
         onOpenChange={setShowResetConfirmation}
@@ -497,18 +498,22 @@ export function ParticipantView({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
               Zerar Contagem do Item?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Redefinir a contagem do item{" "}
+              Tem certeza que deseja zerar a contagem do item{" "}
               <strong>{itemToReset?.descricao}</strong>?
               <br />
-              Esta ação é irreversível.
+              Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setShowResetConfirmation(false)}>
+              Cancelar
+            </AlertDialogCancel>
             <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
               onClick={() => {
                 if (itemToReset) {
                   handleResetItem(itemToReset.codigo_produto);
