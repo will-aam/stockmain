@@ -1,32 +1,21 @@
 // lib/auth.ts
-/**
- * Descrição: Utilitário de autenticação e autorização.
- * Responsabilidade: Validar o Token JWT (agora via Cookie) e verificar se o
- * usuário autenticado tem permissão para acessar o recurso solicitado.
- */
-
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import jwt from "jsonwebtoken";
-import { cookies } from "next/headers"; // IMPORTANTE: Importamos a leitura de cookies
+import { cookies } from "next/headers";
 
-/**
- * Define a estrutura do payload que esperamos de dentro do nosso Token JWT.
- */
 interface TokenPayload {
   userId: number;
   email: string;
   iat: number;
   exp: number;
+  iss?: string; // Novo campo
+  aud?: string; // Novo campo
 }
 
-/**
- * Valida o token JWT e autoriza o acesso ao recurso.
- *
- * @param request - O objeto da requisição.
- * @param paramsUserId - O ID do usuário vindo da URL.
- * @returns O payload do token se for válido.
- * @throws Lança um erro se a autenticação ou autorização falhar.
- */
+// Constantes de segurança (Devem ser iguais na emissão e validação)
+const JWT_ISSUER = "countifly-system";
+const JWT_AUDIENCE = "countifly-users";
+
 export async function validateAuth(
   request: NextRequest,
   paramsUserId: number
@@ -37,26 +26,25 @@ export async function validateAuth(
     throw new Error("Erro interno do servidor.");
   }
 
-  // --- MUDANÇA PRINCIPAL AQUI ---
-  // 1. Tentamos ler o token do cookie "authToken"
-  // O navegador envia isso automaticamente, o JS não precisa fazer nada.
   const token = cookies().get("authToken")?.value;
 
   if (!token) {
-    // Se não tem cookie, o usuário não está logado
     throw new Error("Acesso não autorizado: Sessão expirada ou inválida.");
   }
 
   let payload: TokenPayload;
 
   try {
-    // 2. Verifica se o token é válido (assinatura e validade)
-    payload = jwt.verify(token, jwtSecret) as TokenPayload;
+    // CORREÇÃO DE SEGURANÇA: Validações explícitas
+    payload = jwt.verify(token, jwtSecret, {
+      algorithms: ["HS256"], // 1. Trava o algoritmo (evita downgrade)
+      issuer: JWT_ISSUER, // 2. Garante que foi VOCÊ que emitiu
+      audience: JWT_AUDIENCE, // 3. Garante que o token é para este uso
+    }) as TokenPayload;
   } catch (error) {
-    throw new Error("Acesso não autorizado: Token inválido.");
+    throw new Error("Acesso não autorizado: Token inválido ou violado.");
   }
 
-  // 3. Verifica se o ID do token bate com o ID da URL
   if (payload.userId !== paramsUserId) {
     throw new Error(
       "Acesso negado: Você não tem permissão para acessar este recurso."
@@ -66,9 +54,7 @@ export async function validateAuth(
   return payload;
 }
 
-/**
- * Cria uma resposta de erro padronizada para SSE (Server-Sent Events).
- */
+// Helper de erro SSE (mantido igual)
 export function createSseErrorResponse(
   controller: ReadableStreamDefaultController<any>,
   encoder: TextEncoder,

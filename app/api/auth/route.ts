@@ -5,6 +5,11 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers"; // Importamos a gestão de cookies do Next.js
 
+// Constantes de segurança (Devem ser iguais na emissão e validação)
+// Idealmente, essas constantes viriam de um arquivo de configuração central.
+const JWT_ISSUER = "countifly-system";
+const JWT_AUDIENCE = "countifly-users";
+
 export async function POST(request: Request) {
   try {
     const jwtSecret = process.env.JWT_SECRET;
@@ -33,12 +38,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Cria o token (o "crachá")
-    const token = jwt.sign({ userId: user.id, email: user.email }, jwtSecret, {
-      expiresIn: "1d",
-    });
+    // --- MUDANÇA AQUI: Cria o token (o "crachá") com metadados de segurança ---
+    const token = jwt.sign(
+      { userId: user.id, email: user.email }, // Payload
+      jwtSecret, // Segredo
+      {
+        expiresIn: "1d",
+        algorithm: "HS256", // 1. Define explicitamente o algoritmo
+        issuer: JWT_ISSUER, // 2. Define quem emitiu o token
+        audience: JWT_AUDIENCE, // 3. Define para quem o token é destinado
+      }
+    );
+    // ---------------------------------------------------------------------
 
-    // --- AQUI ESTÁ A MUDANÇA ---
     // Definimos o cookie no navegador. O 'httpOnly: true' impede que o JavaScript leia este cookie.
     const cookieStore = cookies();
     cookieStore.set("authToken", token, {
