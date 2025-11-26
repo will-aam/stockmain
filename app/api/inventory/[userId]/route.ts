@@ -87,26 +87,35 @@ export async function DELETE(
     // 7. CHAMAMOS O GUARDIÃO PRIMEIRO
     await validateAuth(request, userId);
 
-    // 8. Se a autenticação passar, a lógica original continua...
-    await prisma.itemContado.deleteMany({
-      where: { contagem: { usuario_id: userId } },
-    });
+    // 8. EXECUÇÃO ATÔMICA (Tudo ou Nada)
+    // O $transaction garante que se o passo 3 falhar, o passo 1 é desfeito.
+    await prisma.$transaction([
+      // Ordem de exclusão (respeitando chaves estrangeiras, embora cascade ajude):
 
-    await prisma.contagem.deleteMany({
-      where: { usuario_id: userId },
-    });
+      // 1. Remove os itens contados (filhos de contagem)
+      prisma.itemContado.deleteMany({
+        where: { contagem: { usuario_id: userId } },
+      }),
 
-    await prisma.codigoBarras.deleteMany({
-      where: { usuario_id: userId },
-    });
+      // 2. Remove as contagens (pais dos itens contados)
+      prisma.contagem.deleteMany({
+        where: { usuario_id: userId },
+      }),
 
-    await prisma.produto.deleteMany({
-      where: { usuario_id: userId },
-    });
+      // 3. Remove códigos de barras (filhos de produto)
+      prisma.codigoBarras.deleteMany({
+        where: { usuario_id: userId },
+      }),
+
+      // 4. Remove produtos (raiz)
+      prisma.produto.deleteMany({
+        where: { usuario_id: userId },
+      }),
+    ]);
 
     return NextResponse.json({
       success: true,
-      message: "Dados do inventário excluídos com sucesso.",
+      message: "Dados do inventário excluídos com sucesso (Transação Segura).",
     });
   } catch (error: any) {
     // 9. Capturamos erros de autenticação ou do banco
