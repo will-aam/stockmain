@@ -124,7 +124,18 @@ export async function GET(
         : "Agora",
     });
   } catch (error: any) {
-    console.error("Erro ao gerar relatório:", error);
-    return NextResponse.json({ error: "Erro interno" }, { status: 500 });
+    const status =
+      error.message.includes("Acesso não autorizado") ||
+      error.message.includes("Acesso negado")
+        ? error.message.includes("negado")
+          ? 403
+          : 401
+        : 500;
+
+    console.error("Erro ao gerar relatório:", error.message);
+    return NextResponse.json(
+      { error: error.message || "Erro interno." },
+      { status }
+    );
   }
 }

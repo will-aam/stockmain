@@ -2,16 +2,23 @@
 /**
  * Rota para Encerrar uma Sessão de Contagem.
  * Responsabilidade:
- * 1. Mudar status da sessão para FINALIZADA (bloqueia novos envios).
- * 2. Calcular o inventário final (Soma de Movimentos).
- * 3. Gerar CSV comparativo (Sistema vs Contagem).
- * 4. Salvar no Histórico do Usuário.
+ * 1. Mudar status da sessão para FINALIZADA.
+ * 2. Calcular o inventário final.
+ * 3. Gerar CSV comparativo.
+ * 4. Salvar no Histórico.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { validateAuth } from "@/lib/auth";
 import * as Papa from "papaparse";
+
+// Helper para converter Decimal do Prisma em Number do JS
+const toNum = (val: any) => {
+  if (!val) return 0;
+  if (typeof val.toNumber === "function") return val.toNumber();
+  return Number(val);
+};
 
 export async function POST(
   request: NextRequest,
@@ -49,12 +56,12 @@ export async function POST(
 
     // 3. Coletar Dados para Consolidação
 
-    // A. Produtos do Catálogo da Sessão (O que o sistema esperava)
+    // A. Produtos do Catálogo (Sistema)
     const produtosSessao = await prisma.produtoSessao.findMany({
       where: { sessao_id: sessionId },
     });
 
-    // B. Movimentos Agrupados (O que foi contado de fato)
+    // B. Movimentos Agrupados (Contagem Real)
     const contagens = await prisma.movimento.groupBy({
       by: ["codigo_barras"],
       where: { sessao_id: sessionId },
@@ -64,28 +71,30 @@ export async function POST(
     });
 
     // 4. Processar e Cruzar Dados
-    // Mapa para acesso rápido: Codigo -> Quantidade Contada
     const mapaContagem = new Map<string, number>();
     contagens.forEach((c) => {
       if (c.codigo_barras) {
-        mapaContagem.set(c.codigo_barras, c._sum.quantidade || 0);
+        // CORREÇÃO 1: Converter Decimal para Number antes de salvar no Map
+        mapaContagem.set(c.codigo_barras, toNum(c._sum.quantidade));
       }
     });
 
     // Lista final combinada
     const relatorioFinal = produtosSessao.map((prod) => {
-      const codigo = prod.codigo_barras || prod.codigo_produto; // Fallback se não tiver EAN
+      const codigo = prod.codigo_barras || prod.codigo_produto;
       const qtdContada = mapaContagem.get(codigo) || 0;
-      const diferenca = qtdContada - prod.saldo_sistema;
 
-      // Remove do mapa para sabermos se sobrou algo (itens não cadastrados)
+      // CORREÇÃO 2: Converter saldo_sistema para Number antes da subtração
+      const saldoSistemaNum = toNum(prod.saldo_sistema);
+      const diferenca = qtdContada - saldoSistemaNum;
+
       if (codigo) mapaContagem.delete(codigo);
 
       return {
         codigo_barras: codigo,
         codigo_produto: prod.codigo_produto,
         descricao: prod.descricao,
-        saldo_sistema: prod.saldo_sistema,
+        saldo_sistema: saldoSistemaNum, // CORREÇÃO 3: Envia number limpo
         contagem: qtdContada,
         diferenca: diferenca,
       };
@@ -97,7 +106,7 @@ export async function POST(
         codigo_barras: codigo,
         codigo_produto: "DESCONHECIDO",
         descricao: `Item não cadastrado (${codigo})`,
-        saldo_sistema: 0,
+        saldo_sistema: 0, // Agora 0 é válido porque saldo_sistema acima virou number
         contagem: qtd,
         diferenca: qtd,
       });
@@ -110,9 +119,7 @@ export async function POST(
     });
 
     // 6. Transação de Encerramento
-    // - Fecha a sessão
-    // - Salva no histórico
-    const nomeArquivo = `${sessao.nome.replace(/\s+/g, "_")}.csv`;
+    const nomeArquivo = `${sessao.nome.replace(/\s+/g, "_")}_FINAL.csv`;
 
     await prisma.$transaction([
       prisma.sessao.update({
@@ -136,10 +143,19 @@ export async function POST(
       message: "Sessão encerrada e relatório salvo no histórico.",
     });
   } catch (error: any) {
-    console.error("Erro ao encerrar sessão:", error);
+    // Tratamento de erro padronizado (Auth)
+    const status =
+      error.message.includes("Acesso não autorizado") ||
+      error.message.includes("Acesso negado")
+        ? error.message.includes("negado")
+          ? 403
+          : 401
+        : 500;
+
+    console.error("Erro ao encerrar sessão:", error.message);
     return NextResponse.json(
-      { error: "Erro interno ao finalizar sessão." },
-      { status: 500 }
+      { error: error.message || "Erro interno ao finalizar sessão." },
+      { status }
     );
   }
 }
