@@ -2,7 +2,6 @@
 /**
  * Descrição: Aba principal de conferência (Modo Individual).
  * Responsabilidade: Gerenciar a contagem de itens, escaneamento e lista de conferência.
- * (Limpa de lógicas de multiplayer - agora exclusivas do TeamManagerView).
  */
 
 import React, { useMemo } from "react";
@@ -41,7 +40,6 @@ import type { Product, TempProduct, ProductCount } from "@/lib/types";
 
 // --- Interfaces e Tipos ---
 interface ConferenceTabProps {
-  // userId removido, não é mais necessário aqui
   countingMode: "loja" | "estoque";
   setCountingMode: (mode: "loja" | "estoque") => void;
   scanInput: string;
@@ -76,7 +74,7 @@ const ProductCountItem: React.FC<ProductCountItemProps> = ({
         {item.descricao}
       </p>
       <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-        Cód. Barras: {item.codigo_de_barras}| Sistema: {item.saldo_estoque}
+        Cód. Barras: {item.codigo_de_barras}
       </p>
       <div className="flex items-center space-x-2 mt-1">
         <Badge variant="outline" className="text-xs">
@@ -132,6 +130,17 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = React.useState("");
 
+  // --- NOVO CÁLCULO: Total já contado do produto atual ---
+  const currentTotalCount = useMemo(() => {
+    if (!currentProduct) return 0;
+    // Busca na lista de contagens se esse produto já existe
+    const found = productCounts.find(
+      (p) => p.codigo_produto === currentProduct.codigo_produto
+    );
+    return found ? found.total : 0;
+  }, [currentProduct, productCounts]);
+  // -------------------------------------------------------
+
   const filteredProductCounts = useMemo(() => {
     const sortedCounts = [...productCounts].sort((a, b) =>
       a.descricao.localeCompare(b.descricao)
@@ -149,7 +158,8 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
 
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    const validValue = value.replace(/[^0-9+\-*/\s.]/g, "");
+    // Permite caracteres matemáticos para a calculadora
+    const validValue = value.replace(/[^0-9+\-*/\s.,]/g, "");
     setQuantityInput(validValue);
   };
 
@@ -165,8 +175,8 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
             <div className="flex flex-col sm:flex-row items-center gap-2">
               <Button
                 onClick={handleSaveCount}
-                // Estilo customizado para destacar sutilmente o botão
-                className="w-full sm:w-auto border-2 border-primary text-primary bg-primary/5 hover:bg-primary/10 transition-colors duration-200"
+                variant="outline"
+                className="w-full sm:w-auto"
               >
                 <CloudUpload className="mr-2 h-4 w-4" />
                 Salvar Contagem
@@ -206,9 +216,10 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                     id="barcode"
                     type="tel"
                     inputMode="numeric"
-                    pattern="[0-9]*"
+                    // pattern="[0-9]*" // Removido para evitar bloqueios em browsers móveis
                     value={scanInput}
                     onChange={(e) => {
+                      // Mantém apenas números para o código de barras
                       const numericValue = e.target.value.replace(/\D/g, "");
                       setScanInput(numericValue);
                     }}
@@ -273,9 +284,22 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                         Cód. Barras: {scanInput}
                       </p>
                     </div>
-                    <Badge variant="secondary" className="ml-2">
-                      Estoque: {currentProduct.saldo_estoque}
-                    </Badge>
+
+                    {/* --- MUDANÇA AQUI: Exibição do Estoque e do Contado --- */}
+                    <div className="flex flex-col items-end gap-1 ml-2">
+                      <Badge
+                        variant="secondary"
+                        className="min-w-[100px] justify-center"
+                      >
+                        Sistema: {currentProduct.saldo_estoque}
+                      </Badge>
+                      <Badge
+                        variant="secondary"
+                        className="min-w-[100px] justify-center"
+                      >
+                        Contado: {currentTotalCount}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
               )}
