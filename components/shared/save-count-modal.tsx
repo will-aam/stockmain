@@ -95,7 +95,7 @@ export function SaveCountModal({
         </div>
 
         {/* Rodapé do modal com os botões de cancelar e salvar. */}
-        <DialogFooter>
+        <DialogFooter className="flex justify-end gap-2">
           <DialogClose asChild>
             <Button type="button" variant="outline" disabled={isLoading}>
               Cancelar
