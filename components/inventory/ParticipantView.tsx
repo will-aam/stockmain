@@ -335,25 +335,57 @@ export function ParticipantView({
 
               {currentProduct && (
                 <div className="p-4 border rounded-lg bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 animate-in zoom-in-95 duration-200">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-bold text-lg text-blue-800 dark:text-blue-200">
-                        Produto Encontrado
+                  {/* 1. FLEX CONTAINER PRINCIPAL: Alinha Texto e Badges */}
+                  <div className="flex items-start justify-between gap-3 overflow-hidden">
+                    {/* 2. COLUNA DA ESQUERDA (TEXTO): min-w-0 é vital para não empurrar os badges */}
+                    <div className="flex-1 min-w-0 flex flex-col">
+                      <h3 className="font-bold text-blue-800 dark:text-blue-200 truncate whitespace-nowrap text-sm sm:text-base">
+                        Item {/* Nome curto e fixo, igual ao ConferenceTab */}
                       </h3>
-                      <p className="text-sm text-blue-700 dark:text-blue-300 mt-1 font-medium leading-tight">
-                        {currentProduct.descricao}
-                      </p>
+
+                      {/* --- EFEITO DE LETREIRO DUPLICADO --- */}
+                      <div className="marquee-container mt-1 h-6">
+                        {currentProduct.descricao.length > 13 ? (
+                          // Se for longo: Renderiza DUAS vezes para criar o efeito de loop contínuo
+                          <div className="animate-marquee">
+                            <span className="mr-8 text-sm font-bold text-blue-700 dark:text-blue-300">
+                              {currentProduct.descricao}
+                            </span>
+                            <span className="text-sm font-bold text-blue-700 dark:text-blue-300">
+                              {currentProduct.descricao}
+                            </span>
+                          </div>
+                        ) : (
+                          // Se for curto: Renderiza normal, estático e truncado se necessário
+                          <p className="text-sm font-bold text-blue-700 dark:text-blue-300 truncate">
+                            {currentProduct.descricao}
+                          </p>
+                        )}
+                      </div>
+                      {/* ------------------------------------ */}
+
                       <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
                         Cód: {currentProduct.codigo_produto}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <span className="text-xs text-muted-foreground">
-                        Total Contado
-                      </span>
-                      <p className="text-2xl font-bold text-blue-600">
-                        {currentProduct.saldo_contado}
-                      </p>
+
+                    {/* 3. COLUNA DA DIREITA (BADGES): shrink-0 impede que sejam esmagados */}
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      {/* Badge de Estoque (Sistema) */}
+                      <Badge
+                        variant="secondary"
+                        className="min-w-[100px] justify-center shadow-sm"
+                      >
+                        Estoque: {currentProduct.saldo_sistema ?? 0}
+                      </Badge>
+
+                      {/* Badge de Contado (Agora padronizado com variant="secondary") */}
+                      <Badge
+                        variant="secondary"
+                        className="min-w-[100px] justify-center shadow-sm"
+                      >
+                        Contado: {currentProduct.saldo_contado}
+                      </Badge>
                     </div>
                   </div>
                 </div>

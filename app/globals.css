@@ -268,3 +268,46 @@ body {
     font-size: 0.875rem;
   }
 }
+
+/* Efeito de Letreiro (Marquee) */
+
+/* app/globals.css */
+
+@keyframes marquee {
+  0%,
+  15% {
+    transform: translateX(0);
+  } /* 1. Leitura inicial (Parado) */
+  90% {
+    transform: translateX(-100%);
+  } /* 2. Rola TUDO para a esquerda (some da tela) */
+  100% {
+    transform: translateX(-100%);
+  } /* 3. Pequena pausa no "vazio" antes de resetar */
+}
+
+.animate-marquee {
+  display: inline-flex; /* Importante: inline-flex para alinhar os textos duplicados */
+  white-space: nowrap;
+  animation: marquee 15s linear infinite; /* Ajuste 12s se quiser mais rápido/lento */
+  /* Removemos o padding-right antigo pois vamos duplicar o texto manualmente */
+}
+
+.marquee-container {
+  overflow: hidden;
+  display: flex; /* Garante que o container respeite a largura */
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 2%,
+    black 98%,
+    transparent
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 2%,
+    black 98%,
+    transparent
+  );
+}

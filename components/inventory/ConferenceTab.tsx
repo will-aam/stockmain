@@ -130,10 +130,10 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = React.useState("");
 
-  // --- NOVO CÁLCULO: Total já contado do produto atual ---
+  // --- NOVO CÁLCULO: Total já contado do Item atual ---
   const currentTotalCount = useMemo(() => {
     if (!currentProduct) return 0;
-    // Busca na lista de contagens se esse produto já existe
+    // Busca na lista de contagens se esse Item já existe
     const found = productCounts.find(
       (p) => p.codigo_produto === currentProduct.codigo_produto
     );
@@ -216,7 +216,6 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                     id="barcode"
                     type="tel"
                     inputMode="numeric"
-                    // pattern="[0-9]*" // Removido para evitar bloqueios em browsers móveis
                     value={scanInput}
                     onChange={(e) => {
                       // Mantém apenas números para o código de barras
@@ -248,33 +247,52 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                       : "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
                   }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
+                  {/* 1. FLEX CONTAINER PRINCIPAL: Alinha Texto e Badges */}
+                  <div className="flex items-start justify-between gap-3 overflow-hidden">
+                    {/* 2. COLUNA DA ESQUERDA (TEXTO): min-w-0 é vital para não empurrar os badges */}
+                    <div className="flex-1 min-w-0 flex flex-col">
                       <h3
-                        className={`font-semibold ${
+                        className={`font-semibold truncate whitespace-nowrap text-sm sm:text-base ${
                           "isTemporary" in currentProduct &&
                           currentProduct.isTemporary
                             ? "text-amber-800 dark:text-amber-200"
                             : "text-green-800 dark:text-green-200"
                         }`}
+                        title={
+                          "isTemporary" in currentProduct &&
+                          currentProduct.isTemporary
+                            ? "Item Temporário"
+                            : "Item Encontrado"
+                        }
                       >
                         {"isTemporary" in currentProduct &&
                         currentProduct.isTemporary
-                          ? "Produto Temporário"
-                          : "Produto Encontrado"}
+                          ? "Item Temporário"
+                          : "Item Encontrado"}
                       </h3>
+                      {/* --- EFEITO DE LETREIRO DUPLICADO --- */}
+                      <div className="marquee-container mt-1 h-6">
+                        {currentProduct.descricao.length > 13 ? (
+                          // Se for longo: Renderiza DUAS vezes para criar o efeito de loop
+                          <div className="animate-marquee">
+                            <span className="mr-8 text-sm font-bold text-green-700 dark:text-green-300">
+                              {currentProduct.descricao}
+                            </span>
+                            <span className="text-sm font-bold text-green-700 dark:text-green-300">
+                              {currentProduct.descricao}
+                            </span>
+                          </div>
+                        ) : (
+                          // Se for curto: Renderiza normal, estático
+                          <p className="text-sm font-bold text-green-700 dark:text-green-300 truncate">
+                            {currentProduct.descricao}
+                          </p>
+                        )}
+                      </div>
+                      {/* ------------------------------------ */}
+
                       <p
-                        className={`text-sm ${
-                          "isTemporary" in currentProduct &&
-                          currentProduct.isTemporary
-                            ? "text-amber-700 dark:text-amber-300"
-                            : "text-green-700 dark:text-green-300"
-                        }`}
-                      >
-                        {currentProduct.descricao}
-                      </p>
-                      <p
-                        className={`text-xs ${
+                        className={`text-xs mt-1 ${
                           "isTemporary" in currentProduct &&
                           currentProduct.isTemporary
                             ? "text-amber-600 dark:text-amber-400"
@@ -285,17 +303,17 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                       </p>
                     </div>
 
-                    {/* --- MUDANÇA AQUI: Exibição do Estoque e do Contado --- */}
-                    <div className="flex flex-col items-end gap-1 ml-2">
+                    {/* 3. COLUNA DA DIREITA (BADGES): shrink-0 impede que sejam esmagados ou jogados pra fora */}
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
                       <Badge
                         variant="secondary"
-                        className="min-w-[100px] justify-center"
+                        className="min-w-[100px] justify-center shadow-sm"
                       >
-                        Sistema: {currentProduct.saldo_estoque}
+                        Estoque: {currentProduct.saldo_estoque}
                       </Badge>
                       <Badge
                         variant="secondary"
-                        className="min-w-[100px] justify-center"
+                        className="min-w-[100px] justify-center shadow-sm"
                       >
                         Contado: {currentTotalCount}
                       </Badge>
@@ -372,8 +390,8 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                 <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p className="font-medium">
                   {searchQuery
-                    ? `Nenhum produto encontrado para "${searchQuery}"`
-                    : "Nenhum produto contado ainda"}
+                    ? `Nenhum Item encontrado para "${searchQuery}"`
+                    : "Nenhum Item contado ainda"}
                 </p>
                 <p className="text-sm">
                   {!searchQuery && "Escaneie um código para começar"}

@@ -89,7 +89,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
         if (response.status === 401 || response.status === 403) {
           throw new Error("Sessão expirada. Token inválido.");
         }
-        throw new Error("Falha ao carregar a lista de produtos.");
+        throw new Error("Falha ao carregar a lista de itens.");
       }
 
       const data = await response.json();
@@ -338,7 +338,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     setIsDemoMode(true);
     toast({
       title: "Modo Demo Ativado 🚀",
-      description: "Escaneie qualquer produto real para testar.",
+      description: "Escaneie qualquer Item real para testar.",
       className: "bg-blue-600 text-white border-none",
     });
   }, []);
@@ -376,7 +376,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       const demoProduct: Product = {
         id: Date.now(), // ID provisório
         codigo_produto: `DEMO-${code.slice(-4)}`,
-        descricao: `Produto de Teste (Cód: ${code.slice(-4)})`,
+        descricao: `Item de Teste (Cód: ${code.slice(-4)})`,
         saldo_estoque: randomStock,
       };
 
@@ -405,14 +405,14 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       id: `TEMP-${code}`,
       codigo_de_barras: code,
       codigo_produto: `TEMP-${code}`,
-      descricao: `Novo Produto`,
+      descricao: `Novo Item`,
       saldo_estoque: 0,
       isTemporary: true,
     };
     setTempProducts((prev) => [...prev, newTempProduct]);
     setCurrentProduct(newTempProduct);
     toast({
-      title: "Produto não cadastrado",
+      title: "Item não cadastrado",
       description:
         "Digite a quantidade para adicionar este novo item à contagem.",
     });
@@ -484,13 +484,13 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       {
         codigo_de_barras: "7891234567890",
         codigo_produto: "PROD001",
-        descricao: "Produto Exemplo 1",
+        descricao: "Item Exemplo 1",
         saldo_estoque: "100",
       },
       {
         codigo_de_barras: "7891234567891",
         codigo_produto: "PROD002",
-        descricao: "Produto Exemplo 2",
+        descricao: "Item Exemplo 2",
         saldo_estoque: "50",
       },
     ];
@@ -504,7 +504,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "template_produtos.csv";
+    link.download = "template_itens.csv";
     link.click();
     URL.revokeObjectURL(link.href);
   }, []);
