@@ -344,7 +344,7 @@ export function ParticipantView({
                       </h3>
 
                       {/* --- EFEITO DE LETREIRO DUPLICADO --- */}
-                      <div className="marquee-container mt-1 h-6">
+                      <div className="marquee-container mt-1 h-6 pl-2">
                         {currentProduct.descricao.length > 13 ? (
                           // Se for longo: Renderiza DUAS vezes para criar o efeito de loop contínuo
                           <div className="animate-marquee">

@@ -393,7 +393,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       setCurrentProduct(demoProduct);
 
       toast({
-        title: "Produto Simulado Criado! ✨",
+        title: "Produto Simulado Criado!",
         description: `Sistema diz que tem ${randomStock} unidades. Quanto você conta?`,
         className: "bg-green-600 text-white border-none",
       });

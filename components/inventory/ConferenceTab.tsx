@@ -252,7 +252,7 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                     {/* 2. COLUNA DA ESQUERDA (TEXTO): min-w-0 é vital para não empurrar os badges */}
                     <div className="flex-1 min-w-0 flex flex-col">
                       <h3
-                        className={`font-semibold truncate whitespace-nowrap text-sm sm:text-base ${
+                        className={`font-semibold truncate whitespace-nowrap text-sm sm:text-base pl-2 ${
                           "isTemporary" in currentProduct &&
                           currentProduct.isTemporary
                             ? "text-amber-800 dark:text-amber-200"
@@ -270,29 +270,50 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                           ? "Item Temporário"
                           : "Item Encontrado"}
                       </h3>
-                      {/* --- EFEITO DE LETREIRO DUPLICADO --- */}
-                      <div className="marquee-container mt-1 h-6">
+                      {/* --- EFEITO DE LETREIRO DUPLICADO (COM CORREÇÃO DE COR) --- */}
+                      <div className="marquee-container mt-1 h-6 pl-2">
                         {currentProduct.descricao.length > 13 ? (
                           // Se for longo: Renderiza DUAS vezes para criar o efeito de loop
                           <div className="animate-marquee">
-                            <span className="mr-8 text-sm font-bold text-green-700 dark:text-green-300">
+                            <span
+                              className={`mr-8 text-sm font-bold ${
+                                "isTemporary" in currentProduct &&
+                                currentProduct.isTemporary
+                                  ? "text-amber-700 dark:text-amber-300" // Laranja se for novo
+                                  : "text-green-700 dark:text-green-300" // Verde se já existir
+                              }`}
+                            >
                               {currentProduct.descricao}
                             </span>
-                            <span className="text-sm font-bold text-green-700 dark:text-green-300">
+                            <span
+                              className={`text-sm font-bold ${
+                                "isTemporary" in currentProduct &&
+                                currentProduct.isTemporary
+                                  ? "text-amber-700 dark:text-amber-300"
+                                  : "text-green-700 dark:text-green-300"
+                              }`}
+                            >
                               {currentProduct.descricao}
                             </span>
                           </div>
                         ) : (
                           // Se for curto: Renderiza normal, estático
-                          <p className="text-sm font-bold text-green-700 dark:text-green-300 truncate">
+                          <p
+                            className={`text-sm font-bold truncate ${
+                              "isTemporary" in currentProduct &&
+                              currentProduct.isTemporary
+                                ? "text-amber-700 dark:text-amber-300" // Laranja se for novo
+                                : "text-green-700 dark:text-green-300" // Verde se já existir
+                            }`}
+                          >
                             {currentProduct.descricao}
                           </p>
                         )}
                       </div>
-                      {/* ------------------------------------ */}
+                      {/* ---------------------------------------------------------- */}
 
                       <p
-                        className={`text-xs mt-1 ${
+                        className={`text-xs mt-1 pl-2 ${
                           "isTemporary" in currentProduct &&
                           currentProduct.isTemporary
                             ? "text-amber-600 dark:text-amber-400"
