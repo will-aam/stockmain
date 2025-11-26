@@ -20,6 +20,23 @@ function generateSessionCode(length = 6) {
   return result;
 }
 
+// Helper de erro padronizado (para não repetir código)
+const handleAuthError = (error: any, context: string) => {
+  const status =
+    error.message.includes("Acesso não autorizado") ||
+    error.message.includes("Acesso negado")
+      ? error.message.includes("negado")
+        ? 403
+        : 401
+      : 500;
+
+  console.error(`Erro em ${context}:`, error.message);
+  return NextResponse.json(
+    { error: error.message || "Erro interno." },
+    { status }
+  );
+};
+
 /**
  * Cria uma nova sessão de contagem.
  */
@@ -50,7 +67,6 @@ export async function POST(
       where: { codigo_acesso: codigo },
     });
 
-    // Loop de segurança caso o código gerado já exista (raro, mas possível)
     while (exists) {
       codigo = generateSessionCode();
       exists = await prisma.sessao.findUnique({
@@ -70,12 +86,7 @@ export async function POST(
 
     return NextResponse.json(novaSessao, { status: 201 });
   } catch (error: any) {
-    console.error("Erro ao criar sessão:", error);
-    const status = error.message.includes("Acesso") ? 401 : 500;
-    return NextResponse.json(
-      { error: error.message || "Erro interno." },
-      { status }
-    );
+    return handleAuthError(error, "criar sessão");
   }
 }
 
@@ -105,7 +116,6 @@ export async function GET(
 
     return NextResponse.json(sessoes);
   } catch (error: any) {
-    console.error("Erro ao listar sessões:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return handleAuthError(error, "listar sessões");
   }
 }

@@ -6,19 +6,23 @@
  * ROTA PROTEGIDA: Esta rota valida o Token JWT antes de executar.
  */
 
-import { NextResponse, NextRequest } from "next/server"; // Importamos o NextRequest
+import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Produto } from "@prisma/client";
-import { validateAuth } from "@/lib/auth"; // 1. IMPORTAMOS O GUARDIÃO
+import { validateAuth } from "@/lib/auth";
+
+// Helper para converter Decimal do Prisma em Number do JS
+// Isso evita erros de serialização JSON e cálculos no frontend
+const toNum = (val: any) => {
+  if (!val) return 0;
+  if (typeof val.toNumber === "function") return val.toNumber();
+  return Number(val);
+};
 
 /**
  * Busca o catálogo de produtos e códigos de barras de um usuário.
- * @param request - O objeto da requisição (para lermos os headers).
- * @param params - Parâmetros da rota, incluindo o userId.
- * @returns JSON com a lista de produtos e códigos de barras.
  */
 export async function GET(
-  request: NextRequest, // 2. Mudamos de Request para NextRequest
+  request: NextRequest,
   { params }: { params: { userId: string } }
 ) {
   try {
@@ -30,25 +34,33 @@ export async function GET(
       );
     }
 
-    // 3. CHAMAMOS O GUARDIÃO PRIMEIRO
+    // 1. Segurança
     await validateAuth(request, userId);
 
-    // 4. Se a autenticação passar, a lógica original continua...
+    // 2. Buscar dados
     const userBarCodes = await prisma.codigoBarras.findMany({
       where: { usuario_id: userId },
       include: { produto: true },
     });
 
+    // 3. Mapear e Converter Decimais
     const userProducts = userBarCodes
-      .map((bc) => bc.produto)
-      .filter((p): p is Produto => p !== null);
+      .map((bc) => {
+        if (!bc.produto) return null;
+        return {
+          ...bc.produto,
+          // CORREÇÃO: Converter Decimal -> Number para não quebrar o JSON
+          saldo_estoque: toNum(bc.produto.saldo_estoque),
+        };
+      })
+      .filter((p) => p !== null);
 
     return NextResponse.json({
       products: userProducts,
       barCodes: userBarCodes,
     });
   } catch (error: any) {
-    // 5. Capturamos erros de autenticação ou do banco
+    // Tratamento de erro de Auth
     const status =
       error.message.includes("Acesso não autorizado") ||
       error.message.includes("Acesso negado")
@@ -66,13 +78,10 @@ export async function GET(
 }
 
 /**
- * Exclui todos os dados de inventário (produtos, códigos, contagens) de um usuário.
- * @param request - O objeto da requisição (para lermos os headers).
- * @param params - Parâmetros da rota, incluindo o userId.
- * @returns JSON de sucesso ou erro.
+ * Exclui todos os dados de inventário de forma ATÔMICA.
  */
 export async function DELETE(
-  request: NextRequest, // 6. Mudamos de Request para NextRequest
+  request: NextRequest,
   { params }: { params: { userId: string } }
 ) {
   try {
@@ -84,30 +93,20 @@ export async function DELETE(
       );
     }
 
-    // 7. CHAMAMOS O GUARDIÃO PRIMEIRO
+    // 1. Segurança
     await validateAuth(request, userId);
 
-    // 8. EXECUÇÃO ATÔMICA (Tudo ou Nada)
-    // O $transaction garante que se o passo 3 falhar, o passo 1 é desfeito.
+    // 2. Transação (Atomicidade) - Mantida conforme sua versão correta
     await prisma.$transaction([
-      // Ordem de exclusão (respeitando chaves estrangeiras, embora cascade ajude):
-
-      // 1. Remove os itens contados (filhos de contagem)
       prisma.itemContado.deleteMany({
         where: { contagem: { usuario_id: userId } },
       }),
-
-      // 2. Remove as contagens (pais dos itens contados)
       prisma.contagem.deleteMany({
         where: { usuario_id: userId },
       }),
-
-      // 3. Remove códigos de barras (filhos de produto)
       prisma.codigoBarras.deleteMany({
         where: { usuario_id: userId },
       }),
-
-      // 4. Remove produtos (raiz)
       prisma.produto.deleteMany({
         where: { usuario_id: userId },
       }),
@@ -115,10 +114,9 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
-      message: "Dados do inventário excluídos com sucesso (Transação Segura).",
+      message: "Dados do inventário excluídos com sucesso.",
     });
   } catch (error: any) {
-    // 9. Capturamos erros de autenticação ou do banco
     const status =
       error.message.includes("Acesso não autorizado") ||
       error.message.includes("Acesso negado")

@@ -6,18 +6,32 @@
  * ROTA PROTEGIDA: Esta rota valida o Token JWT antes de executar.
  */
 
-import { NextResponse, NextRequest } from "next/server"; // Importamos o NextRequest
+import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { validateAuth } from "@/lib/auth"; // 1. IMPORTAMOS O GUARDIÃO
+import { validateAuth } from "@/lib/auth";
+
+// Helper de erro padronizado
+const handleAuthError = (error: any, context: string) => {
+  const status =
+    error.message.includes("Acesso não autorizado") ||
+    error.message.includes("Acesso negado")
+      ? error.message.includes("negado")
+        ? 403
+        : 401
+      : 500;
+
+  console.error(`Erro em ${context}:`, error.message);
+  return NextResponse.json(
+    { error: error.message || "Erro interno do servidor." },
+    { status }
+  );
+};
 
 /**
  * Busca todo o histórico de contagens de um usuário.
- * @param request - O objeto da requisição (para lermos os headers).
- * @param params - Parâmetros da rota, incluindo o userId.
- * @returns JSON com a lista de contagens.
  */
 export async function GET(
-  request: NextRequest, // 2. Mudamos de Request para NextRequest
+  request: NextRequest,
   { params }: { params: { userId: string } }
 ) {
   try {
@@ -29,10 +43,10 @@ export async function GET(
       );
     }
 
-    // 3. CHAMAMOS O GUARDIÃO PRIMEIRO
+    // 1. Segurança
     await validateAuth(request, userId);
 
-    // 4. Se a autenticação passar, a lógica original continua...
+    // 2. Buscar histórico
     const savedCounts = await prisma.contagemSalva.findMany({
       where: { usuario_id: userId },
       orderBy: { created_at: "desc" },
@@ -40,31 +54,15 @@ export async function GET(
 
     return NextResponse.json(savedCounts);
   } catch (error: any) {
-    // 5. Capturamos erros de autenticação ou do banco
-    const status =
-      error.message.includes("Acesso não autorizado") ||
-      error.message.includes("Acesso negado")
-        ? error.message.includes("negado")
-          ? 403
-          : 401
-        : 500; // Erro interno se não for de auth
-
-    console.error("Erro ao buscar histórico:", error.message);
-    return NextResponse.json(
-      { error: error.message || "Erro interno do servidor." },
-      { status: status }
-    );
+    return handleAuthError(error, "buscar histórico");
   }
 }
 
 /**
  * Salva uma nova contagem no histórico do usuário.
- * @param request - Requisição com o nome do arquivo e conteúdo CSV.
- * @param params - Parâmetros da rota, incluindo o userId.
- * @returns JSON com o novo registro criado.
  */
 export async function POST(
-  request: NextRequest, // 6. Mudamos de Request para NextRequest
+  request: NextRequest,
   { params }: { params: { userId: string } }
 ) {
   try {
@@ -76,10 +74,10 @@ export async function POST(
       );
     }
 
-    // 7. CHAMAMOS O GUARDIÃO PRIMEIRO
+    // 1. Segurança
     await validateAuth(request, userId);
 
-    // 8. Se a autenticação passar, a lógica original continua...
+    // 2. Validar Payload
     const { fileName, csvContent } = await request.json();
     if (!fileName || !csvContent) {
       return NextResponse.json(
@@ -88,6 +86,7 @@ export async function POST(
       );
     }
 
+    // 3. Salvar
     const newSavedCount = await prisma.contagemSalva.create({
       data: {
         nome_arquivo: fileName,
@@ -98,19 +97,6 @@ export async function POST(
 
     return NextResponse.json(newSavedCount, { status: 201 });
   } catch (error: any) {
-    // 9. Capturamos erros de autenticação ou do banco
-    const status =
-      error.message.includes("Acesso não autorizado") ||
-      error.message.includes("Acesso negado")
-        ? error.message.includes("negado")
-          ? 403
-          : 401
-        : 500; // Erro interno se não for de auth
-
-    console.error("Erro ao salvar contagem:", error.message);
-    return NextResponse.json(
-      { error: error.message || "Erro interno do servidor." },
-      { status: status }
-    );
+    return handleAuthError(error, "salvar contagem");
   }
 }
