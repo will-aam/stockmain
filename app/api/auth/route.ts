@@ -1,4 +1,10 @@
 // app/api/auth/route.ts
+/**
+ * Rota de API para autenticação do usuário (Login).
+ * Responsabilidade:
+ * 1. POST: Autenticar usuário e emitir token JWT via cookie seguro.
+ */
+
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";

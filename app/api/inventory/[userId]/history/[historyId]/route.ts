@@ -6,18 +6,32 @@
  * ROTA PROTEGIDA: Esta rota valida o Token JWT antes de executar.
  */
 
-import { NextResponse, NextRequest } from "next/server"; // Importamos o NextRequest
+import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { validateAuth } from "@/lib/auth"; // 1. IMPORTAMOS O GUARDIÃO
+import { validateAuth } from "@/lib/auth";
+
+// Helper de erro padronizado (Igual aos outros arquivos)
+const handleAuthError = (error: any, context: string) => {
+  const status =
+    error.message.includes("Acesso não autorizado") ||
+    error.message.includes("Acesso negado")
+      ? error.message.includes("negado")
+        ? 403
+        : 401
+      : 500;
+
+  console.error(`Erro em ${context}:`, error.message);
+  return NextResponse.json(
+    { error: error.message || "Erro interno do servidor." },
+    { status }
+  );
+};
 
 /**
  * Exclui um item específico do histórico de um usuário.
- * @param request - O objeto da requisição (para lermos os headers).
- * @param params - Parâmetros da rota, incluindo o userId e o historyId.
- * @returns JSON de sucesso ou erro.
  */
 export async function DELETE(
-  request: NextRequest, // 2. Mudamos de Request para NextRequest
+  request: NextRequest,
   { params }: { params: { userId: string; historyId: string } }
 ) {
   try {
@@ -28,14 +42,10 @@ export async function DELETE(
       return NextResponse.json({ error: "IDs inválidos." }, { status: 400 });
     }
 
-    // 3. CHAMAMOS O GUARDIÃO PRIMEIRO (Segurança)
+    // 1. Segurança
     await validateAuth(request, userId);
 
-    // 4. Se a autenticação passar, executamos a exclusão segura.
-    // CORREÇÃO: Usamos deleteMany em vez de delete.
-    // O método .delete() exige uma chave única (@unique) no where.
-    // Como { id, usuario_id } não é único no schema, usamos deleteMany
-    // que permite filtrar por múltiplos campos e garante que o usuário só apague o que é dele.
+    // 2. Exclusão Segura (Garante propriedade com deleteMany)
     const result = await prisma.contagemSalva.deleteMany({
       where: {
         id: historyId,
@@ -43,7 +53,6 @@ export async function DELETE(
       },
     });
 
-    // Opcional: Verificar se algo foi realmente apagado
     if (result.count === 0) {
       return NextResponse.json(
         {
@@ -59,19 +68,6 @@ export async function DELETE(
       { status: 200 }
     );
   } catch (error: any) {
-    // 5. Capturamos erros de autenticação ou do banco
-    const status =
-      error.message.includes("Acesso não autorizado") ||
-      error.message.includes("Acesso negado")
-        ? error.message.includes("negado")
-          ? 403
-          : 401
-        : 500; // Erro interno se não for de auth
-
-    console.error("Erro ao excluir item do histórico:", error.message);
-    return NextResponse.json(
-      { error: error.message || "Erro interno do servidor." },
-      { status: status }
-    );
+    return handleAuthError(error, "excluir histórico");
   }
 }
