@@ -22,7 +22,7 @@ interface CsvRow {
 }
 
 /**
- * Manipula a requisição POST para importar um arquivo CSV com SSE.
+ * Manipula a requisição POST para importar um arquivo CSV.
  * @param request - Requisição contendo o arquivo CSV em FormData.
  * @param params - Parâmetros da rota, incluindo o userId.
  * @returns Um objeto Response com streaming para os eventos de progresso.
@@ -32,7 +32,7 @@ export async function POST(
   { params }: { params: { userId: string } }
 ) {
   const userId = parseInt(params.userId, 10);
-  const encoder = new TextEncoder(); // Movemos o encoder para fora
+  const encoder = new TextEncoder(); // Movemos o encoder para fora para otimização
 
   // Verificação inicial do ID (antes de criar o stream)
   if (isNaN(userId)) {
@@ -60,15 +60,14 @@ export async function POST(
         // 3. SE A AUTENTICAÇÃO PASSAR, A LÓGICA DE IMPORTAÇÃO CONTINUA...
         const formData = await request.formData();
         const file = formData.get("file") as File;
+
         if (!file) {
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({
-                error: "Nenhum arquivo enviado.",
-              })}\n\n`
-            )
+          createSseErrorResponse(
+            controller,
+            encoder,
+            "Nenhum arquivo enviado.",
+            400
           );
-          controller.close();
           return;
         }
 
@@ -80,15 +79,7 @@ export async function POST(
         });
 
         if (parseResult.errors.length > 0) {
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({
-                error: "Erro ao analisar o CSV.",
-                details: parseResult.errors,
-              })}\n\n`
-            )
-          );
-          controller.close();
+          createSseErrorResponse(controller, encoder, "Erro ao ler CSV.", 400);
           return;
         }
 
@@ -103,81 +94,109 @@ export async function POST(
           )
         );
 
-        // ... (RESTANTE DA LÓGICA DE IMPORTAÇÃO ORIGINAL) ...
+        // Loop de processamento de cada linha do CSV
         for (const [index, row] of parseResult.data.entries()) {
-          const saldoNumerico = parseFloat(row.saldo_estoque.replace(",", "."));
-          if (
-            isNaN(saldoNumerico) ||
-            !row.codigo_produto ||
-            !row.codigo_de_barras
-          ) {
+          const saldoNumerico = parseFloat(
+            row.saldo_estoque?.replace(",", ".") || "0"
+          );
+          const codProduto = row.codigo_produto?.trim();
+          const codBarras = row.codigo_de_barras?.trim();
+          const descricao = row.descricao?.trim();
+
+          if (isNaN(saldoNumerico) || !codProduto || !codBarras) {
             errorCount++;
+            // Envia progresso mesmo com erro para o cliente saber que a linha foi processada
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  type: "progress",
+                  current: index + 1,
+                  total: totalRows,
+                  imported: importedCount,
+                  errors: errorCount,
+                })}\n\n`
+              )
+            ); // <--- PONTO E VÍRGULA ADICIONADO AQUI (Correção 1)
             continue;
           }
 
           try {
-            const product = await prisma.produto.upsert({
-              where: {
-                codigo_produto_usuario_id: {
-                  codigo_produto: row.codigo_produto,
+            // --- INÍCIO DA REFATORAÇÃO: Atomicidade por Linha ---
+            // Todas as operações para esta linha estão dentro de uma única transação.
+            // Se qualquer uma falhar, tudo o que foi feito nesta linha é desfeito (rollback).
+            await prisma.$transaction(async (tx) => {
+              // 1. Upsert do Produto
+              const product = await tx.produto.upsert({
+                where: {
+                  codigo_produto_usuario_id: {
+                    codigo_produto: codProduto,
+                    usuario_id: userId,
+                  },
+                },
+                update: {
+                  descricao: descricao,
+                  saldo_estoque: saldoNumerico,
+                },
+                create: {
+                  codigo_produto: codProduto,
+                  descricao: descricao,
+                  saldo_estoque: saldoNumerico,
                   usuario_id: userId,
                 },
-              },
-              update: {
-                descricao: row.descricao,
-                saldo_estoque: saldoNumerico,
-              },
-              create: {
-                codigo_produto: row.codigo_produto,
-                descricao: row.descricao,
-                saldo_estoque: saldoNumerico,
-                usuario_id: userId,
-              },
-            });
+              });
 
-            await prisma.codigoBarras.upsert({
-              where: {
-                codigo_de_barras_usuario_id: {
-                  codigo_de_barras: row.codigo_de_barras,
+              // 2. Upsert do Código de Barras Principal
+              await tx.codigoBarras.upsert({
+                where: {
+                  codigo_de_barras_usuario_id: {
+                    codigo_de_barras: codBarras,
+                    usuario_id: userId,
+                  },
+                },
+                update: {
+                  produto_id: product.id,
+                },
+                create: {
+                  codigo_de_barras: codBarras,
+                  produto_id: product.id,
                   usuario_id: userId,
                 },
-              },
-              update: {
-                produto_id: product.id,
-              },
-              create: {
-                codigo_de_barras: row.codigo_de_barras,
-                produto_id: product.id,
-                usuario_id: userId,
-              },
-            });
+              });
 
-            await prisma.codigoBarras.deleteMany({
-              where: {
-                produto_id: product.id,
-                usuario_id: userId,
-                NOT: {
-                  codigo_de_barras: row.codigo_de_barras,
+              // 3. Limpeza de vínculos antigos (se o código mudou de produto, por exemplo)
+              await tx.codigoBarras.deleteMany({
+                where: {
+                  produto_id: product.id,
+                  usuario_id: userId,
+                  NOT: {
+                    codigo_de_barras: codBarras,
+                  },
                 },
-              },
+              });
             });
+            // --- FIM DA TRANSAÇÃO ---
 
             importedCount++;
           } catch (error: any) {
+            // O tratamento de erro original continua válido aqui.
+            // Se a transação falhar, ela será capturada aqui.
             if (
               error instanceof Prisma.PrismaClientKnownRequestError &&
               error.code === "P2002"
             ) {
               console.log(
-                `Código de barras duplicado no banco (P2002), ignorando linha: ${row.codigo_de_barras}`
+                `Conflito de chave única (P2002) na linha ${
+                  index + 2
+                }, ignorando.`
               );
               errorCount++;
             } else {
-              console.error(`Erro ao processar linha ${index + 2}:`, error);
+              console.error(`Erro ao processar a linha ${index + 2}:`, error);
               errorCount++;
             }
           }
 
+          // Envia o progresso após o processamento de cada linha (sucesso ou erro)
           controller.enqueue(
             encoder.encode(
               `data: ${JSON.stringify({
@@ -188,9 +207,13 @@ export async function POST(
                 errors: errorCount,
               })}\n\n`
             )
-          );
+          ); // <--- PONTO E VÍRGULA ADICIONADO AQUI (Correção 2)
+
+          // Pequeno atraso para não sobrecarregar o cliente
+          await new Promise((resolve) => setTimeout(resolve, 0));
         }
 
+        // Envia o evento final de conclusão
         controller.enqueue(
           encoder.encode(
             `data: ${JSON.stringify({
@@ -207,9 +230,7 @@ export async function POST(
           error.message.includes("Acesso não autorizado") ||
           error.message.includes("Acesso negado")
         ) {
-          // Usamos o status 401 (Unauthorized) ou 403 (Forbidden)
-          const status = error.message.includes("negado") ? 403 : 401;
-          createSseErrorResponse(controller, encoder, error.message, status);
+          createSseErrorResponse(controller, encoder, error.message, 401);
         } else {
           // Se for um erro interno da importação
           console.error("Erro na importação de CSV:", error);
