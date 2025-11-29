@@ -43,10 +43,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ScrollArea } from "@/components/ui/scroll-area"; // Importamos o ScrollArea
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // --- Ícones ---
-// Adicionamos Share2 e Link para a funcionalidade de compartilhamento
 import {
   Upload,
   Download,
@@ -55,47 +54,42 @@ import {
   Monitor,
   Share2,
   Link as LinkIcon,
-  Zap, // Adicionado ícone Zap para o botão de demo
+  Zap,
+  XCircle,
+  AlertTriangle,
 } from "lucide-react";
 
 // --- Tipos ---
 import type { Product, BarCode } from "@/lib/types";
-import { toast } from "@/hooks/use-toast"; // Importamos o toast para feedback
+import { toast } from "@/hooks/use-toast";
 
 // --- Interfaces e Tipos ---
-/**
- * Props para o componente ImportTab.
- */
 interface ImportTabProps {
-  // Props necessárias para a lógica de upload com progresso (SSE)
   userId: number | null;
   setIsLoading: (loading: boolean) => void;
   setCsvErrors: (errors: string[]) => void;
   loadCatalogFromDb: () => Promise<void>;
-
-  // Props de estado para exibição na UI
   isLoading: boolean;
   csvErrors: string[];
   products: Product[];
   barCodes: BarCode[];
   downloadTemplateCSV: () => void;
-  onStartDemo: () => void; // Nova prop para o botão de demo
+  onStartDemo: () => void;
 }
 
-// --- Subcomponentes ---
-/**
- * Props para o subcomponente ProductTableRow.
- */
+// --- Nova Interface para Erros de Importação ---
+interface ImportErrorDetail {
+  row?: number;
+  message: string;
+  type: "error" | "conflict" | "fatal";
+  details?: string;
+}
+
 interface ProductTableRowProps {
   product: Product;
   barCode?: BarCode;
 }
 
-/**
- * Subcomponente que renderiza uma única linha na tabela de produtos.
- * @param product - O objeto Product a ser exibido.
- * @param barCode - O objeto BarCode associado ao produto (opcional).
- */
 const ProductTableRow: React.FC<ProductTableRowProps> = ({
   product,
   barCode,
@@ -113,22 +107,14 @@ const ProductTableRow: React.FC<ProductTableRowProps> = ({
 );
 ProductTableRow.displayName = "ProductTableRow";
 
-/**
- * Props para o subcomponente CsvInstructions.
- */
 interface CsvInstructionsProps {
   downloadTemplateCSV: () => void;
-  isMobile?: boolean; // Nova prop para indicar se é mobile
+  isMobile?: boolean;
 }
 
-/**
- * Subcomponente que exibe as instruções para formatar o arquivo CSV.
- * @param downloadTemplateCSV - Função para baixar o arquivo template.
- * @param isMobile - Indica se está em modo mobile (opcional).
- */
 const CsvInstructions: React.FC<CsvInstructionsProps> = ({
   downloadTemplateCSV,
-  isMobile = false, // Valor padrão é false (desktop)
+  isMobile = false,
 }) => (
   <div className="space-y-4">
     <div className="p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
@@ -159,13 +145,11 @@ const CsvInstructions: React.FC<CsvInstructionsProps> = ({
       </ul>
     </div>
 
-    {/* Bloco de código - exibido apenas no desktop */}
     {!isMobile && (
       <div className="text-xs text-blue-600 dark:text-blue-400">
         <div className="relative bg-gray-950 text-gray-100 rounded-md p-3 font-mono text-xs border border-gray-800">
           <button
             onClick={() => {
-              // Usamos \t para facilitar a colagem no Excel
               const textoParaAreaDeTransferencia =
                 "codigo_de_barras\tcodigo_produto\tdescricao\tsaldo_estoque";
               navigator.clipboard
@@ -205,26 +189,18 @@ const CsvInstructions: React.FC<CsvInstructionsProps> = ({
 );
 CsvInstructions.displayName = "CsvInstructions";
 
-// --- Componente Principal ---
-/**
- * Componente ImportTab.
- * Orquestra a interface de importação com progresso real.
- */
 export const ImportTab: React.FC<ImportTabProps> = ({
-  // Props para a lógica de upload com progresso (SSE)
   userId,
   setIsLoading,
   setCsvErrors,
   loadCatalogFromDb,
-  // Props de estado para exibição na UI
   isLoading,
   csvErrors,
   products,
   barCodes,
   downloadTemplateCSV,
-  onStartDemo, // Nova prop recebida
+  onStartDemo,
 }) => {
-  // --- Estado Local para o Progresso da Importação ---
   const [importProgress, setImportProgress] = useState<{
     current: number;
     total: number;
@@ -239,10 +215,9 @@ export const ImportTab: React.FC<ImportTabProps> = ({
 
   const [isImporting, setIsImporting] = useState(false);
 
-  // --- Funções de Compartilhamento (Link Mágico) ---
-  /**
-   * Tenta usar a API de compartilhamento nativa (Mobile) ou copia para a área de transferência.
-   */
+  // --- NOVO ESTADO PARA OS ERROS DE IMPORTACAO ---
+  const [importErrors, setImportErrors] = useState<ImportErrorDetail[]>([]);
+
   const handleShareLink = async () => {
     const url = typeof window !== "undefined" ? window.location.href : "";
     const shareData = {
@@ -251,7 +226,6 @@ export const ImportTab: React.FC<ImportTabProps> = ({
       url: url,
     };
 
-    // Se o navegador suportar compartilhamento nativo (comum em mobile)
     if (navigator.share) {
       try {
         await navigator.share(shareData);
@@ -259,14 +233,10 @@ export const ImportTab: React.FC<ImportTabProps> = ({
         console.log("Usuário cancelou o compartilhamento ou erro:", err);
       }
     } else {
-      // Fallback: Copia o link
       handleCopyLink();
     }
   };
 
-  /**
-   * Copia o link atual para a área de transferência.
-   */
   const handleCopyLink = () => {
     const url = typeof window !== "undefined" ? window.location.href : "";
     navigator.clipboard.writeText(url).then(() => {
@@ -277,27 +247,14 @@ export const ImportTab: React.FC<ImportTabProps> = ({
     });
   };
 
-  /**
-   * Função para lidar com o upload do arquivo usando a stream de resposta do Fetch.
-   * @param e - Evento de mudança do input de arquivo.
-   */
   const handleCsvUploadWithProgress = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = e.target.files?.[0];
     if (!file || !userId) return;
 
-    // REMOVIDO: Verificação manual de token
-    /*
-    const token = sessionStorage.getItem("authToken");
-    if (!token) {
-      setCsvErrors(["Erro de autenticação. Faça login novamente."]);
-      setIsImporting(false);
-      setIsLoading(false);
-      return;
-    }
-    */
-
+    // --- LIMPA OS ERROS ANTES DE COMEÇAR ---
+    setImportErrors([]);
     setIsImporting(true);
     setCsvErrors([]);
     setImportProgress({
@@ -315,13 +272,9 @@ export const ImportTab: React.FC<ImportTabProps> = ({
       const response = await fetch(`/api/inventory/${userId}/import`, {
         method: "POST",
         body: formData,
-        // REMOVIDO: headers: { Authorization: ... }
-        // Não precisamos de headers manuais aqui, o cookie vai automático.
-        // E não definimos Content-Type porque o browser faz isso sozinho para FormData.
       });
 
       if (!response.ok) {
-        // Adicionar verificação de sessão
         if (response.status === 401 || response.status === 403) {
           throw new Error("Sessão expirada. Faça login novamente.");
         }
@@ -338,7 +291,6 @@ export const ImportTab: React.FC<ImportTabProps> = ({
         );
       }
 
-      // Processar a stream de Server-Sent Events (SSE) vinda do POST
       const reader = response.body
         .pipeThrough(new TextDecoderStream())
         .getReader();
@@ -348,21 +300,69 @@ export const ImportTab: React.FC<ImportTabProps> = ({
         const { value, done } = await reader.read();
 
         if (done) {
-          // O stream terminou.
           break;
         }
 
         buffer += value;
         const lines = buffer.split("\n");
-
-        // Mantém a última linha no buffer, pois pode estar incompleta
         buffer = lines.pop() || "";
 
         for (const line of lines) {
-          // Processa apenas linhas que são eventos de dados SSE
           if (line.startsWith("data: ")) {
             const dataString = line.substring(6);
             const data = JSON.parse(dataString);
+
+            // --- NOVA LÓGICA PARA CAPTURAR ERROS DETALHADOS ---
+
+            // 1. Erro Fatal (Cabeçalho errado, arquivo inválido)
+            if (data.type === "fatal") {
+              let msg = data.error;
+              // Melhoria da mensagem de cabeçalho que você pediu:
+              if (data.missing && Array.isArray(data.missing)) {
+                msg = `O arquivo não possui as colunas obrigatórias: ${data.missing.join(
+                  ", "
+                )}.`;
+              }
+
+              setImportErrors((prev) => [
+                ...prev,
+                {
+                  message: msg,
+                  type: "fatal",
+                },
+              ]);
+
+              // Para tudo, pois é fatal
+              setIsImporting(false);
+              setIsLoading(false);
+              return;
+            }
+
+            // 2. Erro na Linha (Dado inválido)
+            if (data.type === "row_error") {
+              setImportErrors((prev) => [
+                ...prev,
+                {
+                  row: data.row,
+                  message: data.reasons.join(", "),
+                  type: "error",
+                },
+              ]);
+            }
+
+            // 3. Conflito (P2002 - Código duplicado no banco)
+            if (data.type === "row_conflict") {
+              setImportErrors((prev) => [
+                ...prev,
+                {
+                  row: data.row,
+                  message: `Código de barras ${data.barcode} já existe no sistema.`,
+                  type: "conflict",
+                },
+              ]);
+            }
+
+            // --- FIM DA NOVA LÓGICA DE ERROS ---
 
             if (data.error) {
               let errorMessage = data.error;
@@ -384,8 +384,8 @@ export const ImportTab: React.FC<ImportTabProps> = ({
               setCsvErrors([errorMessage]);
               setIsImporting(false);
               setIsLoading(false);
-              reader.releaseLock(); // Libera o leitor
-              return; // Para a execução
+              reader.releaseLock();
+              return;
             }
 
             if (data.type === "start") {
@@ -396,7 +396,6 @@ export const ImportTab: React.FC<ImportTabProps> = ({
                 errors: 0,
               });
             } else if (data.type === "progress") {
-              // Usa uma atualização funcional para evitar estado obsoleto (stale state)
               setImportProgress((prev) => ({
                 ...prev,
                 current: data.current,
@@ -410,9 +409,9 @@ export const ImportTab: React.FC<ImportTabProps> = ({
               );
               setIsImporting(false);
               setIsLoading(false);
-              await loadCatalogFromDb(); // Espera o recarregamento dos dados
+              await loadCatalogFromDb();
               reader.releaseLock();
-              return; // Importação bem-sucedida, sai do loop
+              return;
             }
           }
         }
@@ -427,7 +426,6 @@ export const ImportTab: React.FC<ImportTabProps> = ({
 
   return (
     <>
-      {/* Card principal para o upload de arquivos e instruções. */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
@@ -443,7 +441,6 @@ export const ImportTab: React.FC<ImportTabProps> = ({
             </span>
           </CardDescription>
 
-          {/* Seção de instruções: exibida diretamente em desktop ou dentro de um Dialog em mobile. */}
           <div className="hidden sm:block mt-4">
             <CsvInstructions
               downloadTemplateCSV={downloadTemplateCSV}
@@ -460,16 +457,15 @@ export const ImportTab: React.FC<ImportTabProps> = ({
                 </Button>
               </DialogTrigger>
 
-              {/* Versão responsiva do DialogContent com altura dinâmica */}
               <DialogContent
                 className={`
                   w-full
-                  max-w-[calc(100vw-2rem)]  /* nunca passa da width da tela - 2rem */
-                  sm:max-w-2xl              /* em telas maiores, limita para 2xl */
-                  max-h-[85vh]              /* altura máxima, mas não fixa */
-                  p-0                       /* tiramos o padding do container */
+                  max-w-[calc(100vw-2rem)]
+                  sm:max-w-2xl
+                  max-h-[85vh]
+                  p-0
                   flex flex-col
-                  overflow-hidden           /* impede scroll horizontal no próprio modal */
+                  overflow-hidden
                 `}
               >
                 <DialogHeader className="px-4 pt-4 pb-2 sm:px-6 sm:pt-6 sm:pb-3">
@@ -478,12 +474,11 @@ export const ImportTab: React.FC<ImportTabProps> = ({
                   </DialogTitle>
                 </DialogHeader>
 
-                {/* Área rolável - agora com altura dinâmica */}
                 <ScrollArea className="px-4 pb-4 sm:px-6 sm:pb-6">
                   <div className="max-w-full">
                     <CsvInstructions
                       downloadTemplateCSV={downloadTemplateCSV}
-                      isMobile={true} // Indica que é a versão mobile
+                      isMobile={true}
                     />
                   </div>
                 </ScrollArea>
@@ -492,7 +487,6 @@ export const ImportTab: React.FC<ImportTabProps> = ({
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Campo de input para o upload do arquivo CSV - Apenas desktop */}
           <div className="hidden sm:block space-y-2">
             <Label htmlFor="csv-file">Arquivo CSV</Label>
             <Input
@@ -501,15 +495,13 @@ export const ImportTab: React.FC<ImportTabProps> = ({
               accept=".csv"
               onChange={handleCsvUploadWithProgress}
               disabled={isLoading || isImporting}
-              // Adiciona uma key para forçar o reset do input
               key={isImporting ? "importing" : "idle"}
             />
-            {/* Renderizar a barra de progresso se existir e o upload estiver ativo. */}
+
             {isImporting && importProgress.total > 0 && (
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Importando...</span>
-                  {/* MUDANÇA AQUI: Cálculo de Porcentagem */}
                   <span>
                     {Math.round(
                       (importProgress.current / importProgress.total) * 100
@@ -521,21 +513,69 @@ export const ImportTab: React.FC<ImportTabProps> = ({
                   value={(importProgress.current / importProgress.total) * 100}
                   className="w-full h-2 transition-all duration-500 ease-out"
                 />
-
-                {/*  Texto discreto com o contador real abaixo da barra */}
-                {/* <p className="text-xs text-right text-muted-foreground/50">
-                  {importProgress.current} de {importProgress.total} linhas
-                  processadas
-                </p> */}
               </div>
             )}
-            {/* Skeleton exibido durante o processamento inicial (antes do 'start' ou se o total for 0) */}
+
             {isImporting && importProgress.total === 0 && (
               <Skeleton className="h-4 w-full" />
             )}
+
+            {/* --- NOVO: RELATÓRIO DE ERROS DE IMPORTACAO --- */}
+            {importErrors.length > 0 && (
+              <div className="mt-6 animate-in slide-in-from-top-2">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold text-red-600 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    Problemas Encontrados ({importErrors.length})
+                  </h4>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-xs"
+                    onClick={() => setImportErrors([])}
+                  >
+                    Limpar
+                  </Button>
+                </div>
+
+                <ScrollArea className="h-auto max-h-48 w-full rounded-md border border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-900">
+                  {" "}
+                  <div className="p-4 space-y-3">
+                    {importErrors.map((err, idx) => (
+                      <div
+                        key={idx}
+                        className="flex gap-3 text-sm border-b border-red-100 dark:border-red-800/50 last:border-0 pb-2 last:pb-0"
+                      >
+                        {/* Ícone e Tipo */}
+                        <div className="shrink-0 mt-0.5">
+                          {err.type === "fatal" ? (
+                            <XCircle className="h-4 w-4 text-red-700" />
+                          ) : err.type === "conflict" ? (
+                            <AlertTriangle className="h-4 w-4 text-amber-600" />
+                          ) : (
+                            <AlertCircle className="h-4 w-4 text-red-500" />
+                          )}
+                        </div>
+
+                        <div className="flex-1">
+                          {err.row ? (
+                            <span className="font-mono font-bold text-xs bg-white dark:bg-black/20 px-1.5 py-0.5 rounded mr-2 border">
+                              Linha {err.row}
+                            </span>
+                          ) : null}
+                          <span className="text-red-900 dark:text-red-200 break-words">
+                            {" "}
+                            {err.message}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
           </div>
 
-          {/* Seção de alerta para exibir erros de validação do CSV. */}
           {!isImporting && csvErrors.length > 0 && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
@@ -552,7 +592,6 @@ export const ImportTab: React.FC<ImportTabProps> = ({
             </Alert>
           )}
 
-          {/* Resumo da quantidade de produtos cadastrados com sucesso. */}
           <div className="grid grid-cols-1 gap-4 text-sm">
             <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
               <p className="font-semibold text-blue-800 dark:text-blue-200">
@@ -566,14 +605,12 @@ export const ImportTab: React.FC<ImportTabProps> = ({
         </CardContent>
       </Card>
 
-      {/* Renderização condicional: exibe a tabela de produtos ou uma mensagem de estado vazio. */}
       {products.length > 0 ? (
         <Card>
           <CardHeader>
             <CardTitle>Produtos Cadastrados</CardTitle>
           </CardHeader>
           <CardContent>
-            {/* Tabela responsiva com a lista de produtos importados. */}
             <div className="max-h-96 overflow-y-auto">
               <Table className="responsive-table">
                 <TableHeader>
@@ -588,7 +625,6 @@ export const ImportTab: React.FC<ImportTabProps> = ({
                 </TableHeader>
                 <TableBody>
                   {products.map((product) => {
-                    // Encontra o código de barras correspondente para exibir na tabela.
                     const barCode = barCodes.find(
                       (bc) => bc.produto_id === product.id
                     );
@@ -606,14 +642,10 @@ export const ImportTab: React.FC<ImportTabProps> = ({
           </CardContent>
         </Card>
       ) : (
-        // Mostra o estado vazio apenas se não estiver importando
         !isImporting && (
           <Card>
             <CardContent className="py-8 sm:py-12">
-              {/* --- Guia de Onboarding para Mobile com Link Mágico --- */}
-              {/* Exibido apenas em telas pequenas (block sm:hidden) */}
               <div className="block sm:hidden text-center space-y-6 pt-4">
-                {/* Ícone e Título */}
                 <div className="space-y-2">
                   <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto">
                     <Monitor className="h-8 w-8 text-primary" />
@@ -623,7 +655,6 @@ export const ImportTab: React.FC<ImportTabProps> = ({
                   </h3>
                 </div>
 
-                {/* Passo a passo (mantido igual ao anterior) */}
                 <div className="text-left text-sm text-muted-foreground space-y-3 bg-muted/50 p-5 rounded-lg border border-border">
                   <p className="flex gap-2">
                     <span className="font-bold text-primary">1.</span>
@@ -647,7 +678,6 @@ export const ImportTab: React.FC<ImportTabProps> = ({
                   </p>
                 </div>
 
-                {/* --- NOVO BOTÃO DE DEMO --- */}
                 <Button
                   onClick={onStartDemo}
                   className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold shadow-md h-12"
@@ -659,7 +689,6 @@ export const ImportTab: React.FC<ImportTabProps> = ({
                   Simule o app escaneando qualquer produto real perto de você.
                 </p>
 
-                {/* Link Mágico (mantido igual) */}
                 <div className="pt-4 border-t border-border/60">
                   <p className="text-sm font-medium text-foreground mb-3">
                     Quer abrir no PC agora? Envie o link para você mesmo:
@@ -681,8 +710,6 @@ export const ImportTab: React.FC<ImportTabProps> = ({
                 </div>
               </div>
 
-              {/* --- Estado Vazio Padrão para Desktop --- */}
-              {/* Exibido apenas em telas maiores (hidden sm:block) */}
               <div className="hidden sm:block text-center text-muted-foreground">
                 <Upload className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p className="font-medium text-lg">Nenhum produto cadastrado</p>
