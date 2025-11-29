@@ -311,3 +311,51 @@ body {
     transparent
   );
 }
+/* app/globals.css */
+
+/* ... código anterior ... */
+
+/* ==========================================================================
+   CUSTOMIZAÇÃO DA BARRA DE ROLAGEM (ESTILO "TECH" / BLUE)
+   ==========================================================================
+*/
+
+@layer utilities {
+  /* Firefox */
+  * {
+    scrollbar-width: auto; /* 'auto' é mais grossa que 'thin' */
+    scrollbar-color: hsl(var(--primary) / 0.4) transparent;
+  }
+
+  /* Chrome, Edge, and Safari */
+  *::-webkit-scrollbar {
+    width: 12px; /* Mais grossa */
+    height: 12px; /* Mais grossa na horizontal também */
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent; /* Mantém a sensação de "flutuando" */
+  }
+
+  *::-webkit-scrollbar-thumb {
+    /* Aqui usamos a variável --primary para pegar o AZUL do seu tema */
+    background-color: hsl(var(--primary) / 0.4);
+
+    /* Quadrada */
+    border-radius: 0px;
+
+    /* Borda transparente menor para dar a sensação de ser mais grossa/cheia */
+    border: 2px solid transparent;
+    background-clip: content-box;
+    transition: background-color 0.2s;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    /* Azul mais forte ao passar o mouse */
+    background-color: hsl(var(--primary) / 0.8);
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
