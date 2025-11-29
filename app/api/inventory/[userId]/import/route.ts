@@ -1,18 +1,30 @@
 // app/api/inventory/[userId]/import/route.ts
 /**
- * Rota de API para importação de produtos com progresso real via Server-Sent Events (SSE).
- * Processa o upload, valida os dados e insere no banco, enviando atualizações de progresso
- * para o cliente em tempo real.
+ * Rota de API para importação de produtos (Single Player) - VERSÃO BLINDADA 🛡️
  *
- * ROTA PROTEGIDA: Esta rota valida o Token JWT antes de executar a importação.
+ * Melhorias:
+ * 1. Validação de Tipo de Arquivo e Tamanho.
+ * 2. Validação de Cabeçalhos (Schema do CSV).
+ * 3. Limites de Linhas (Proteção contra DoS/Timeout).
+ * 4. Feedback Granular via SSE (row_error, row_conflict).
+ * 5. Atomicidade por Linha (Mantida da versão anterior).
  */
 
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import * as Papa from "papaparse";
 import { Prisma } from "@prisma/client";
-// 1. IMPORTAMOS NOSSOS UTILITÁRIOS DE AUTENTICAÇÃO
 import { validateAuth, createSseErrorResponse } from "@/lib/auth";
+
+// --- CONSTANTES DE CONFIGURAÇÃO ---
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_ROWS = 10000; // Limite seguro para evitar timeout em serverless
+const EXPECTED_HEADERS = [
+  "codigo_de_barras",
+  "codigo_produto",
+  "descricao",
+  "saldo_estoque",
+];
 
 interface CsvRow {
   codigo_de_barras: string;
@@ -21,23 +33,20 @@ interface CsvRow {
   saldo_estoque: string;
 }
 
-/**
- * Manipula a requisição POST para importar um arquivo CSV.
- * @param request - Requisição contendo o arquivo CSV em FormData.
- * @param params - Parâmetros da rota, incluindo o userId.
- * @returns Um objeto Response com streaming para os eventos de progresso.
- */
 export async function POST(
   request: NextRequest,
   { params }: { params: { userId: string } }
 ) {
   const userId = parseInt(params.userId, 10);
-  const encoder = new TextEncoder(); // Movemos o encoder para fora para otimização
+  const encoder = new TextEncoder();
 
-  // Verificação inicial do ID (antes de criar o stream)
+  // 1. Validação de ID (Rápida)
   if (isNaN(userId)) {
     return new Response(
-      `data: ${JSON.stringify({ error: "ID de usuário inválido." })}\n\n`,
+      `data: ${JSON.stringify({
+        type: "fatal",
+        error: "ID de usuário inválido.",
+      })}\n\n`,
       {
         status: 400,
         headers: {
@@ -49,28 +58,53 @@ export async function POST(
     );
   }
 
-  // Cria um stream de resposta writable para enviar eventos
+  // Inicia o stream SSE
   const stream = new ReadableStream({
     async start(controller) {
+      // Helper interno para enviar eventos SSE padronizados
+      const sendEvent = (type: string, payload: any) => {
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ type, ...payload })}\n\n`)
+        );
+      };
+
       try {
-        // 2. CHAMAMOS O GUARDIÃO DE AUTENTICAÇÃO PRIMEIRO
-        // Isso verifica o token e se o ID do token bate com o ID da URL.
+        // 2. Autenticação e Segurança
         await validateAuth(request, userId);
 
-        // 3. SE A AUTENTICAÇÃO PASSAR, A LÓGICA DE IMPORTAÇÃO CONTINUA...
         const formData = await request.formData();
         const file = formData.get("file") as File;
 
+        // 3. Validação de Arquivo (Existência e Tipo)
         if (!file) {
-          createSseErrorResponse(
-            controller,
-            encoder,
-            "Nenhum arquivo enviado.",
-            400
-          );
+          sendEvent("fatal", { error: "Nenhum arquivo enviado." });
+          controller.close();
           return;
         }
 
+        if (
+          !file.name.toLowerCase().endsWith(".csv") &&
+          file.type !== "text/csv" &&
+          file.type !== "application/vnd.ms-excel"
+        ) {
+          sendEvent("fatal", {
+            error: "Formato inválido. Envie um arquivo .csv.",
+          });
+          controller.close();
+          return;
+        }
+
+        if (file.size > MAX_FILE_SIZE) {
+          sendEvent("fatal", {
+            error: `Arquivo muito grande. Limite: ${
+              MAX_FILE_SIZE / 1024 / 1024
+            }MB.`,
+          });
+          controller.close();
+          return;
+        }
+
+        // 4. Parsing do CSV
         const csvText = await file.text();
         const parseResult = Papa.parse<CsvRow>(csvText, {
           header: true,
@@ -78,58 +112,87 @@ export async function POST(
           skipEmptyLines: true,
         });
 
+        // 5. Validação de Erros de Parsing (Formato do arquivo quebrado)
         if (parseResult.errors.length > 0) {
-          createSseErrorResponse(controller, encoder, "Erro ao ler CSV.", 400);
+          // Se houver muitos erros de parsing, abortamos
+          if (parseResult.errors.length > 10) {
+            sendEvent("fatal", {
+              error: "Arquivo CSV corrompido ou formato inválido.",
+              details: parseResult.errors.slice(0, 5),
+            });
+            controller.close();
+            return;
+          }
+        }
+
+        // 6. Validação de Cabeçalhos (Schema)
+        const fileHeaders = parseResult.meta.fields || [];
+        const missingHeaders = EXPECTED_HEADERS.filter(
+          (h) => !fileHeaders.includes(h)
+        );
+
+        if (missingHeaders.length > 0) {
+          sendEvent("fatal", {
+            error: "Colunas obrigatórias faltando.",
+            missing: missingHeaders,
+            expected: EXPECTED_HEADERS,
+          });
+          controller.close();
           return;
         }
 
+        // 7. Validação de Limites (Lógica de Negócio)
         const totalRows = parseResult.data.length;
+        if (totalRows > MAX_ROWS) {
+          sendEvent("fatal", {
+            error: `Limite excedido. Máximo de ${MAX_ROWS} linhas permitidas.`,
+          });
+          controller.close();
+          return;
+        }
+
+        // --- INÍCIO DO PROCESSAMENTO ---
+        sendEvent("start", { total: totalRows });
+
         let importedCount = 0;
         let errorCount = 0;
+        let conflictCount = 0;
 
-        // Envia o total de linhas para o cliente calcular a porcentagem
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({ type: "start", total: totalRows })}\n\n`
-          )
-        );
-
-        // Loop de processamento de cada linha do CSV
+        // Loop linha a linha
         for (const [index, row] of parseResult.data.entries()) {
-          const saldoNumerico = parseFloat(
-            row.saldo_estoque?.replace(",", ".") || "0"
-          );
+          const rowNumber = index + 2; // +1 (zero-based) +1 (header)
+
+          // A. Validação de Dados da Linha
+          const saldoString = row.saldo_estoque?.replace(",", ".") || "0";
+          const saldoNumerico = parseFloat(saldoString);
           const codProduto = row.codigo_produto?.trim();
           const codBarras = row.codigo_de_barras?.trim();
           const descricao = row.descricao?.trim();
 
-          if (isNaN(saldoNumerico) || !codProduto || !codBarras) {
+          const rowErrors = [];
+          if (!codProduto) rowErrors.push("Código do Produto vazio");
+          if (!codBarras) rowErrors.push("Código de Barras vazio");
+          if (isNaN(saldoNumerico)) rowErrors.push("Saldo inválido");
+
+          if (rowErrors.length > 0) {
             errorCount++;
-            // Envia progresso mesmo com erro para o cliente saber que a linha foi processada
-            controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({
-                  type: "progress",
-                  current: index + 1,
-                  total: totalRows,
-                  imported: importedCount,
-                  errors: errorCount,
-                })}\n\n`
-              )
-            ); // <--- PONTO E VÍRGULA ADICIONADO AQUI (Correção 1)
+            sendEvent("row_error", {
+              row: rowNumber,
+              reasons: rowErrors,
+              data: row,
+            });
+            // Continua para a próxima linha
             continue;
           }
 
+          // B. Persistência com Atomicidade
           try {
-            // --- INÍCIO DA REFATORAÇÃO: Atomicidade por Linha ---
-            // Todas as operações para esta linha estão dentro de uma única transação.
-            // Se qualquer uma falhar, tudo o que foi feito nesta linha é desfeito (rollback).
             await prisma.$transaction(async (tx) => {
-              // 1. Upsert do Produto
+              // 1. Produto
               const product = await tx.produto.upsert({
                 where: {
                   codigo_produto_usuario_id: {
-                    codigo_produto: codProduto,
+                    codigo_produto: codProduto!,
                     usuario_id: userId,
                   },
                 },
@@ -138,18 +201,18 @@ export async function POST(
                   saldo_estoque: saldoNumerico,
                 },
                 create: {
-                  codigo_produto: codProduto,
-                  descricao: descricao,
+                  codigo_produto: codProduto!,
+                  descricao: descricao || "Sem descrição",
                   saldo_estoque: saldoNumerico,
                   usuario_id: userId,
                 },
               });
 
-              // 2. Upsert do Código de Barras Principal
+              // 2. Código de Barras
               await tx.codigoBarras.upsert({
                 where: {
                   codigo_de_barras_usuario_id: {
-                    codigo_de_barras: codBarras,
+                    codigo_de_barras: codBarras!,
                     usuario_id: userId,
                   },
                 },
@@ -157,90 +220,73 @@ export async function POST(
                   produto_id: product.id,
                 },
                 create: {
-                  codigo_de_barras: codBarras,
+                  codigo_de_barras: codBarras!,
                   produto_id: product.id,
                   usuario_id: userId,
                 },
               });
 
-              // 3. Limpeza de vínculos antigos (se o código mudou de produto, por exemplo)
+              // 3. Limpeza de Órfãos
               await tx.codigoBarras.deleteMany({
                 where: {
                   produto_id: product.id,
                   usuario_id: userId,
                   NOT: {
-                    codigo_de_barras: codBarras,
+                    codigo_de_barras: codBarras!,
                   },
                 },
               });
             });
-            // --- FIM DA TRANSAÇÃO ---
 
             importedCount++;
           } catch (error: any) {
-            // O tratamento de erro original continua válido aqui.
-            // Se a transação falhar, ela será capturada aqui.
+            // C. Tratamento de Conflitos e Erros de Banco
             if (
               error instanceof Prisma.PrismaClientKnownRequestError &&
               error.code === "P2002"
             ) {
-              console.log(
-                `Conflito de chave única (P2002) na linha ${
-                  index + 2
-                }, ignorando.`
-              );
-              errorCount++;
+              conflictCount++;
+              sendEvent("row_conflict", {
+                row: rowNumber,
+                message: "Código já existe em outro produto.",
+                barcode: codBarras,
+              });
             } else {
-              console.error(`Erro ao processar a linha ${index + 2}:`, error);
               errorCount++;
+              console.error(`Erro linha ${rowNumber}:`, error);
+              sendEvent("row_error", {
+                row: rowNumber,
+                reasons: ["Erro interno no banco de dados"],
+              });
             }
           }
 
-          // Envia o progresso após o processamento de cada linha (sucesso ou erro)
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({
-                type: "progress",
-                current: index + 1,
-                total: totalRows,
-                imported: importedCount,
-                errors: errorCount,
-              })}\n\n`
-            )
-          ); // <--- PONTO E VÍRGULA ADICIONADO AQUI (Correção 2)
-
-          // Pequeno atraso para não sobrecarregar o cliente
-          await new Promise((resolve) => setTimeout(resolve, 0));
+          // D. Feedback de Progresso (Opcional: enviar a cada X linhas para economizar banda)
+          if (index % 10 === 0 || index === totalRows - 1) {
+            sendEvent("progress", {
+              current: index + 1,
+              total: totalRows,
+              imported: importedCount,
+              errors: errorCount + conflictCount,
+            });
+            // Yield para o event loop não travar
+            await new Promise((resolve) => setTimeout(resolve, 0));
+          }
         }
 
-        // Envia o evento final de conclusão
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({
-              type: "complete",
-              importedCount,
-              errorCount,
-            })}\n\n`
-          )
-        );
+        // 8. Finalização
+        sendEvent("complete", {
+          imported: importedCount,
+          errors: errorCount,
+          conflicts: conflictCount,
+          total: totalRows,
+        });
       } catch (error: any) {
-        // 4. USAMOS O HELPER DE ERRO SSE
-        // Se o erro for do 'validateAuth' (ex: token inválido)
-        if (
-          error.message.includes("Acesso não autorizado") ||
-          error.message.includes("Acesso negado")
-        ) {
-          createSseErrorResponse(controller, encoder, error.message, 401);
-        } else {
-          // Se for um erro interno da importação
-          console.error("Erro na importação de CSV:", error);
-          createSseErrorResponse(
-            controller,
-            encoder,
-            "Erro interno do servidor.",
-            500
-          );
-        }
+        // Tratamento de Erro Fatal (Auth, Crash, etc)
+        const status = error.message.includes("Acesso") ? 401 : 500;
+        sendEvent("fatal", {
+          error: error.message || "Erro crítico no servidor.",
+        });
       } finally {
         controller.close();
       }
