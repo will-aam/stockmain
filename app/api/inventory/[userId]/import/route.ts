@@ -8,13 +8,14 @@
  * 3. Limites de Linhas (Proteção contra DoS/Timeout).
  * 4. Feedback Granular via SSE (row_error, row_conflict).
  * 5. Atomicidade por Linha (Mantida da versão anterior).
+ * 6. Detecção de Duplicatas *dentro do próprio arquivo* (NOVO).
  */
 
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import * as Papa from "papaparse";
 import { Prisma } from "@prisma/client";
-import { validateAuth, createSseErrorResponse } from "@/lib/auth";
+import { validateAuth } from "@/lib/auth"; // Removido createSseErrorResponse, pois não é usado
 
 // --- CONSTANTES DE CONFIGURAÇÃO ---
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -158,6 +159,11 @@ export async function POST(
         let errorCount = 0;
         let conflictCount = 0;
 
+        // --- NOVO: Rastreadores de Duplicidade no Arquivo ---
+        // Armazenam: Código -> Número da Linha onde apareceu primeiro
+        const seenProductCodes = new Map<string, number>();
+        const seenBarcodes = new Map<string, number>();
+
         // Loop linha a linha
         for (const [index, row] of parseResult.data.entries()) {
           const rowNumber = index + 2; // +1 (zero-based) +1 (header)
@@ -174,14 +180,49 @@ export async function POST(
           if (!codBarras) rowErrors.push("Código de Barras vazio");
           if (isNaN(saldoNumerico)) rowErrors.push("Saldo inválido");
 
+          // 2. Validação de Duplicidade Interna (NOVO BLOCO)
+          if (codProduto) {
+            if (seenProductCodes.has(codProduto)) {
+              const prevLine = seenProductCodes.get(codProduto);
+              rowErrors.push(
+                `Código do Produto repetido neste arquivo (1ª vez na linha ${prevLine})`
+              );
+            } else {
+              seenProductCodes.set(codProduto, rowNumber);
+            }
+          }
+
+          if (codBarras) {
+            if (seenBarcodes.has(codBarras)) {
+              const prevLine = seenBarcodes.get(codBarras);
+              rowErrors.push(
+                `Código de Barras repetido neste arquivo (1ª vez na linha ${prevLine})`
+              );
+            } else {
+              seenBarcodes.set(codBarras, rowNumber);
+            }
+          }
+
+          // Se encontrou erros (básicos ou duplicatas), rejeita a linha
           if (rowErrors.length > 0) {
             errorCount++;
             sendEvent("row_error", {
               row: rowNumber,
-              reasons: rowErrors,
+              reasons: rowErrors, // Envia a lista de motivos
               data: row,
             });
-            // Continua para a próxima linha
+            // Continua para a próxima linha sem tocar no banco
+            // Importante atualizar o progresso mesmo pulando
+            if (index % 10 === 0 || index === totalRows - 1) {
+              sendEvent("progress", {
+                current: index + 1,
+                total: totalRows,
+                imported: importedCount,
+                errors: errorCount + conflictCount,
+              });
+              // Yield para o event loop não travar
+              await new Promise((resolve) => setTimeout(resolve, 0));
+            }
             continue;
           }
 
