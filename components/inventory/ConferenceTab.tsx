@@ -44,7 +44,8 @@ interface ConferenceTabProps {
   setCountingMode: (mode: "loja" | "estoque") => void;
   scanInput: string;
   setScanInput: (value: string) => void;
-  handleScan: () => void;
+  // ATUALIZADO: handleScan agora aceita um parâmetro booleano opcional
+  handleScan: (isManualAction?: boolean) => void;
   isCameraViewActive: boolean;
   setIsCameraViewActive: (show: boolean) => void;
   handleBarcodeScanned: (barcode: string) => void;
@@ -224,9 +225,11 @@ export const ConferenceTab: React.FC<ConferenceTabProps> = ({
                     }}
                     placeholder="Digite ou escaneie"
                     className="flex-1 mobile-optimized"
-                    onKeyPress={(e) => e.key === "Enter" && handleScan()}
+                    // ATUALIZADO: Enter é uma ação manual, deve forçar a busca
+                    onKeyPress={(e) => e.key === "Enter" && handleScan(true)}
                   />
-                  <Button onClick={handleScan}>
+                  {/* ATUALIZADO: O Botão é a ação manual por excelência. Força a busca (true) */}
+                  <Button onClick={() => handleScan(true)}>
                     <Scan className="h-4 w-4" />
                   </Button>
                   <Button
