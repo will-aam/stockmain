@@ -85,6 +85,7 @@ interface ImportErrorDetail {
   details?: string;
 }
 
+// --- Componentes Helper ---
 interface ProductTableRowProps {
   product: Product;
   barCode?: BarCode;
@@ -189,6 +190,10 @@ const CsvInstructions: React.FC<CsvInstructionsProps> = ({
 );
 CsvInstructions.displayName = "CsvInstructions";
 
+// --- MELHORIA: Constantes movidas para fora do componente para evitar recriação ---
+const MAX_RENDERED_ERRORS = 15; // Renderiza até 15 itens no HTML
+const MAX_VISIBLE_HEIGHT = "max-h-[300px]"; // Altura para mostrar +/- 6 itens antes de cortar
+
 export const ImportTab: React.FC<ImportTabProps> = ({
   userId,
   setIsLoading,
@@ -214,8 +219,6 @@ export const ImportTab: React.FC<ImportTabProps> = ({
   });
 
   const [isImporting, setIsImporting] = useState(false);
-
-  // --- NOVO ESTADO PARA OS ERROS DE IMPORTACAO ---
   const [importErrors, setImportErrors] = useState<ImportErrorDetail[]>([]);
 
   const handleShareLink = async () => {
@@ -253,7 +256,6 @@ export const ImportTab: React.FC<ImportTabProps> = ({
     const file = e.target.files?.[0];
     if (!file || !userId) return;
 
-    // --- LIMPA OS ERROS ANTES DE COMEÇAR ---
     setImportErrors([]);
     setIsImporting(true);
     setCsvErrors([]);
@@ -278,7 +280,6 @@ export const ImportTab: React.FC<ImportTabProps> = ({
         if (response.status === 401 || response.status === 403) {
           throw new Error("Sessão expirada. Faça login novamente.");
         }
-
         const errorData = await response.json().catch(() => ({
           error: "Falha na requisição de upload.",
         }));
@@ -312,16 +313,15 @@ export const ImportTab: React.FC<ImportTabProps> = ({
             const dataString = line.substring(6);
             const data = JSON.parse(dataString);
 
-            // --- NOVA LÓGICA PARA CAPTURAR ERROS DETALHADOS ---
-
-            // 1. Erro Fatal (Cabeçalho errado, arquivo inválido)
             if (data.type === "fatal") {
               let msg = data.error;
-              // Melhoria da mensagem de cabeçalho que você pediu:
+
               if (data.missing && Array.isArray(data.missing)) {
-                msg = `O arquivo não possui as colunas obrigatórias: ${data.missing.join(
-                  ", "
-                )}.`;
+                const missingCols = data.missing.join(", ");
+                msg = `ERRO NO CABEÇALHO (LINHA 1): Os nomes das colunas não conferem com o padrão.
+O sistema exige EXATAMENTE: 'codigo_de_barras', 'codigo_produto', 'descricao', 'saldo_estoque'.
+Não encontramos as colunas: ${missingCols}.
+Verifique se há erros de digitação ou espaços extras na primeira linha do seu arquivo.`;
               }
 
               setImportErrors((prev) => [
@@ -338,7 +338,6 @@ export const ImportTab: React.FC<ImportTabProps> = ({
               return;
             }
 
-            // 2. Erro na Linha (Dado inválido)
             if (data.type === "row_error") {
               setImportErrors((prev) => [
                 ...prev,
@@ -350,7 +349,6 @@ export const ImportTab: React.FC<ImportTabProps> = ({
               ]);
             }
 
-            // 3. Conflito (P2002 - Código duplicado no banco)
             if (data.type === "row_conflict") {
               setImportErrors((prev) => [
                 ...prev,
@@ -361,8 +359,6 @@ export const ImportTab: React.FC<ImportTabProps> = ({
                 },
               ]);
             }
-
-            // --- FIM DA NOVA LÓGICA DE ERROS ---
 
             if (data.error) {
               let errorMessage = data.error;
@@ -520,7 +516,7 @@ export const ImportTab: React.FC<ImportTabProps> = ({
               <Skeleton className="h-4 w-full" />
             )}
 
-            {/* --- NOVO: RELATÓRIO DE ERROS DE IMPORTACAO --- */}
+            {/* --- RELATÓRIO DE ERROS DE IMPORTACAO COM SCROLL NATIVO E ACESSIBILIDADE --- */}
             {importErrors.length > 0 && (
               <div className="mt-6 animate-in slide-in-from-top-2">
                 <div className="flex items-center justify-between mb-2">
@@ -538,40 +534,63 @@ export const ImportTab: React.FC<ImportTabProps> = ({
                   </Button>
                 </div>
 
-                <ScrollArea className="h-auto max-h-48 w-full rounded-md border border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-900">
-                  {" "}
-                  <div className="p-4 space-y-3">
-                    {importErrors.map((err, idx) => (
-                      <div
-                        key={idx}
-                        className="flex gap-3 text-sm border-b border-red-100 dark:border-red-800/50 last:border-0 pb-2 last:pb-0"
-                      >
-                        {/* Ícone e Tipo */}
-                        <div className="shrink-0 mt-0.5">
-                          {err.type === "fatal" ? (
-                            <XCircle className="h-4 w-4 text-red-700" />
-                          ) : err.type === "conflict" ? (
-                            <AlertTriangle className="h-4 w-4 text-amber-600" />
-                          ) : (
-                            <AlertCircle className="h-4 w-4 text-red-500" />
-                          )}
-                        </div>
+                {/* MUDANÇA: Substituído ScrollArea por uma DIV nativa com overflow-y-auto e role="alert" para a11y */}
+                <div
+                  role="alert" // MELHORIA DE ACESSIBILIDADE
+                  className={`
+                    w-full rounded-md border border-red-200 bg-red-50 
+                    dark:bg-red-900/10 dark:border-red-900 
+                    overflow-y-auto ${MAX_VISIBLE_HEIGHT}
+                  `}
+                >
+                  <div className="flex flex-col">
+                    <div className="p-4 space-y-3">
+                      {importErrors
+                        .slice(0, MAX_RENDERED_ERRORS)
+                        .map((err, idx) => (
+                          <div
+                            key={idx}
+                            className="flex gap-3 text-sm border-b border-red-100 dark:border-red-800/50 last:border-0 pb-2 last:pb-0"
+                          >
+                            <div className="shrink-0 mt-0.5">
+                              {err.type === "fatal" ? (
+                                <XCircle className="h-4 w-4 text-red-700" />
+                              ) : err.type === "conflict" ? (
+                                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                              ) : (
+                                <AlertCircle className="h-4 w-4 text-red-500" />
+                              )}
+                            </div>
 
-                        <div className="flex-1">
-                          {err.row ? (
-                            <span className="font-mono font-bold text-xs bg-white dark:bg-black/20 px-1.5 py-0.5 rounded mr-2 border">
-                              Linha {err.row}
-                            </span>
-                          ) : null}
-                          <span className="text-red-900 dark:text-red-200 break-words">
-                            {" "}
-                            {err.message}
-                          </span>
-                        </div>
+                            <div className="flex-1">
+                              {err.row ? (
+                                <span className="font-mono font-bold text-xs bg-white dark:bg-black/20 px-1.5 py-0.5 rounded mr-2 border">
+                                  Linha {err.row}
+                                </span>
+                              ) : null}
+                              <span className="text-red-900 dark:text-red-200 break-words whitespace-pre-wrap">
+                                {" "}
+                                {/* MELHORIA: Adicionado whitespace-pre-wrap */}
+                                {err.message}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+
+                    {importErrors.length > MAX_RENDERED_ERRORS && (
+                      <div className="bg-red-100/50 dark:bg-red-900/20 p-3 text-center border-t border-red-200 dark:border-red-800 sticky bottom-0 backdrop-blur-sm">
+                        <p className="text-xs text-red-700 dark:text-red-300 font-medium">
+                          ...e mais {importErrors.length - MAX_RENDERED_ERRORS}{" "}
+                          erros não exibidos.
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          Corrija os primeiros erros e tente novamente.
+                        </p>
                       </div>
-                    ))}
+                    )}
                   </div>
-                </ScrollArea>
+                </div>
               </div>
             )}
           </div>
