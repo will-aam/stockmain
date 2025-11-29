@@ -509,12 +509,24 @@ export const ImportTab: React.FC<ImportTabProps> = ({
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Importando...</span>
-                  <span>{`${importProgress.current} / ${importProgress.total}`}</span>
+                  {/* MUDANÇA AQUI: Cálculo de Porcentagem */}
+                  <span>
+                    {Math.round(
+                      (importProgress.current / importProgress.total) * 100
+                    )}
+                    %
+                  </span>
                 </div>
                 <Progress
                   value={(importProgress.current / importProgress.total) * 100}
-                  className="w-full"
+                  className="w-full h-2 transition-all duration-500 ease-out"
                 />
+
+                {/*  Texto discreto com o contador real abaixo da barra */}
+                {/* <p className="text-xs text-right text-muted-foreground/50">
+                  {importProgress.current} de {importProgress.total} linhas
+                  processadas
+                </p> */}
               </div>
             )}
             {/* Skeleton exibido durante o processamento inicial (antes do 'start' ou se o total for 0) */}
