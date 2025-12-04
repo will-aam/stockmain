@@ -93,14 +93,15 @@ export const useParticipantInventory = ({
   }, [loadSessionProducts]);
 
   // --- 2. Lógica de Escaneamento (Local) ---
-
   const handleScan = useCallback(() => {
     if (!scanInput) return;
     const code = scanInput.trim();
 
-    // Tenta achar o produto na lista carregada
+    // Tenta achar o produto com tolerância a zeros
     const product = products.find(
-      (p) => p.codigo_barras === code || p.codigo_produto === code
+      (p) =>
+        areBarcodesEqual(p.codigo_barras || "", code) ||
+        areBarcodesEqual(p.codigo_produto, code)
     );
 
     if (product) {
@@ -389,3 +390,6 @@ export const useParticipantInventory = ({
     forceSync: syncData, // Botão manual de "Sincronizar Agora"
   };
 };
+function areBarcodesEqual(arg0: string, code: string): unknown {
+  throw new Error("Function not implemented.");
+}
