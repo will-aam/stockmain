@@ -70,6 +70,21 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
 
   // NOVO ESTADO PARA O MODO DEMO
   const [isDemoMode, setIsDemoMode] = useState(false);
+  // --- Funções Auxiliares Internas ---
+  // Helper para comparar códigos ignorando zeros à esquerda
+  const areBarcodesEqual = (a: string, b: string) => {
+    // Remove caracteres não numéricos e converte para número para matar os zeros
+    // Mas converte de volta para string para comparação segura
+    const cleanA = a.replace(/[^0-9]/g, "");
+    const cleanB = b.replace(/[^0-9]/g, "");
+
+    // Se ambos forem numéricos, compara o valor matemático
+    if (cleanA && cleanB && !isNaN(Number(cleanA)) && !isNaN(Number(cleanB))) {
+      return Number(cleanA) === Number(cleanB);
+    }
+    // Fallback para comparação de string exata (para códigos alfanuméricos)
+    return a.trim() === b.trim();
+  };
 
   // --- Lógica de Carregamento e Sincronização ---
   /**
@@ -85,7 +100,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       const response = await fetch(`/api/inventory/${userId}`);
 
       if (!response.ok) {
-        // Nova validação de sessão
         if (response.status === 401 || response.status === 403) {
           throw new Error("Sessão expirada. Token inválido.");
         }
@@ -352,7 +366,8 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       const code = scanInput.trim();
 
       // Se estiver vazio, não faz nada nunca
-      if (code === "") {
+      if (code === "" || code.length < MIN_BARCODE_LENGTH) {
+        //
         return;
       }
 
@@ -364,16 +379,20 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       }
 
       // 1. Tenta encontrar o produto normalmente
-      const barCode = barCodes.find((bc) => bc.codigo_de_barras === code);
+      const barCode = barCodes.find((bc) =>
+        areBarcodesEqual(bc.codigo_de_barras, code)
+      );
+
       if (barCode?.produto) {
         setCurrentProduct(barCode.produto);
         return;
       }
 
       // 2. Verifica se já é um produto temporário
-      const tempProduct = tempProducts.find(
-        (tp) => tp.codigo_de_barras === code
+      const tempProduct = tempProducts.find((tp) =>
+        areBarcodesEqual(tp.codigo_de_barras, code)
       );
+
       if (tempProduct) {
         setCurrentProduct(tempProduct);
         return;
