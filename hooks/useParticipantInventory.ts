@@ -14,6 +14,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { toast } from "@/hooks/use-toast";
+import { areBarcodesEqual } from "@/lib/utils"; // <--- Importação Centralizada
 
 // Tipos
 interface ProductSessao {
@@ -97,7 +98,7 @@ export const useParticipantInventory = ({
     if (!scanInput) return;
     const code = scanInput.trim();
 
-    // Tenta achar o produto com tolerância a zeros
+    // Tenta achar o produto com tolerância a zeros usando a função do utils
     const product = products.find(
       (p) =>
         areBarcodesEqual(p.codigo_barras || "", code) ||
@@ -324,6 +325,7 @@ export const useParticipantInventory = ({
         }
 
         // 2. Atualizar os saldos com a verdade absoluta do servidor
+        // (Isso corrige eventuais divergências se outro usuário bipou o mesmo item)
         if (data.updatedProducts) {
           setProducts((prev) =>
             prev.map((localProd) => {
@@ -386,10 +388,7 @@ export const useParticipantInventory = ({
     handleScan,
     handleAddMovement,
     handleRemoveMovement,
-    handleResetItem, // <--- NOVA FUNÇÃO EXPORTADA AQUI
-    forceSync: syncData, // Botão manual de "Sincronizar Agora"
+    handleResetItem,
+    forceSync: syncData,
   };
 };
-function areBarcodesEqual(arg0: string, code: string): unknown {
-  throw new Error("Function not implemented.");
-}

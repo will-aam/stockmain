@@ -17,14 +17,14 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { toast } from "@/hooks/use-toast";
 import * as Papa from "papaparse";
 // --- IMPORTAÇÃO ADICIONADA ---
-import { evaluate } from "mathjs"; // <--- 1. ADICIONE ESTE IMPORT
+import { areBarcodesEqual, calculateExpression } from "@/lib/utils"; // <--- 1. ADICIONADO ESTE IMPORT
 
 // --- Tipos ---
 import type { Product, BarCode, ProductCount, TempProduct } from "@/lib/types";
 
 // --- Constantes de Configuração ---
 /** Tamanho mínimo que um código de barras deve ter para ser considerado válido, filtrando leituras parciais ou ruído. */
-const MIN_BARCODE_LENGTH = 8;
+const MIN_BARCODE_LENGTH = 6;
 
 // --- Funções Auxiliares ---
 /**
@@ -70,21 +70,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
 
   // NOVO ESTADO PARA O MODO DEMO
   const [isDemoMode, setIsDemoMode] = useState(false);
-  // --- Funções Auxiliares Internas ---
-  // Helper para comparar códigos ignorando zeros à esquerda
-  const areBarcodesEqual = (a: string, b: string) => {
-    // Remove caracteres não numéricos e converte para número para matar os zeros
-    // Mas converte de volta para string para comparação segura
-    const cleanA = a.replace(/[^0-9]/g, "");
-    const cleanB = b.replace(/[^0-9]/g, "");
-
-    // Se ambos forem numéricos, compara o valor matemático
-    if (cleanA && cleanB && !isNaN(Number(cleanA)) && !isNaN(Number(cleanB))) {
-      return Number(cleanA) === Number(cleanB);
-    }
-    // Fallback para comparação de string exata (para códigos alfanuméricos)
-    return a.trim() === b.trim();
-  };
 
   // --- Lógica de Carregamento e Sincronização ---
   /**
@@ -183,44 +168,6 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
       );
   }, [products, productCounts, barCodes]);
 
-  /**
-   * --- FUNÇÃO ATUALIZADA: Cálculo Seguro com MathJS ---
-   * Avalia uma expressão matemática em formato de string de forma segura.
-   * @param expression - A string da expressão matemática (ex: "10+5*2").
-   * @returns Um objeto com o resultado, um booleano de validade e uma mensagem de erro, se houver.
-   */
-  const calculateExpression = useCallback(
-    (
-      expression: string
-    ): { result: number; isValid: boolean; error?: string } => {
-      try {
-        // Substitui vírgula por ponto para o padrão internacional
-        const cleanExpression = expression.replace(/,/g, ".");
-
-        // O evaluate do mathjs resolve a conta com segurança (sem usar eval)
-        const result = evaluate(cleanExpression);
-
-        if (typeof result !== "number" || isNaN(result) || !isFinite(result)) {
-          return {
-            result: 0,
-            isValid: false,
-            error: "Resultado inválido",
-          };
-        }
-
-        // Retorna arredondado para 2 casas decimais
-        return { result: Math.round(result * 100) / 100, isValid: true };
-      } catch (error) {
-        return {
-          result: 0,
-          isValid: false,
-          error: "Erro de sintaxe na expressão",
-        };
-      }
-    },
-    []
-  );
-
   // --- Manipuladores de Eventos (Callbacks) ---
   /**
    * Adiciona ou atualiza a contagem de um produto.
@@ -295,13 +242,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
     setScanInput("");
     setQuantityInput("");
     setCurrentProduct(null);
-  }, [
-    currentProduct,
-    quantityInput,
-    calculateExpression,
-    countingMode,
-    scanInput,
-  ]);
+  }, [currentProduct, quantityInput, countingMode, scanInput]);
 
   /**
    * Limpa todos os dados do inventário (localStorage e servidor).
@@ -509,7 +450,7 @@ export const useInventory = ({ userId }: { userId: number | null }) => {
         }
       }
     },
-    [quantityInput, calculateExpression, currentProduct, handleAddCount]
+    [quantityInput, currentProduct, handleAddCount]
   );
 
   /**
