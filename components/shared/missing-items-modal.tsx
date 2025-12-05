@@ -5,9 +5,13 @@
  * que constam no catálogo mas não foram contados. O modal é exibido sob demanda
  * e permite que o usuário visualize o código de barras, a descrição e a quantidade
  * faltante de cada item.
+ * Atualização: Adicionado fechamento via tecla ESC.
  */
 
 "use client";
+
+// --- React Hooks ---
+import { useEffect } from "react";
 
 // --- Componentes de UI ---
 import { Button } from "@/components/ui/button";
@@ -45,6 +49,24 @@ export function MissingItemsModal({
   onClose,
   items,
 }: MissingItemsModalProps) {
+  // Adiciona listener para a tecla ESC
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+
+    // Cleanup ao desmontar ou fechar
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
