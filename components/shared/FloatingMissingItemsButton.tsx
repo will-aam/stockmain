@@ -1,77 +1,80 @@
 // components/shared/FloatingMissingItemsButton.tsx
 /**
  * Descrição: Botão flutuante e arrastável para itens faltantes.
- * Responsabilidade: Exibir um botão em uma posição fixa na tela, que pode ser arrastado pelo usuário.
- * Mostra a contagem de itens faltantes e, ao ser clicado, aciona uma função para exibir mais detalhes.
- * Sua posição e camada de exibição (z-index) são ajustadas para não ser oculto por outros elementos da UI.
+ * Melhorias:
+ * 1. Adicionado AnimatePresence para animações suaves de entrada/saída (Pop-in/Pop-out).
+ * 2. Adicionado whileHover e whileTap para feedback tátil.
+ * 3. Lógica de renderização movida para dentro do JSX para permitir a animação de saída.
  */
 
 "use client";
 
-// --- Bibliotecas Externas ---
 import * as React from "react";
-import { motion } from "framer-motion";
-
-// --- Componentes de UI ---
+import { motion, AnimatePresence } from "framer-motion"; // Importamos AnimatePresence
 import { Button } from "@/components/ui/button";
-
-// --- Ícones e Utilitários ---
 import { PackageMinus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// --- Interfaces e Tipos ---
-/**
- * Props para o componente FloatingMissingItemsButton.
- */
 interface FloatingMissingItemsButtonProps {
-  onClick: () => void; // Função de callback chamada quando o botão é clicado.
-  itemCount: number; // O número de itens faltantes a ser exibido no selo do botão.
-  dragConstraintsRef: React.RefObject<HTMLDivElement>; // Referência ao elemento que define os limites da área de arrastar.
+  onClick: () => void;
+  itemCount: number;
+  dragConstraintsRef: React.RefObject<HTMLDivElement>;
 }
 
-/**
- * Componente FloatingMissingItemsButton.
- * Renderiza um botão flutuante com base na contagem de itens faltantes.
- * O botão é arrastável dentro dos limites definidos por `dragConstraintsRef`.
- */
 export function FloatingMissingItemsButton({
   onClick,
   itemCount,
   dragConstraintsRef,
 }: FloatingMissingItemsButtonProps) {
-  if (itemCount === 0) {
-    return null;
-  }
+  // Removemos o "if (itemCount === 0) return null" daqui de cima
+  // para permitir que o AnimatePresence gerencie a saída do componente.
 
   return (
-    <motion.div
-      // Habilita a funcionalidade de arrastar no elemento.
-      drag
-      // Define o elemento pai como limite para o arraste.
-      dragConstraints={dragConstraintsRef}
-      // Desabilita a inércia após o arraste, fazendo o botão parar assim que o usuário o solta.
-      dragMomentum={false}
-      // Posicionamento e estilo do botão flutuante.
-      className="fixed bottom-24 right-6 z-[60] cursor-grab active:cursor-grabbing"
-      style={{ touchAction: "none" }}
-    >
-      <Button
-        onClick={onClick}
-        variant="outline"
-        className={cn(
-          "relative h-14 w-14 rounded-full shadow-lg",
-          "bg-amber-500 text-white",
-          "hover:bg-amber-800 focus:ring-2 focus:ring-amber-800",
-          "dark:bg-amber-600 dark:text-white dark:hover:bg-amber-800",
-          "flex items-center justify-center"
-        )}
-        aria-label={`Mostrar ${itemCount} itens faltantes`}
-      >
-        <PackageMinus className="!h-8 !w-8" />
-        <span className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">
-          {itemCount}
-        </span>
-      </Button>
-    </motion.div>
+    <AnimatePresence>
+      {itemCount > 0 && (
+        <motion.div
+          key="floating-missing-btn" // Chave única para o React rastrear a animação
+          // --- Configurações de Animação ---
+          initial={{ scale: 0, opacity: 0, rotate: -20 }}
+          animate={{ scale: 1, opacity: 1, rotate: 0 }}
+          exit={{ scale: 0, opacity: 0, rotate: 20 }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+          // --- Configurações de Arraste ---
+          drag
+          dragConstraints={dragConstraintsRef}
+          dragMomentum={false}
+          // --- Estilos ---
+          className="fixed bottom-24 right-6 z-[60] cursor-grab active:cursor-grabbing"
+          style={{ touchAction: "none" }}
+        >
+          <Button
+            onClick={onClick}
+            variant="outline"
+            className={cn(
+              "relative h-14 w-14 rounded-full shadow-xl border-2", // Aumentei a sombra
+              "bg-amber-500 text-white border-white dark:border-amber-900",
+              "hover:bg-amber-600 hover:scale-105 transition-all", // Transição suave do botão
+              "dark:bg-amber-600 dark:text-white dark:hover:bg-amber-700",
+              "flex items-center justify-center p-0"
+            )}
+            aria-label={`Mostrar ${itemCount} itens faltantes`}
+          >
+            <PackageMinus className="h-7 w-7" />
+
+            {/* Badge de Contagem (Animado também) */}
+            <motion.span
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              key={itemCount} // Anima sempre que o número mudar
+              className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white border-2 border-background shadow-sm"
+            >
+              {itemCount}
+            </motion.span>
+          </Button>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
