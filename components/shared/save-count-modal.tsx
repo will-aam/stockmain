@@ -1,17 +1,15 @@
 // components/shared/save-count-modal.tsx
 /**
  * Descrição: Modal para Salvar a Contagem de Inventário.
- * Responsabilidade: Exibir um diálogo que permite ao usuário digitar um nome para o arquivo
- * da contagem atual antes de salvá-lo. Gerencia o estado do input e a comunicação
- * com a função de salvamento externa, fornecendo feedback de carregamento.
+ * Melhorias:
+ * 1. Sanitização do nome do arquivo (remove caracteres inválidos).
+ * 2. Auto-foco no input ao abrir.
+ * 3. Uso de onKeyDown (padrão moderno) em vez de onKeyPress.
  */
 
 "use client";
 
-// --- React Hooks ---
-import { useState } from "react";
-
-// --- Componentes de UI ---
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,14 +22,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-// --- Ícones ---
 import { Save, Loader2 } from "lucide-react";
 
-// --- Interfaces e Tipos ---
-/**
- * Props para o componente SaveCountModal.
- */
 interface SaveCountModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -39,10 +31,6 @@ interface SaveCountModalProps {
   isLoading: boolean;
 }
 
-/**
- * Componente SaveCountModal.
- * Renderiza um modal para que o usuário possa nomear e confirmar o salvamento da contagem.
- */
 export function SaveCountModal({
   isOpen,
   onClose,
@@ -50,54 +38,83 @@ export function SaveCountModal({
   isLoading,
 }: SaveCountModalProps) {
   const [fileName, setFileName] = useState("contagem");
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  /**
-   * Função para lidar com o clique no botão de salvar.
-   * Verifica se o nome do arquivo não está vazio e chama a função de callback `onConfirm`.
-   */
+  // Resetar estado e focar no input quando o modal abrir
+  useEffect(() => {
+    if (isOpen) {
+      setFileName("contagem");
+      // Pequeno timeout para garantir que o Dialog terminou de renderizar a animação
+      setTimeout(() => {
+        inputRef.current?.focus();
+        inputRef.current?.select(); // Seleciona o texto para substituição rápida
+      }, 100);
+    }
+  }, [isOpen]);
+
   const handleSave = () => {
     if (fileName.trim()) {
       onConfirm(fileName.trim());
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSave();
+    }
+  };
+
+  // Sanitização: Permite apenas letras, números, sublinhado, traço e espaço
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const sanitized = e.target.value.replace(/[^a-zA-Z0-9-_\s]/g, "");
+    setFileName(sanitized);
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !isLoading && onClose()}>
       <DialogContent className="w-[95vw] max-w-[425px] rounded-lg">
-        {/* Cabeçalho do modal com título e descrição. */}
         <DialogHeader className="text-left">
           <DialogTitle className="flex items-center">
             <Save className="mr-2 h-5 w-5" />
             Salvar Contagem
           </DialogTitle>
           <DialogDescription>
-            Digite um nome para este relatório. A data será adicionada
-            automaticamente (ex: nome_AAAA-MM-DD.csv).
+            Digite um nome para identificar este inventário.
+            <br />
+            <span className="text-xs text-muted-foreground">
+              (A data atual será adicionada automaticamente ao final)
+            </span>
           </DialogDescription>
         </DialogHeader>
 
-        {/* Corpo do modal com o campo de input para o nome do arquivo. */}
         <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
-            <Label htmlFor="filename" className="text-left sm:text-right">
-              Nome
-            </Label>
+          <div className="grid grid-cols-1 gap-2">
+            <Label htmlFor="filename">Nome do Arquivo</Label>
             <Input
               id="filename"
+              ref={inputRef}
               value={fileName}
-              onChange={(e) => setFileName(e.target.value)}
-              className="sm:col-span-3"
-              placeholder="Ex: inventario_loja_a"
+              onChange={handleChange}
+              placeholder="Ex: loja_centro"
               disabled={isLoading}
-              onKeyPress={(e) => e.key === "Enter" && handleSave()}
+              onKeyDown={handleKeyDown}
+              maxLength={50} // Limite razoável para nome de arquivo
             />
+            <p className="text-[10px] text-muted-foreground">
+              Apenas letras, números e traços.
+            </p>
           </div>
         </div>
 
-        {/* Rodapé do modal com os botões de cancelar e salvar. */}
-        <DialogFooter className="flex justify-end gap-2">
+        <DialogFooter className="flex-col sm:flex-row gap-2">
           <DialogClose asChild>
-            <Button type="button" variant="outline" disabled={isLoading}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isLoading}
+              className="w-full sm:w-auto"
+            >
               Cancelar
             </Button>
           </DialogClose>
@@ -105,9 +122,10 @@ export function SaveCountModal({
             type="submit"
             onClick={handleSave}
             disabled={!fileName.trim() || isLoading}
+            className="w-full sm:w-auto"
           >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isLoading ? "Salvando..." : "Salvar"}
+            {isLoading ? "Salvando..." : "Salvar Arquivo"}
           </Button>
         </DialogFooter>
       </DialogContent>
